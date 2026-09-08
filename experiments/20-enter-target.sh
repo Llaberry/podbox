@@ -107,8 +107,18 @@ ENTER
 chmod 0755 "$STAGE/.harness/enter.sh"
 
 # Anything the caller asked to bring along. It lands at /workspace/<basename>.
+#
+# ⛔ THE DESTINATION IS REMOVED FIRST, AND THAT IS NOT TIDINESS. `$STAGE`
+# survives between runs, and `cp -a src/store dest/store` NESTS when
+# `dest/store` already exists: the second run produces `dest/store/store` and
+# leaves the first run's `dest/store` in place. Measured on 2026-09-08 while
+# staging a podbox store twice for TODO/probe.md T-0111: the second run read
+# the FIRST run's cache file, served it, and the clause passed for a reason
+# that had nothing to do with what it was testing. A file destination
+# overwrites and hid this for as long as only files were staged.
 for p in ${STAGE_IN+"${STAGE_IN[@]}"}; do
 	[ -e "$p" ] || { echo "SKIP: --stage $p does not exist" >&2; exit 2; }
+	rm -rf -- "${STAGE:?}/$(basename -- "$p")"
 	cp -a -- "$p" "$STAGE/$(basename -- "$p")"
 done
 

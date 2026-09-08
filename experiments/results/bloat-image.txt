@@ -1,0 +1,47 @@
+# cargo bloat and the release total, area=image
+# TODO/deps.md T-0910. One machine, one day.
+date              2026-09-08T16:40:57Z
+host kernel       6.18.44-fc-v24
+rustc             rustc 1.98.1 (48a229cea 2026-09-01)
+cargo             cargo 1.98.1 (797e8a9bc 2026-08-05)
+target            x86_64-unknown-linux-musl
+profile           release: lto=true opt-level=z codegen-units=1 strip=symbols panic=abort
+total_bytes 2130672
+ceiling_bytes 8000000
+headroom_bytes 5869328
+pt_interp 0
+third_party_crates 88
+delta             1634488 bytes against 496184 in bloat-baseline.txt
+unmeasured        0
+scaffold_said     (nothing)
+breakdown         taken from an unstripped build of the release profile
+
+## the dependency declaration this was measured with
+[workspace.dependencies]
+
+## the scaffold `main` reached
+
+## cargo bloat -n 20
+ File  .text      Size        Crate Name
+ 0.7%   2.6%   33.3KiB       rustls <rustls::msgs::handshake::HandshakeMessagePayload>::read_version
+ 0.5%   1.7%   21.6KiB podbox_image podbox_image::pull::pull
+ 0.4%   1.4%   17.7KiB          std <std::backtrace_rs::symbolize::gimli::Cache>::with_global::<std::backtrace_rs::symbolize::gimli::resolve::{closure#1}>
+ 0.4%   1.4%   17.1KiB    [Unknown] _ZN9libunwind10CFI_ParserINS_17LocalAddressSpaceEE20parseFDEInstructionsINS_16Registers_x86_64EEEbRS1_RKNS2_8FDE_InfoERKNS2_8CIE_InfoENT_23link_hardened_reg_arg_tEiPNS2_10PrologInfoE
+ 0.4%   1.3%   16.6KiB       rustls <webpki::verify_cert::ChainOptions<webpki::verify_cert::KeyUsage>>::build_chain_inner
+ 0.3%   1.1%   13.4KiB       podbox podbox::main
+ 0.2%   0.9%   11.8KiB         ring ring_core_0_17_14__chacha20_poly1305_seal_avx2
+ 0.2%   0.9%   11.6KiB          std <std::backtrace_rs::symbolize::gimli::Context>::new
+ 0.2%   0.8%   10.1KiB podbox_image <&mut serde_json::de::Deserializer<serde_json::read::SliceRead> as serde_core::de::Deserializer>::deserialize_seq::<<alloc::vec::Vec<_> as serde_core::de::Deserialize>::deserialize::VecVisitor<podbox_image::store::Record>>
+ 0.2%   0.8%    9.8KiB       rustls rustls::client::hs::emit_client_hello_for_retry
+ 0.2%   0.8%    9.5KiB         ring ring_core_0_17_14__chacha20_poly1305_open_avx2
+ 0.2%   0.7%    9.4KiB         ureq <rustls::conn::ConnectionCommon<rustls::client::client_conn::ClientConnectionData>>::complete_io::<alloc::boxed::Box<dyn ureq::stream::ReadWrite>>
+ 0.2%   0.7%    9.3KiB podbox_probe podbox_probe::run
+ 0.2%   0.7%    9.1KiB       rustls <rustls::client::hs::ExpectServerHello as rustls::common_state::State<rustls::client::client_conn::ClientConnectionData>>::handle
+ 0.2%   0.7%    8.7KiB       rustls <rustls::msgs::handshake::ServerExtensions as rustls::msgs::codec::Codec>::read
+ 0.2%   0.7%    8.7KiB          std <gimli::read::dwarf::Unit<gimli::read::endian_slice::EndianSlice<gimli::endianity::LittleEndian>, usize>>::new
+ 0.2%   0.7%    8.5KiB         ring ring_core_0_17_14__chacha20_poly1305_seal_sse41
+ 0.2%   0.7%    8.4KiB         ring ring_core_0_17_14__chacha20_poly1305_open_sse41
+ 0.2%   0.6%    7.4KiB          std <core::cell::once::OnceCell<core::result::Result<addr2line::line::Lines, gimli::read::Error>>>::try_init::<<core::cell::once::OnceCell<core::result::Result<addr2line::line::Lines, gimli::read::Error>>>::get_or_init<<addr2line::line::LazyLines>::borrow<gimli::read::endian_slice::EndianSlice<gimli::endianity::LittleEndian>>::{closure#0}>::{closure#0}, !>
+ 0.2%   0.6%    7.2KiB  miniz_oxide miniz_oxide::inflate::core::decompress
+21.2%  79.7% 1001.4KiB              And 3732 smaller methods. Use -n N to show more.
+26.6% 100.0%    1.2MiB              .text section size, the file size is 4.6MiB

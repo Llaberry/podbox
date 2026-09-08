@@ -80,6 +80,11 @@ pub const EACCES: Errno = Errno(13);
 pub const EEXIST: Errno = Errno(17);
 pub const EINVAL: Errno = Errno(22);
 pub const ENOSYS: Errno = Errno(38);
+pub const ENAMETOOLONG: Errno = Errno(36);
+/// ⚠ On Linux `EAGAIN` and `EWOULDBLOCK` are the same number, and `flock` with
+/// `LOCK_NB` returns it for "somebody else holds this". It is named here for
+/// the reader, because "try again later" and "in use" are different sentences.
+pub const EWOULDBLOCK: Errno = Errno(11);
 
 pub type Sysres = Result<i64, Errno>;
 
@@ -109,6 +114,8 @@ pub const SYS_GETGROUPS: i64 = 115;
 pub const SYS_SETGROUPS: i64 = 116;
 pub const SYS_MKNOD: i64 = 133;
 pub const SYS_STATFS: i64 = 137;
+pub const SYS_FLOCK: i64 = 73;
+pub const SYS_READLINK: i64 = 89;
 pub const SYS_PIVOT_ROOT: i64 = 155;
 pub const SYS_PRCTL: i64 = 157;
 pub const SYS_CHROOT: i64 = 161;
@@ -163,6 +170,14 @@ pub const O_EXCL: u64 = 0o200;
 pub const O_NOCTTY: u64 = 0o400;
 pub const O_DIRECTORY: u64 = 0o200000;
 pub const O_CLOEXEC: u64 = 0o2000000;
+
+/// `flock(2)` operations. ⚠ `LOCK_NB` is not optional anywhere in this tree:
+/// `RULES.md` section 8 forbids an unbounded wait, and a blocking `flock` on a
+/// lock another process holds through an exec is exactly one.
+pub const LOCK_SH: u64 = 1;
+pub const LOCK_EX: u64 = 2;
+pub const LOCK_NB: u64 = 4;
+pub const LOCK_UN: u64 = 8;
 
 /// `AT_FDCWD` is `-100`, and every syscall taking it wants it sign-extended.
 pub const AT_FDCWD: u64 = -100i64 as u64;
@@ -364,6 +379,47 @@ pub struct Statfs {
     pub f_frsize: i64,
     pub f_flags: i64,
     pub f_spare: [i64; 4],
+}
+
+/// `flock(2)`. Used by `TODO/image.md` T-0204 to hold a rootfs against a
+/// concurrent GC.
+///
+/// ⭐ An advisory lock on an **fd**, not a pid file. The mechanism is read out
+/// of the corpus at
+/// `references/qaidvoid__onelf/tree/crates/onelf-rt/src/main.rs:275-278`, where
+/// the cache lock guard is held through exec with its fd left inheritable so a
+/// concurrent process's GC cannot delete the package while it is still in use.
+/// A pid file is stale the moment a process dies unexpectedly, and the check
+/// that clears a stale one is the race this closes.
+pub fn flock(fd: i64, op: u64) -> Sysres {
+    unsafe { sys(SYS_FLOCK, [fd as u64, op, 0, 0, 0, 0]) }
+}
+
+/// `readlink(2)` into a caller-sized buffer, returned as a `String`.
+///
+/// ⚠ The kernel does not NUL-terminate and does not report truncation, so a
+/// return equal to the buffer size is reported as an error rather than as a
+/// value: a silently truncated namespace identity would compare unequal to
+/// itself and invalidate a cache on every run.
+pub fn readlink(path: &CBuf) -> Result<String, Errno> {
+    let mut buf = [0u8; 256];
+    let n = unsafe {
+        sys(
+            SYS_READLINK,
+            [
+                path.ptr(),
+                buf.as_mut_ptr() as u64,
+                buf.len() as u64,
+                0,
+                0,
+                0,
+            ],
+        )?
+    } as usize;
+    if n >= buf.len() {
+        return Err(ENAMETOOLONG);
+    }
+    Ok(String::from_utf8_lossy(&buf[..n]).into_owned())
 }
 
 pub fn statfs(path: &CBuf) -> Result<Statfs, Errno> {

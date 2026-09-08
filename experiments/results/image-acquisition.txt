@@ -1,0 +1,22 @@
+# podbox image acquisition against docker, TODO/milestones.md T-1102
+# taken 2026-09-08T16:37:10Z on kernel 6.18.44-fc-v24
+# TODO/image.md T-0201 and T-0202 carry clauses 2 to 4.
+reference         alpine:latest
+podbox_digest     sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+docker_digest     sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+digests_match     yes
+tag_moved         no
+blobs_stored      4
+blobs_mismatched  0
+second_pull_fetched 0
+0
+http_refused_rc   125
+
+## the second pull, verbatim
+  latest: Pulling from library/alpine
+  55afa1ecc21d: Already exists
+  Digest: sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+  Status: Image is up to date for alpine:latest
+
+## the http:// refusal, verbatim
+  podbox: "http://registry.invalid/library/alpine:latest" names http://: podbox speaks HTTPS only and will not downgrade. tcp/80 egress is broken on the runtime podbox targets, so a plain-HTTP fallback hangs instead of failing (TODO/image.md T-0201)

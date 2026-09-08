@@ -346,6 +346,22 @@ pub fn document(f: &Findings, sel: &Selection) -> String {
         }
     });
 
+    // ⭐ TODO/probe.md T-0111. The cache stores this document verbatim, so the
+    // key it is validated against travels inside it and there is no second
+    // serializer to drift against the first.
+    //
+    // ⚠ Five of the seven components are also in the `identity` block above.
+    // `docs/conventions/forbidden-patterns.md` forbids a value in two places
+    // WITH NO CHECK THAT THEY AGREE, and the check is
+    // `the_cache_key_agrees_with_the_identity_block_it_is_derived_from` below.
+    let key = crate::identity::confinement_key(&f.identity);
+    o.obj("cache_key", |k| {
+        for (name, value) in key.components() {
+            k.opt_str(name, value);
+        }
+        k.bool("complete", key.is_complete());
+    });
+
     o.arr("rejected", |a| {
         for r in &sel.rejected {
             a.obj(|e| {
@@ -373,4 +389,84 @@ fn none_if_empty(s: &str) -> Option<&str> {
 /// have to reach into `select`.
 pub fn word(rung: Rung) -> &'static str {
     rung.word()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The document, taken from a real run of the shipping path.
+    fn one_document() -> String {
+        let f = crate::run();
+        let sel = Selection::choose(&f);
+        document(&f, &sel)
+    }
+
+    /// A value of `key` at the top level of a flat JSON object, without a
+    /// parser. ⚠ Only sound for the shapes asserted below, which are all
+    /// `"key":"value"` on one line, and it is test scaffolding rather than
+    /// something shipped.
+    fn field(doc: &str, key: &str) -> Option<String> {
+        let at = doc.find(&format!("\"{key}\":\""))? + key.len() + 4;
+        let rest = &doc[at..];
+        Some(rest[..rest.find('"')?].to_string())
+    }
+
+    #[test]
+    fn the_cache_key_agrees_with_the_identity_block_it_is_derived_from() {
+        // ⛔ docs/conventions/forbidden-patterns.md: a value in two places with
+        // no check that they agree drifts, and the copy a reader trusts is the
+        // wrong one. This is that check. TODO/probe.md T-0111.
+        let doc = one_document();
+        let id = crate::identity::read();
+        let key = crate::identity::confinement_key(&id);
+        for (name, value) in key.components() {
+            if let Some(v) = value {
+                assert!(
+                    doc.contains(&format!("\"{name}\":")),
+                    "the document has no {name}"
+                );
+                if matches!(
+                    name,
+                    "uid_map" | "gid_map" | "setgroups" | "seccomp" | "seccomp_filters"
+                ) {
+                    assert_eq!(
+                        id_field(&id, name).as_deref(),
+                        Some(v),
+                        "cache_key.{name} and identity.{name} disagree"
+                    );
+                }
+            }
+        }
+    }
+
+    fn id_field(id: &Identity, name: &str) -> Option<String> {
+        match name {
+            "uid_map" => id.uid_map.clone(),
+            "gid_map" => id.gid_map.clone(),
+            "setgroups" => id.setgroups.clone(),
+            "seccomp" => id.seccomp.clone(),
+            "seccomp_filters" => id.seccomp_filters.clone(),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn the_document_carries_a_complete_cache_key_on_this_machine() {
+        let doc = one_document();
+        assert!(doc.contains("\"cache_key\":{"), "{doc}");
+        assert!(doc.contains("\"complete\":true"), "{doc}");
+        let mnt = field(&doc, "mnt_ns").expect("mnt_ns in the document");
+        assert!(mnt.starts_with("mnt:["), "{mnt}");
+    }
+
+    #[test]
+    fn two_documents_from_one_machine_agree_on_the_rung_and_the_key() {
+        // ⚠ The rung and the key, not the whole document: the writable probe
+        // reports free blocks, which move between two runs on a live machine.
+        let (a, b) = (one_document(), one_document());
+        assert_eq!(field(&a, "rung"), field(&b, "rung"));
+        assert_eq!(field(&a, "mnt_ns"), field(&b, "mnt_ns"));
+        assert_eq!(field(&a, "boot_id"), field(&b, "boot_id"));
+    }
 }

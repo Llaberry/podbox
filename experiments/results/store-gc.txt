@@ -1,0 +1,20 @@
+# podbox store GC under a holder, TODO/image.md T-0204
+# taken 2026-09-08T16:39:16Z on kernel 6.18.44-fc-v24
+# ⚠ The holder is flock(1). podbox run -d is M3 and is the other half.
+reference         alpine:latest
+blobs_after_tag   4
+blobs_after_one   4
+rmi_under_holder  125   (non-zero is the pass)
+prune_skipped     1
+images_left       1
+blobs_after_all   0
+canary_survived   yes
+canary_clause     ran
+
+## the refusal, verbatim
+  podbox rmi: store: alpine:latest is in use by a running container and was not removed. A GC that deletes an extraction out from under a payload makes its failure read as a missing file rather than as a concurrent deletion (TODO/image.md T-0204)
+
+## prune, verbatim
+  skipped: alpine:latest is in use by a running container
+  
+  Total reclaimed space: 0 B

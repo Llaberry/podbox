@@ -13,6 +13,7 @@ path = "src/main.rs"
 [dependencies]
 podbox-probe = { path = "../podbox-probe" }
 podbox-image = { path = "../podbox-image" }
+serde_json.workspace = true
 podbox-extract = { path = "../podbox-extract" }
 podbox-complete = { path = "../podbox-complete" }
 podbox-enter = { path = "../podbox-enter" }

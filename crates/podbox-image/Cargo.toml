@@ -7,3 +7,16 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+# ⛔ Every line here was ruled by a measured `cargo bloat` delta in
+# TODO/deps.md and is pinned in `[workspace.dependencies]`. This is the first
+# member to take any of them, so this file is where the sweep stops being
+# inert.
+podbox-probe = { path = "../podbox-probe" }
+rustls.workspace = true
+rustls-pemfile.workspace = true
+rustls-pki-types.workspace = true
+webpki-roots.workspace = true
+ureq.workspace = true
+sha2.workspace = true
+serde.workspace = true
+serde_json.workspace = true

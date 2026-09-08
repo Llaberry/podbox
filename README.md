@@ -14,16 +14,25 @@ and exit codes, and where it cannot honour something it says so in one line.
 
 ## State
 
-**`podbox probe` works. Nothing else does.** This tree is milestone M0 of
-[`TOOL.md`](references/Azathothas__container-research/tree/TOOL.md) section 5: the
-probe, and nothing else. Every other verb exits 125 and says so. The next
-milestone is M1, image acquisition.
+**`podbox probe` and image acquisition work. Nothing runs a container yet.**
+This tree is milestones M0 and M1 of
+[`TOOL.md`](references/Azathothas__container-research/tree/TOOL.md) section 5:
+the probe, then `pull` and the store. Every other verb exits 125 and says so.
+The next milestone is M2, extraction.
 
 ```sh
 podbox probe            # the rung on stdout, the evidence on stderr, exit 0
 podbox probe --json     # the same findings, for a harness
 podbox probe --rows     # every probe, one row each
 podbox probe --strict   # exit non-zero below the `namespace` rung
+podbox probe --cached   # serve $store/probe.json where its key still holds
+
+podbox pull alpine:latest
+podbox images --format '{{.Digest}}' alpine:latest
+podbox tag alpine:latest myalpine:v1
+podbox rmi myalpine:v1
+podbox image prune -af
+podbox inspect alpine:latest
 ```
 
 ⛔ **It reports the mode it achieved and never lets a weaker one satisfy a
@@ -31,12 +40,18 @@ stronger request.** On a machine that hands a process uid 0 and refuses mounts
 it selects `chroot`, prints what that does not provide, and does not pretend to
 be a container.
 
+⛔ **The digest it prints is the digest docker prints.** That parity is M1's
+acceptance and `experiments/150-image-acquisition.sh` is it as one command.
+Every blob is verified as it is written, blocks **and inodes** are checked at
+the destination before anything is fetched, and a registry offering only
+`http://` is a named refusal rather than a downgrade.
+
 `TODO/PROGRESS.md` carries the state line, the counts and the work order.
 
 | path | what it is |
 | --- | --- |
 | [`TODO/`](TODO/) | the work. `INDEX.md` lists every entry, `PROGRESS.md` carries the order, `reference-map.md` carries the corpus and its licence determinations |
-| [`crates/`](crates/) | the workspace of `TOOL.md` section 4.3. `podbox-probe` and the `probe` verb of `podbox-cli` are implemented; the rest are skeletons |
+| [`crates/`](crates/) | the workspace of `TOOL.md` section 4.3. `podbox-probe`, `podbox-image` and the M0 and M1 verbs of `podbox-cli` are implemented; the rest are skeletons |
 | [`references/`](references/) | the corpus: 30 trees at pinned commits, with their trackers. Tracked, in the tree |
 | [`experiments/`](experiments/) | the reconstruction of the target runtime, seeded from `Azathothas/container-research`, plus this project's own measurements |
 | [`scripts/`](scripts/) | the gate, the count scripts, the corpus fetcher, the environment bootstrap, and the `zig cc` wrappers |

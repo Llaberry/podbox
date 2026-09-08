@@ -123,6 +123,100 @@ pub fn read() -> Identity {
     id
 }
 
+/// `/proc/sys/kernel/random/boot_id`. ⚠ It is the **kernel's**, so every
+/// namespace on one kernel reads the same value. That is the measurement
+/// `TODO/probe.md` T-0111 records against `TOOL.md` section 6.1's cache key.
+pub const BOOT_ID_PATH: &str = "/proc/sys/kernel/random/boot_id";
+/// `readlink` of this is `mnt:[<inode>]`, and it is the one component that
+/// actually differs between the host, the reconstruction and a plain docker
+/// container. T-0111.
+pub const MNT_NS_PATH: &str = "/proc/self/ns/mnt";
+
+/// Everything a probe verdict depends on that podbox can read without
+/// re-running the probe.
+///
+/// ⛔ **A cache keyed wrongly is worse than no cache.** `TOOL.md` section 6.1
+/// says to key on the boot id and re-probe when it changes; measured on
+/// 2026-09-08, the host, `experiments/20-enter-target.sh` and a plain docker
+/// container read one boot id and produce two different rungs. A cache keyed on
+/// it alone would serve the host's `namespace` verdict to a confined process,
+/// which is podbox telling the exact lie it exists to refuse.
+///
+/// ⛔ A component that could not be read is `None`, and
+/// [`ConfinementKey::is_complete`] is then false. A key with a hole in it never
+/// matches, because two `None`s comparing equal is a cache hit established by
+/// the absence of evidence.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ConfinementKey {
+    pub boot_id: Option<String>,
+    pub mnt_ns: Option<String>,
+    pub uid_map: Option<String>,
+    pub gid_map: Option<String>,
+    pub setgroups: Option<String>,
+    pub seccomp: Option<String>,
+    pub seccomp_filters: Option<String>,
+}
+
+impl ConfinementKey {
+    /// The four components of T-0111's `Approach`, as `(name, value)`, in a
+    /// fixed order so two renderings of one key are byte-identical.
+    pub fn components(&self) -> [(&'static str, Option<&str>); 7] {
+        [
+            ("boot_id", self.boot_id.as_deref()),
+            ("mnt_ns", self.mnt_ns.as_deref()),
+            ("uid_map", self.uid_map.as_deref()),
+            ("gid_map", self.gid_map.as_deref()),
+            ("setgroups", self.setgroups.as_deref()),
+            ("seccomp", self.seccomp.as_deref()),
+            ("seccomp_filters", self.seccomp_filters.as_deref()),
+        ]
+    }
+
+    pub fn is_complete(&self) -> bool {
+        self.components().iter().all(|(_, v)| v.is_some())
+    }
+
+    /// Which components a reader could not establish, for the message that
+    /// says why the cache was not used.
+    pub fn missing(&self) -> Vec<&'static str> {
+        self.components()
+            .iter()
+            .filter(|(_, v)| v.is_none())
+            .map(|(k, _)| *k)
+            .collect()
+    }
+
+    /// The names whose values differ. ⛔ An incomplete key on either side
+    /// differs in every component it is missing, so a hole never reads as a
+    /// match.
+    pub fn differences(&self, other: &ConfinementKey) -> Vec<&'static str> {
+        self.components()
+            .iter()
+            .zip(other.components().iter())
+            .filter(|((_, a), (_, b))| a.is_none() || b.is_none() || a != b)
+            .map(|((k, _), _)| *k)
+            .collect()
+    }
+}
+
+/// Read the key. The three of T-0111's four that this module already reads come
+/// from `id`; the boot id and the mount-namespace inode are read here.
+///
+/// ⛔ One reader, called by the writer of the cache and by the reader that
+/// checks it. Two readers of one file drift, and the copy the check trusts is
+/// the wrong one.
+pub fn confinement_key(id: &Identity) -> ConfinementKey {
+    ConfinementKey {
+        boot_id: read_trimmed(BOOT_ID_PATH).ok(),
+        mnt_ns: crate::sys::CBuf::new(MNT_NS_PATH).and_then(|p| crate::sys::readlink(&p).ok()),
+        uid_map: id.uid_map.clone(),
+        gid_map: id.gid_map.clone(),
+        setgroups: id.setgroups.clone(),
+        seccomp: id.seccomp.clone(),
+        seccomp_filters: id.seccomp_filters.clone(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -148,5 +242,50 @@ mod tests {
         let id = read();
         assert!(id.uid >= 0);
         assert!(id.cap_eff.is_some(), "unreadable: {:?}", id.unreadable);
+    }
+
+    #[test]
+    fn the_confinement_key_reads_the_mount_namespace_this_process_is_in() {
+        let key = confinement_key(&read());
+        let mnt = key.mnt_ns.as_deref().expect("readlink /proc/self/ns/mnt");
+        // ⚠ The shape, not a particular inode: the number is this machine's.
+        assert!(mnt.starts_with("mnt:["), "{mnt}");
+        assert!(mnt.ends_with(']'), "{mnt}");
+        assert!(key.is_complete(), "missing: {:?}", key.missing());
+    }
+
+    #[test]
+    fn a_key_with_a_hole_in_it_never_matches_another_with_the_same_hole() {
+        // ⛔ Two `None`s comparing equal would be a cache hit established by
+        // the absence of evidence, which is the failure T-0111 is about.
+        let hole = ConfinementKey {
+            boot_id: Some("b".into()),
+            ..Default::default()
+        };
+        assert!(!hole.is_complete());
+        assert_eq!(hole.missing().len(), 6);
+        assert_eq!(hole.differences(&hole).len(), 6);
+    }
+
+    #[test]
+    fn two_keys_differing_only_in_the_mount_namespace_report_that_component() {
+        // ⭐ The measured case: the host and the reconstruction read ONE boot
+        // id and differ here. Keying on the boot id alone would call these
+        // equal and serve the host's rung to a confined process.
+        let host = ConfinementKey {
+            boot_id: Some("01703f0e".into()),
+            mnt_ns: Some("mnt:[4026531832]".into()),
+            uid_map: Some("0 0 4294967295".into()),
+            gid_map: Some("0 0 4294967295".into()),
+            setgroups: Some("allow".into()),
+            seccomp: Some("0".into()),
+            seccomp_filters: Some("0".into()),
+        };
+        let confined = ConfinementKey {
+            mnt_ns: Some("mnt:[4026532567]".into()),
+            ..host.clone()
+        };
+        assert_eq!(host.differences(&confined), vec!["mnt_ns"]);
+        assert!(host.differences(&host).is_empty());
     }
 }

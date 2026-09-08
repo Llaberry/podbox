@@ -70,11 +70,11 @@ the blocker named and what would clear it.
 | [T-0108](probe.md) | P0 | probe | partial | The mode banner |
 | [T-0109](probe.md) | P0 | probe | done | A verdict is the operation's, and "could not run" never reads as "denied" |
 | [T-0110](probe.md) | P1 | probe | done | `podbox probe` exit-code and channel contract |
-| [T-0111](probe.md) | P2 | probe | open | Cache the probe result, and key it on what actually decides it |
-| [T-0201](image.md) | P0 | image | open | Registry client, HTTPS only, with no plain-HTTP fallback |
-| [T-0202](image.md) | P0 | image | open | A content-addressed store, and digest parity with docker |
-| [T-0203](image.md) | P0 | image | open | Check `statvfs` for blocks and inodes, and name the destination |
-| [T-0204](image.md) | P1 | image | open | `images`, `rmi`, `tag`, and a store GC that cannot delete a running container's rootfs |
+| [T-0111](probe.md) | P2 | probe | done | Cache the probe result, and key it on what actually decides it |
+| [T-0201](image.md) | P0 | image | done | Registry client, HTTPS only, with no plain-HTTP fallback |
+| [T-0202](image.md) | P0 | image | done | A content-addressed store, and digest parity with docker |
+| [T-0203](image.md) | P0 | image | partial | Check `statvfs` for blocks and inodes, and name the destination |
+| [T-0204](image.md) | P1 | image | partial | `images`, `rmi`, `tag`, and a store GC that cannot delete a running container's rootfs |
 | [T-0205](image.md) | P3 | image | open | Re-test podman with `vfs` and `ignore_chown_errors` before repeating "no path exists" |
 | [T-0301](extract.md) | P0 | extract | open | Extract in-process, at entry level, never through system `tar` |
 | [T-0302](extract.md) | P0 | extract | open | Ownership-neutral extraction plus the sidecar |
@@ -136,7 +136,7 @@ the blocker named and what would clear it.
 | [T-1004](packaging.md) | P3 | packaging | open | A reproducible build, and the artefact's own inputs recorded |
 | [T-1100](milestones.md) | P0 | milestones | **done** | M-1 the corpus, the work index and the skeleton |
 | [T-1101](milestones.md) | P0 | milestones | done | M0 the probe, and nothing else |
-| [T-1102](milestones.md) | P1 | milestones | open | M1 image acquisition |
+| [T-1102](milestones.md) | P1 | milestones | done | M1 image acquisition |
 | [T-1103](milestones.md) | P0 | milestones | open | M2 extraction that survives the ownership wall |
 | [T-1104](milestones.md) | P0 | milestones | open | M3 `run` on the chroot rung |
 | [T-1105](milestones.md) | P0 | milestones | open | M4 the lifecycle, twenty times |
@@ -150,7 +150,7 @@ the blocker named and what would clear it.
 
 ## Counts
 
-87 items: 59 open, 3 partial, 2 blocked, 23 done.
+87 items: 53 open, 5 partial, 2 blocked, 27 done.
 
 Counted from the rows above by `scripts/todo-count.py` and asserted
 independently by `scripts/check-todo.py`, which is the gate. A number here
@@ -158,11 +158,11 @@ that disagrees with the rows cannot reach a commit.
 
 | Priority | Open | Partial | Blocked | Done | Total |
 | --- | --- | --- | --- | --- | --- |
-| P0 | 29 | 2 | 1 | 12 | 44 |
-| P1 | 20 | 1 | 1 | 8 | 30 |
-| P2 | 8 | 0 | 0 | 2 | 10 |
+| P0 | 26 | 3 | 1 | 14 | 44 |
+| P1 | 18 | 2 | 1 | 9 | 30 |
+| P2 | 7 | 0 | 0 | 3 | 10 |
 | P3 | 2 | 0 | 0 | 1 | 3 |
-| **All** | **59** | **3** | **2** | **23** | **87** |
+| **All** | **53** | **5** | **2** | **27** | **87** |
 
 ## How the current ordering is derived
 

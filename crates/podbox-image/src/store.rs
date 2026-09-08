@@ -1,0 +1,903 @@
+//! `TODO/image.md` T-0202 and T-0204: one content-addressed store, shared by
+//! images and containers, with a lock.
+//!
+//! ⛔ **Every blob is verified as it is written, never afterwards.** The reason
+//! is in the corpus at
+//! `references/qaidvoid__onelf/tree/crates/onelf-rt/src/main.rs:149-157`, which
+//! checks a payload's content hash before an in-memory exec so an in-memory
+//! exec never runs unverified bytes. A layer about to be extracted as root is
+//! the same case. Bytes that fail verification never reach `blobs/`: they are
+//! written to a staging name inside the store and renamed in only on success.
+//!
+//! ⛔ **Images are keyed by manifest digest**, and the digest recorded is the
+//! one computed over the bytes the registry served for the reference that was
+//! asked for. That is what `docker image inspect` reports in `RepoDigests`, and
+//! parity with it is what M1 is accepted on ([`TODO/milestones.md`](../../../TODO/milestones.md) T-1102).
+//!
+//! ⚠ One store for images and containers, not one per container. The GC race
+//! that decides it is T-0204, and the answer is [`ImageLock`]: an advisory lock
+//! on an inheritable fd rather than a pid file, because a pid file is stale the
+//! moment a process dies unexpectedly and the check that clears a stale one is
+//! the race being closed.
+
+use std::io::Write;
+use std::path::{Path, PathBuf};
+
+use podbox_probe::sys::{self, CBuf};
+use serde::{Deserialize, Serialize};
+
+use crate::clock;
+use crate::contain;
+use crate::digest::Digest;
+use crate::error::{Error, Result};
+use crate::oci;
+use crate::reference::Reference;
+
+/// ⭐ A version discriminator on everything persisted.
+/// `docs/conventions/code.md`: old data still reads and new code knows which
+/// version it is looking at. A store written by a later podbox is refused by
+/// name rather than parsed as though its fields meant what they mean here.
+pub const INDEX_VERSION: u32 = 1;
+const INDEX_FILE: &str = "store.json";
+const BLOBS: &str = "blobs";
+const LOCKS: &str = "locks";
+const STAGING: &str = "staging";
+const STORE_LOCK: &str = "lock";
+
+/// How long the index lock is waited for before podbox says who is holding it.
+/// ⚠ Bounded, per `RULES.md` section 8: a runtime whose audience is automated
+/// may not wait unbounded.
+const LOCK_ATTEMPTS: u32 = 100;
+const LOCK_SLEEP: std::time::Duration = std::time::Duration::from_millis(50);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Record {
+    /// `<domain>/<repository>`, canonical. ⛔ Never the display form: `alpine`
+    /// and `docker.io/library/alpine` are one image and a store keyed on the
+    /// display form holds it twice.
+    pub repository: String,
+    pub tag: Option<String>,
+    /// What the reference resolved to, computed over the served bytes. This is
+    /// the value `podbox images --format '{{.Digest}}'` prints.
+    pub digest: String,
+    pub digest_media_type: String,
+    /// The single-platform manifest under it. Equal to `digest` when the
+    /// registry served a manifest rather than an index.
+    pub manifest_digest: String,
+    /// docker's image ID: the digest of the config blob.
+    pub config_digest: String,
+    /// ⛔ Recorded, because `docs/conventions/forbidden-patterns.md`: fetching a
+    /// variant into a cache keyed without the variant serves the variant to the
+    /// next unqualified fetch.
+    pub platform: String,
+    pub layers: Vec<String>,
+    /// What the layers and the config occupy in `blobs/`, summed from the
+    /// descriptors and checked against what arrived.
+    pub stored_bytes: u64,
+    pub architecture: String,
+    pub os: String,
+    /// From the image config. `None` where the config declares none.
+    pub created: Option<String>,
+    pub pulled_at: String,
+}
+
+impl Record {
+    /// Everything in `blobs/` this record needs.
+    pub fn blobs(&self) -> Vec<&str> {
+        let mut v: Vec<&str> = vec![
+            self.digest.as_str(),
+            self.manifest_digest.as_str(),
+            self.config_digest.as_str(),
+        ];
+        v.extend(self.layers.iter().map(String::as_str));
+        v.sort_unstable();
+        v.dedup();
+        v
+    }
+
+    /// How docker prints the repository column.
+    pub fn display_repository(&self) -> String {
+        match self.repository.strip_prefix("docker.io/") {
+            Some(rest) => match rest.strip_prefix("library/") {
+                Some(short) if !short.contains('/') => short.to_string(),
+                _ => rest.to_string(),
+            },
+            None => self.repository.clone(),
+        }
+    }
+
+    pub fn name(&self) -> String {
+        match &self.tag {
+            Some(t) => format!("{}:{t}", self.display_repository()),
+            None => format!("{}@{}", self.display_repository(), self.digest),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Index {
+    pub podbox_store: u32,
+    #[serde(default)]
+    pub images: Vec<Record>,
+}
+
+impl Default for Index {
+    fn default() -> Index {
+        Index {
+            podbox_store: INDEX_VERSION,
+            images: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Store {
+    root: PathBuf,
+}
+
+impl Store {
+    /// Where the store lives, and why.
+    ///
+    /// ⚠ `$PODBOX_STORE` first, then the XDG data directory, then `$HOME`.
+    /// Deliberately **not** `$TMPDIR`: on the runtime podbox targets `/tmp` is
+    /// 64 MiB, which almost no image fits in, and `env::temp_dir()` with no
+    /// space check is the shipped default this project read in the corpus at
+    /// `references/VHSgunzo__memfd-exec/tree/src/executable.rs:580-584`.
+    /// Where none of the three is set, `fallback` is consulted; the caller
+    /// supplies the probe's write allowlist, ranked by free space (T-0203).
+    pub fn default_root(fallback: impl FnOnce() -> Option<String>) -> Result<PathBuf> {
+        if let Some(p) = std::env::var_os("PODBOX_STORE") {
+            let p = PathBuf::from(p);
+            if !p.as_os_str().is_empty() {
+                return Ok(p);
+            }
+        }
+        for (var, suffix) in [("XDG_DATA_HOME", "podbox"), ("HOME", ".local/share/podbox")] {
+            if let Some(base) = std::env::var_os(var) {
+                let base = PathBuf::from(base);
+                if base.is_absolute() {
+                    return Ok(base.join(suffix));
+                }
+            }
+        }
+        match fallback() {
+            Some(p) => Ok(PathBuf::from(p).join("podbox")),
+            None => Err(Error::Store(
+                "no store directory: $PODBOX_STORE, $XDG_DATA_HOME and $HOME are \
+                 all unset or relative, and no probed writable path could hold \
+                 one. Set $PODBOX_STORE to a directory podbox may write"
+                    .into(),
+            )),
+        }
+    }
+
+    pub fn open(root: impl Into<PathBuf>) -> Result<Store> {
+        let root = root.into();
+        for d in [
+            root.clone(),
+            root.join(BLOBS).join(crate::digest::SHA256),
+            root.join(LOCKS),
+            root.join(STAGING),
+        ] {
+            std::fs::create_dir_all(&d).map_err(|e| Error::io(d.display().to_string(), e))?;
+        }
+        let store = Store { root };
+        // ⛔ Refuse a store a later podbox wrote, rather than reading its fields
+        // as though they meant what they mean here.
+        let index = store.read_index()?;
+        if index.podbox_store > INDEX_VERSION {
+            return Err(Error::Store(format!(
+                "{} declares store version {} and this podbox writes {INDEX_VERSION}. \
+                 A newer podbox made it; this one will not edit it",
+                store.index_path().display(),
+                index.podbox_store
+            )));
+        }
+        Ok(store)
+    }
+
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
+    fn index_path(&self) -> PathBuf {
+        self.root.join(INDEX_FILE)
+    }
+
+    pub fn blob_path(&self, d: &Digest) -> PathBuf {
+        self.root.join(d.blob_path())
+    }
+
+    pub fn has_blob(&self, d: &Digest) -> bool {
+        self.blob_path(d).is_file()
+    }
+
+    pub fn read_index(&self) -> Result<Index> {
+        let path = self.index_path();
+        match std::fs::read(&path) {
+            Ok(bytes) => serde_json::from_slice(&bytes).map_err(|e| {
+                Error::Store(format!(
+                    "{} does not parse: {e}. It is podbox's own index; move it \
+                     aside to start a fresh store",
+                    path.display()
+                ))
+            }),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Index::default()),
+            Err(e) => Err(Error::io(path.display().to_string(), e)),
+        }
+    }
+
+    /// ⛔ Written to a staging name inside the store and renamed over the index,
+    /// so a process killed mid-write leaves the previous index intact rather
+    /// than a truncated one. `rename(2)` is atomic within a filesystem, which
+    /// is why the staging directory is inside the store and not in `/tmp`.
+    pub fn write_index(&self, index: &Index) -> Result<()> {
+        let bytes = serde_json::to_vec_pretty(index)
+            .map_err(|e| Error::Store(format!("serialising the index: {e}")))?;
+        let tmp = self
+            .root
+            .join(STAGING)
+            .join(format!("{INDEX_FILE}.{}", std::process::id()));
+        {
+            let mut f =
+                std::fs::File::create(&tmp).map_err(|e| Error::io(tmp.display().to_string(), e))?;
+            f.write_all(&bytes)
+                .and_then(|_| f.write_all(b"\n"))
+                .and_then(|_| f.sync_all())
+                .map_err(|e| Error::io(tmp.display().to_string(), e))?;
+        }
+        std::fs::rename(&tmp, self.index_path())
+            .map_err(|e| Error::io(self.index_path().display().to_string(), e))
+    }
+
+    /// A staging file inside the store, for a blob whose digest is not yet
+    /// proved. ⚠ Inside the store because the commit is a `rename(2)`, and a
+    /// rename across filesystems fails with `EXDEV`.
+    pub fn stage(&self, hint: &str) -> Result<(PathBuf, std::fs::File)> {
+        let safe: String = hint
+            .chars()
+            .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
+            .take(24)
+            .collect();
+        let path = self
+            .root
+            .join(STAGING)
+            .join(format!("{safe}.{}.partial", std::process::id()));
+        let f =
+            std::fs::File::create(&path).map_err(|e| Error::io(path.display().to_string(), e))?;
+        Ok((path, f))
+    }
+
+    /// Name a staged file by its proved digest. ⛔ The caller has already
+    /// verified it: [`crate::digest::Verifier`] is what produces the digest
+    /// passed here, so a blob that failed verification has no path to this
+    /// function.
+    pub fn commit(&self, staged: &Path, d: &Digest) -> Result<()> {
+        let dest = self.blob_path(d);
+        contain::within(&self.root, &dest)?;
+        std::fs::rename(staged, &dest).map_err(|e| Error::io(dest.display().to_string(), e))
+    }
+
+    /// A small blob already in memory, verified before it is written.
+    pub fn put_bytes(&self, bytes: &[u8], want: &Digest, what: &str) -> Result<()> {
+        let got = Digest::of(bytes);
+        if got != *want {
+            return Err(Error::DigestMismatch {
+                what: what.to_string(),
+                want: want.to_string(),
+                got: got.to_string(),
+            });
+        }
+        let (staged, mut f) = self.stage(what)?;
+        f.write_all(bytes)
+            .and_then(|_| f.sync_all())
+            .map_err(|e| Error::io(staged.display().to_string(), e))?;
+        drop(f);
+        self.commit(&staged, want)
+    }
+
+    pub fn read_blob(&self, d: &Digest) -> Result<Vec<u8>> {
+        let p = self.blob_path(d);
+        let bytes = std::fs::read(&p).map_err(|e| Error::io(p.display().to_string(), e))?;
+        // ⛔ Re-verified on the way out. `docs/conventions/code.md`: a guard
+        // re-checking an invariant the happy path already knows earns its keep
+        // the one time it fires, and here it fires when something outside
+        // podbox has edited the store.
+        let got = Digest::of(&bytes);
+        if got != *d {
+            return Err(Error::DigestMismatch {
+                what: format!("stored blob {}", p.display()),
+                want: d.to_string(),
+                got: got.to_string(),
+            });
+        }
+        Ok(bytes)
+    }
+
+    // ------------------------------------------------------------- the locks
+
+    /// The store-wide lock, held across an index read-modify-write.
+    pub fn lock(&self) -> Result<Lock> {
+        Lock::acquire(&self.root.join(STORE_LOCK), sys::LOCK_EX, true)
+    }
+
+    fn image_lock_path(&self, record: &Record) -> Result<PathBuf> {
+        let d = Digest::parse(&record.digest)?;
+        Ok(self.root.join(LOCKS).join(format!("{}.lock", d.hex())))
+    }
+
+    /// ⭐ T-0204's mechanism. A **shared** advisory lock on an fd that is left
+    /// inheritable, so it survives the exec into the payload and is released
+    /// only when the last holder's fd is closed, however that process ends.
+    /// Several containers may share one image, so the lock is shared; the GC
+    /// asks for an exclusive one and is refused while any holder remains.
+    pub fn hold(&self, record: &Record) -> Result<Lock> {
+        let path = self.image_lock_path(record)?;
+        Lock::acquire(&path, sys::LOCK_SH, false)
+    }
+
+    /// Whether any process holds [`Store::hold`] on this image.
+    ///
+    /// ⚠ Tested by asking for the exclusive lock and reading `EWOULDBLOCK`,
+    /// then dropping it immediately. There is no way to ask "is this locked"
+    /// without trying, and a pid file that could be asked is the stale-state
+    /// race this replaces.
+    pub fn in_use(&self, record: &Record) -> Result<bool> {
+        let path = self.image_lock_path(record)?;
+        if !path.exists() {
+            return Ok(false);
+        }
+        match Lock::try_acquire(&path, sys::LOCK_EX, true) {
+            Ok(Some(_probe)) => Ok(false),
+            Ok(None) => Ok(true),
+            Err(e) => Err(e),
+        }
+    }
+
+    // ----------------------------------------------------------- the queries
+
+    /// Every record, newest pull first.
+    pub fn list(&self) -> Result<Vec<Record>> {
+        let mut images = self.read_index()?.images;
+        images.sort_by(|a, b| {
+            b.pulled_at
+                .cmp(&a.pulled_at)
+                .then(a.repository.cmp(&b.repository))
+                .then(a.tag.cmp(&b.tag))
+        });
+        Ok(images)
+    }
+
+    /// Records a reference names. A tag or digest names at most one; a bare
+    /// repository or an image id may name several.
+    ///
+    /// ⚠ Selected by NAME, never by position: `docs/conventions/code.md`.
+    pub fn find(&self, want: &str) -> Result<Vec<Record>> {
+        let all = self.list()?;
+        // An image id, full or docker's twelve-digit short form.
+        let id_like = want.len() >= 12
+            && want
+                .trim_start_matches("sha256:")
+                .bytes()
+                .all(|b| b.is_ascii_hexdigit());
+        if id_like {
+            let hex = want.trim_start_matches("sha256:");
+            let hits: Vec<Record> = all
+                .iter()
+                .filter(|r| {
+                    r.config_digest
+                        .trim_start_matches("sha256:")
+                        .starts_with(hex)
+                })
+                .cloned()
+                .collect();
+            if !hits.is_empty() {
+                return Ok(hits);
+            }
+        }
+        let Ok(reference) = Reference::parse(want) else {
+            return Ok(Vec::new());
+        };
+        let repo = reference.canonical_repository();
+        let hits: Vec<Record> = all
+            .into_iter()
+            .filter(|r| {
+                r.repository == repo
+                    && match (&reference.digest, &reference.tag) {
+                        (Some(d), _) => r.digest == d.to_string(),
+                        (None, Some(t)) => r.tag.as_deref() == Some(t.as_str()),
+                        (None, None) => true,
+                    }
+            })
+            .collect();
+        Ok(hits)
+    }
+
+    pub fn find_one(&self, want: &str) -> Result<Record> {
+        self.find(want)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| Error::NoSuchImage(want.to_string()))
+    }
+
+    // ------------------------------------------------------------ the writes
+
+    /// Record a pull. Replaces the record for the same repository and tag,
+    /// because a moving tag is the normal case and two records for one tag
+    /// would make `podbox images alpine:latest` ambiguous.
+    pub fn put_record(&self, record: Record) -> Result<()> {
+        let _guard = self.lock()?;
+        let mut index = self.read_index()?;
+        index.podbox_store = INDEX_VERSION;
+        index.images.retain(|r| {
+            !(r.repository == record.repository
+                && r.tag == record.tag
+                && (record.tag.is_some() || r.digest == record.digest))
+        });
+        index.images.push(record);
+        self.write_index(&index)
+    }
+
+    /// `podbox tag <src> <dst>`. The destination points at the same manifest
+    /// digest; nothing is fetched and no blob is copied.
+    pub fn tag(&self, src: &str, dst: &str) -> Result<Record> {
+        let source = self.find_one(src)?;
+        let target = Reference::parse(dst)?;
+        if target.digest.is_some() {
+            return Err(Error::Usage(format!(
+                "{dst:?} names a digest. A tag is a name podbox assigns, and a \
+                 digest is one the content assigns; the second cannot be set"
+            )));
+        }
+        let record = Record {
+            repository: target.canonical_repository(),
+            tag: target.tag.clone(),
+            pulled_at: clock::now(),
+            ..source
+        };
+        self.put_record(record.clone())?;
+        Ok(record)
+    }
+
+    /// `podbox rmi`. Removes the records a reference names and then every blob
+    /// no surviving record reaches.
+    ///
+    /// ⛔ Refuses while a container holds the image, and says which.
+    pub fn remove(&self, want: &str) -> Result<Removed> {
+        let doomed = self.find(want)?;
+        if doomed.is_empty() {
+            return Err(Error::NoSuchImage(want.to_string()));
+        }
+        for r in &doomed {
+            if self.in_use(r)? {
+                return Err(Error::Store(format!(
+                    "{} is in use by a running container and was not removed. \
+                     A GC that deletes an extraction out from under a payload \
+                     makes its failure read as a missing file rather than as a \
+                     concurrent deletion (TODO/image.md T-0204)",
+                    r.name()
+                )));
+            }
+        }
+        self.delete(&doomed)
+    }
+
+    /// `podbox image prune`. Without `all`, only untagged records; with it,
+    /// every record no container holds.
+    pub fn prune(&self, all: bool) -> Result<Removed> {
+        let mut doomed = Vec::new();
+        let mut skipped = Vec::new();
+        for r in self.list()? {
+            if !all && r.tag.is_some() {
+                continue;
+            }
+            if self.in_use(&r)? {
+                skipped.push(r.name());
+                continue;
+            }
+            doomed.push(r);
+        }
+        let mut removed = self.delete(&doomed)?;
+        removed.skipped = skipped;
+        Ok(removed)
+    }
+
+    fn delete(&self, doomed: &[Record]) -> Result<Removed> {
+        let _guard = self.lock()?;
+        let mut index = self.read_index()?;
+        let doomed_keys: Vec<(String, Option<String>, String)> = doomed
+            .iter()
+            .map(|r| (r.repository.clone(), r.tag.clone(), r.digest.clone()))
+            .collect();
+        index.images.retain(|r| {
+            !doomed_keys
+                .iter()
+                .any(|(repo, tag, dig)| r.repository == *repo && r.tag == *tag && r.digest == *dig)
+        });
+
+        // ⭐ Reachability over what SURVIVES, not over what was deleted. A blob
+        // several tags share is kept while any of them remains, and computing
+        // the doomed set instead would delete it with the first.
+        let mut keep: Vec<String> = Vec::new();
+        for r in &index.images {
+            keep.extend(r.blobs().into_iter().map(str::to_string));
+        }
+        let mut freed_bytes = 0u64;
+        let mut freed = Vec::new();
+        for r in doomed {
+            for b in r.blobs() {
+                if keep.iter().any(|k| k == b) || freed.iter().any(|f| f == b) {
+                    continue;
+                }
+                let d = Digest::parse(b)?;
+                let path = self.blob_path(&d);
+                // ⛔ One gate per action: every unlink this crate performs is
+                // resolved against the store root first.
+                let resolved = contain::within(&self.root, &path)?;
+                if let Ok(meta) = std::fs::metadata(&resolved) {
+                    freed_bytes += meta.len();
+                }
+                match std::fs::remove_file(&resolved) {
+                    Ok(()) => freed.push(b.to_string()),
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => freed.push(b.to_string()),
+                    Err(e) => return Err(Error::io(resolved.display().to_string(), e)),
+                }
+            }
+            let lock = self.image_lock_path(r)?;
+            if lock.exists() {
+                let resolved = contain::within(&self.root, &lock)?;
+                let _ = std::fs::remove_file(resolved);
+            }
+        }
+        self.write_index(&index)?;
+        Ok(Removed {
+            untagged: doomed.iter().map(Record::name).collect(),
+            deleted: freed,
+            freed_bytes,
+            skipped: Vec::new(),
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct Removed {
+    pub untagged: Vec<String>,
+    pub deleted: Vec<String>,
+    pub freed_bytes: u64,
+    /// ⛔ Named, never silent. T-0204: `prune` and `rmi` skip anything locked
+    /// **and say which**.
+    pub skipped: Vec<String>,
+}
+
+/// An advisory lock held for as long as this value lives.
+pub struct Lock {
+    fd: i64,
+    pub path: PathBuf,
+}
+
+impl Lock {
+    fn open(path: &Path, cloexec: bool) -> Result<i64> {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| Error::io(parent.display().to_string(), e))?;
+        }
+        let Some(c) = CBuf::new(&path.to_string_lossy()) else {
+            return Err(Error::Store(format!(
+                "{} contains a NUL and cannot reach the kernel",
+                path.display()
+            )));
+        };
+        // ⭐ NOT `O_CLOEXEC` for an image lock. T-0204's mechanism, read out of
+        // `references/qaidvoid__onelf/tree/crates/onelf-rt/src/main.rs:275-278`:
+        // the guard is held THROUGH the exec with its fd left inheritable, so a
+        // concurrent GC cannot delete what a running payload is using.
+        let mut flags = sys::O_RDWR | sys::O_CREAT;
+        if cloexec {
+            flags |= sys::O_CLOEXEC;
+        }
+        sys::open(&c, flags, 0o644).map_err(|e| {
+            Error::Store(format!(
+                "opening the lock {}: {} ({})",
+                path.display(),
+                e.name(),
+                e.0
+            ))
+        })
+    }
+
+    /// `None` where somebody else holds it. ⛔ Always `LOCK_NB`: a blocking
+    /// `flock` on a lock held through an exec is an unbounded wait, which
+    /// `RULES.md` section 8 forbids.
+    fn try_acquire(path: &Path, op: u64, cloexec: bool) -> Result<Option<Lock>> {
+        let fd = Lock::open(path, cloexec)?;
+        match sys::flock(fd, op | sys::LOCK_NB) {
+            Ok(_) => Ok(Some(Lock {
+                fd,
+                path: path.to_path_buf(),
+            })),
+            Err(sys::EWOULDBLOCK) => {
+                let _ = sys::close(fd);
+                Ok(None)
+            }
+            Err(e) => {
+                let _ = sys::close(fd);
+                Err(Error::Store(format!(
+                    "flock({}): {} ({})",
+                    path.display(),
+                    e.name(),
+                    e.0
+                )))
+            }
+        }
+    }
+
+    fn acquire(path: &Path, op: u64, cloexec: bool) -> Result<Lock> {
+        for _ in 0..LOCK_ATTEMPTS {
+            if let Some(l) = Lock::try_acquire(path, op, cloexec)? {
+                return Ok(l);
+            }
+            std::thread::sleep(LOCK_SLEEP);
+        }
+        Err(Error::Store(format!(
+            "{} is held by another podbox after {:?}. Another pull or prune is \
+             running; podbox waits a bounded time and then says so rather than \
+             blocking (RULES.md section 8)",
+            path.display(),
+            LOCK_SLEEP * LOCK_ATTEMPTS
+        )))
+    }
+}
+
+impl Drop for Lock {
+    fn drop(&mut self) {
+        // Closing the fd releases the flock. ⚠ That is also what makes the
+        // lock correct across an unexpected death: the kernel closes the fd.
+        let _ = sys::close(self.fd);
+    }
+}
+
+/// Build the record a completed pull writes.
+#[allow(clippy::too_many_arguments)]
+pub fn record_of(
+    reference: &Reference,
+    resolved: &Digest,
+    resolved_media_type: &str,
+    manifest_digest: &Digest,
+    manifest: &oci::Manifest,
+    config: &oci::Config,
+    platform: &str,
+) -> Result<Record> {
+    Ok(Record {
+        repository: reference.canonical_repository(),
+        tag: reference.tag.clone(),
+        digest: resolved.to_string(),
+        digest_media_type: resolved_media_type.to_string(),
+        manifest_digest: manifest_digest.to_string(),
+        config_digest: manifest.config.parsed_digest()?.to_string(),
+        platform: platform.to_string(),
+        layers: manifest.layers.iter().map(|l| l.digest.clone()).collect(),
+        stored_bytes: manifest.stored_bytes(),
+        architecture: config.architecture.clone(),
+        os: config.os.clone(),
+        created: config.created.clone(),
+        pulled_at: clock::now(),
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn scratch(name: &str) -> Store {
+        let d = std::env::temp_dir().join(format!("podbox-store-{}-{name}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        Store::open(d).unwrap()
+    }
+
+    fn record(repo: &str, tag: Option<&str>, seed: u8) -> Record {
+        let d = |b: u8| Digest::of(&[b, seed]).to_string();
+        Record {
+            repository: repo.into(),
+            tag: tag.map(str::to_string),
+            digest: d(1),
+            digest_media_type: oci::MEDIA_OCI_INDEX.into(),
+            manifest_digest: d(2),
+            config_digest: d(3),
+            platform: "linux/amd64".into(),
+            layers: vec![d(4), d(5)],
+            stored_bytes: 100,
+            architecture: "amd64".into(),
+            os: "linux".into(),
+            created: Some("2024-01-01T00:00:00Z".into()),
+            pulled_at: clock::now(),
+        }
+    }
+
+    #[test]
+    fn a_blob_whose_bytes_do_not_match_never_reaches_the_blob_directory() {
+        // ⛔ The central rule of T-0202, driven rather than asserted about.
+        let s = scratch("verify");
+        let claimed = Digest::of(b"alpine");
+        let e = s.put_bytes(b"not alpine", &claimed, "layer").unwrap_err();
+        assert!(format!("{e}").contains("digest mismatch"), "{e}");
+        assert!(!s.has_blob(&claimed));
+        let _ = std::fs::remove_dir_all(s.root());
+    }
+
+    #[test]
+    fn a_blob_that_matches_is_stored_under_its_digest_and_reads_back() {
+        let s = scratch("roundtrip");
+        let d = Digest::of(b"alpine");
+        s.put_bytes(b"alpine", &d, "layer").unwrap();
+        assert!(s.has_blob(&d));
+        assert!(s.blob_path(&d).ends_with(d.hex()));
+        assert_eq!(s.read_blob(&d).unwrap(), b"alpine");
+        let _ = std::fs::remove_dir_all(s.root());
+    }
+
+    #[test]
+    fn a_stored_blob_edited_behind_podboxs_back_is_caught_on_the_way_out() {
+        let s = scratch("tamper");
+        let d = Digest::of(b"alpine");
+        s.put_bytes(b"alpine", &d, "layer").unwrap();
+        std::fs::write(s.blob_path(&d), b"tampered").unwrap();
+        let e = s.read_blob(&d).unwrap_err();
+        assert!(format!("{e}").contains("digest mismatch"), "{e}");
+        let _ = std::fs::remove_dir_all(s.root());
+    }
+
+    #[test]
+    fn a_shared_blob_survives_removing_one_of_the_two_images_that_reach_it() {
+        // ⭐ Reachability is computed over what SURVIVES. Computing it over the
+        // doomed set deletes a shared layer with the first image that goes.
+        let s = scratch("shared");
+        let a = record("docker.io/library/alpine", Some("3.20"), 7);
+        let mut b = record("docker.io/library/alpine", Some("3.21"), 7);
+        b.digest = Digest::of(b"another index").to_string();
+        for r in [&a, &b] {
+            for blob in r.blobs() {
+                let d = Digest::parse(blob).unwrap();
+                s.put_bytes(blob.as_bytes(), &Digest::of(blob.as_bytes()), "x")
+                    .ok();
+                std::fs::write(s.blob_path(&d), b"payload").unwrap();
+            }
+            s.put_record(r.clone()).unwrap();
+        }
+        let shared = Digest::parse(&a.layers[0]).unwrap();
+        s.remove("alpine:3.20").unwrap();
+        assert!(s.has_blob(&shared), "a layer 3.21 still needs was deleted");
+        s.remove("alpine:3.21").unwrap();
+        assert!(!s.has_blob(&shared), "the last reference did not free it");
+        let _ = std::fs::remove_dir_all(s.root());
+    }
+
+    #[test]
+    fn an_image_a_container_holds_is_refused_by_rmi_and_skipped_by_prune() {
+        // ⭐ T-0204's acceptance, minus the container: the lock is the whole
+        // mechanism and it is driven here through the shipping functions.
+        let s = scratch("inuse");
+        let r = record("docker.io/library/alpine", Some("latest"), 9);
+        s.put_record(r.clone()).unwrap();
+        assert!(!s.in_use(&r).unwrap());
+
+        let held = s.hold(&r).unwrap();
+        assert!(s.in_use(&r).unwrap());
+        let e = s.remove("alpine:latest").unwrap_err();
+        assert!(format!("{e}").contains("in use"), "{e}");
+        let pruned = s.prune(true).unwrap();
+        assert_eq!(pruned.skipped, vec!["alpine:latest".to_string()]);
+        assert!(pruned.untagged.is_empty());
+
+        drop(held);
+        assert!(!s.in_use(&r).unwrap());
+        assert!(s.remove("alpine:latest").is_ok());
+        let _ = std::fs::remove_dir_all(s.root());
+    }
+
+    #[test]
+    fn two_holders_of_one_image_both_have_to_go_before_it_is_free() {
+        let s = scratch("twohold");
+        let r = record("docker.io/library/alpine", Some("latest"), 11);
+        s.put_record(r.clone()).unwrap();
+        let a = s.hold(&r).unwrap();
+        let b = s.hold(&r).unwrap();
+        assert!(s.in_use(&r).unwrap());
+        drop(a);
+        assert!(s.in_use(&r).unwrap(), "one holder left and it read as free");
+        drop(b);
+        assert!(!s.in_use(&r).unwrap());
+        let _ = std::fs::remove_dir_all(s.root());
+    }
+
+    #[test]
+    fn a_tag_points_at_the_same_manifest_without_copying_a_blob() {
+        let s = scratch("tag");
+        let r = record("docker.io/library/alpine", Some("latest"), 13);
+        s.put_record(r.clone()).unwrap();
+        let tagged = s.tag("alpine:latest", "myalpine:v1").unwrap();
+        assert_eq!(tagged.digest, r.digest);
+        // ⚠ docker's normalisation, not a shortcut: a single-component name
+        // is a hub `library/` repository whichever verb produced it, and
+        // `display_repository` is what turns it back into `myalpine`.
+        assert_eq!(tagged.repository, "docker.io/library/myalpine");
+        assert_eq!(tagged.display_repository(), "myalpine");
+        assert_eq!(s.list().unwrap().len(), 2);
+        // Removing one name leaves the other and its blobs.
+        s.remove("alpine:latest").unwrap();
+        assert_eq!(s.find("myalpine:v1").unwrap().len(), 1);
+        let _ = std::fs::remove_dir_all(s.root());
+    }
+
+    #[test]
+    fn tagging_something_a_digest_names_is_refused() {
+        let s = scratch("tagdigest");
+        s.put_record(record("docker.io/library/alpine", Some("latest"), 17))
+            .unwrap();
+        let e = s
+            .tag("alpine:latest", &format!("x@sha256:{}", "0".repeat(64)))
+            .unwrap_err();
+        assert_eq!(e.exit_code(), crate::error::EXIT_USAGE);
+        let _ = std::fs::remove_dir_all(s.root());
+    }
+
+    #[test]
+    fn re_pulling_one_tag_replaces_its_record_rather_than_adding_a_second() {
+        let s = scratch("retag");
+        s.put_record(record("docker.io/library/alpine", Some("latest"), 19))
+            .unwrap();
+        let mut moved = record("docker.io/library/alpine", Some("latest"), 19);
+        moved.digest = Digest::of(b"the tag moved").to_string();
+        s.put_record(moved.clone()).unwrap();
+        let got = s.find("alpine:latest").unwrap();
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].digest, moved.digest);
+        let _ = std::fs::remove_dir_all(s.root());
+    }
+
+    #[test]
+    fn an_image_is_found_by_tag_by_digest_and_by_docker_short_id() {
+        let s = scratch("find");
+        let r = record("docker.io/library/alpine", Some("latest"), 23);
+        s.put_record(r.clone()).unwrap();
+        assert_eq!(s.find("alpine").unwrap().len(), 1);
+        assert_eq!(s.find("alpine:latest").unwrap().len(), 1);
+        assert_eq!(s.find(&format!("alpine@{}", r.digest)).unwrap().len(), 1);
+        let short = &r.config_digest.trim_start_matches("sha256:")[..12];
+        assert_eq!(s.find(short).unwrap().len(), 1);
+        assert!(s.find("alpine:3.20").unwrap().is_empty());
+        let _ = std::fs::remove_dir_all(s.root());
+    }
+
+    #[test]
+    fn an_index_written_by_a_later_podbox_is_refused_rather_than_reinterpreted() {
+        let d = std::env::temp_dir().join(format!("podbox-store-{}-future", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        std::fs::write(
+            d.join(INDEX_FILE),
+            format!("{{\"podbox_store\":{},\"images\":[]}}", INDEX_VERSION + 1),
+        )
+        .unwrap();
+        let e = Store::open(&d).unwrap_err();
+        assert!(format!("{e}").contains("newer podbox"), "{e}");
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn the_store_root_prefers_podbox_store_and_never_falls_to_tmpdir_silently() {
+        // ⚠ The corpus's shipped default is `env::temp_dir()` with no space
+        // check, at
+        // `references/VHSgunzo__memfd-exec/tree/src/executable.rs:580-584`.
+        // podbox asks the caller instead, and the caller ranks by free space.
+        let got = Store::default_root(|| Some("/from-the-probe".into())).unwrap();
+        assert!(
+            got.starts_with(
+                std::env::var_os("PODBOX_STORE")
+                    .map(PathBuf::from)
+                    .unwrap_or(PathBuf::from(std::env::var_os("HOME").unwrap_or_default()))
+            ) || got.starts_with("/from-the-probe"),
+            "{}",
+            got.display()
+        );
+    }
+}

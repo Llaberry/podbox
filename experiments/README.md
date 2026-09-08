@@ -12,6 +12,14 @@ has to keep meaning what it meant.
 | `20-enter-target.sh` | can a container supply the target's *kernel-visible shape* - its mount topology, its ID map, its filter, its write policy - and which parts does this host refuse? |
 | `30-attribution-census.sh` | which mechanism produces which denial, measured one mechanism at a time, against a written-down expectation. ⭐ `--capture experiments/results` is what writes `attribute.txt`, `census.txt` and `identity.txt`, and `130-` compares against the first |
 
+⚠ **`--stage` clears its destination before copying, and that is not
+tidiness.** `$STAGE` survives between runs, and `cp -a src/store dest/store`
+NESTS when `dest/store` already exists, so a second run staging the same
+directory reads the first run's copy. Measured on 2026-09-08 while staging a
+podbox store twice for `TODO/probe.md` T-0111: the clause passed for a reason
+that had nothing to do with what it was testing. Staging a FILE overwrites,
+which is why only staging a directory revealed it.
+
 ## What else is in here, and why it is not numbered
 
 ⚠ Three things in this directory are not experiments and take no number,
@@ -24,8 +32,8 @@ because a number here is a citation somebody may write down:
 | `src/` | the small programs the language comparison of `40-` builds and measures |
 
 ⭐ **Re-running an experiment dirties the tree by its date line.**
-`110-` and `130-` end by saying whether every *measured* value reproduced the
-committed one, so that diff is never guesswork:
+`110-`, `130-`, `140-`, `150-`, `160-` and `170-` end by saying whether every
+*measured* value reproduced the committed one, so that diff is never guesswork:
 
 ```sh
 ./scripts/common/result-diff.sh experiments/results/bloat-baseline.txt
@@ -63,20 +71,30 @@ decisions podbox has to make. Each writes its transcript to
 ./experiments/80-interposer-abi.sh              # which interposer a payload may load, decided from ELF
 ./experiments/90-nsswitch-contract.sh           # whether a supplied /etc/passwd is read at all
 ./experiments/100-interpose-symbols.sh          # the exec family, and the completeness test
-./experiments/110-bloat-delta.sh baseline       # the release total, its breakdown, and the ceiling
+./experiments/110-bloat-delta.sh image          # the release total, its breakdown, and the ceiling
 ./experiments/125-across-distributions.sh       # ~10 min, eleven pinned distributions
 ./experiments/130-probe-parity.sh               # M0's acceptance: the rung in both environments, and the rows
+./experiments/140-space-precheck.sh             # blocks AND inodes, on two real tmpfs mounts
+./experiments/150-image-acquisition.sh          # M1's acceptance: podbox's digest against docker's
+./experiments/160-store-gc.sh                   # a GC under a holder, and the containment check
+./experiments/170-probe-cache.sh                # the probe cache, and the key the specification got wrong
 ```
 
-⛔ `80-`, `90-`, `100-`, `125-` and `130-` need a running docker daemon, and
-`80-` needs `musl-gcc` for its fourth arm. `110-` needs `cargo-bloat` for its
-breakdown and exits 2 without it. Each says which of its checks could not run
-rather than reporting a pass it did not earn.
+⛔ `80-`, `90-`, `100-`, `125-`, `130-`, `150-` and `170-` need a running docker
+daemon, and `80-` needs `musl-gcc` for its fourth arm. `110-` needs
+`cargo-bloat` for its breakdown and exits 2 without it. `140-` needs to be able
+to `mount` a tmpfs and exits 2 where it cannot. `150-` needs outbound HTTPS to a
+registry. Each says which of its checks could not run rather than reporting a
+pass it did not earn.
 
-⭐ **`130-` is `TODO/milestones.md` T-1101's acceptance as one command**, so it
-is re-run rather than recalled. It builds nothing: point `PODBOX_BIN` at a
-binary, or build the default first with
+⭐ **`130-` and `150-` are `TODO/milestones.md` T-1101's and T-1102's acceptance
+as one command each**, so they are re-run rather than recalled. Neither builds
+anything: point `PODBOX_BIN` at a binary, or build the default first with
 `cargo build --release --target x86_64-unknown-linux-musl`.
+
+⚠ **`150-` and `160-` pull from a registry and `alpine:latest` is a moving
+tag.** `PODBOX_TEST_IMAGE` overrides it, and a digest-pinned reference removes
+the race that `150-` otherwise has to detect and report.
 
 ⚠ **`20-` builds its harness from the corpus, not from this tree.** It arrived
 seeded from `Azathothas/container-research`, where the Go sources sit at

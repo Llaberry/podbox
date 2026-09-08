@@ -133,7 +133,7 @@ Source:      `TOOL.md` section 5 M1
 Category:    milestones
 Priority:    P1
 Effort:      M
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     No extraction is possible without a store, and no store is
              trustworthy without digest parity.
@@ -144,6 +144,35 @@ Decision:    Do not gold-plate it. The registry plane is ordinary HTTPS and file
              I/O and it works here, and it is the least interesting part of the
              problem.
 Prove:       `podbox pull alpine:latest && podbox images --format '{{.Digest}}' alpine:latest | grep -qx "$(docker image inspect alpine:latest --format '{{index .RepoDigests 0}}' | cut -d@ -f2)"`
+
+**Done 2026-09-08**, against a script rather than a recollection:
+`experiments/150-image-acquisition.sh` exits 0 and carries the `Prove` above as
+its clause 1.
+
+```
+podbox  sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+docker  sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+```
+
+`podbox pull`, `images`, `image ls`, `rmi`, `image rm`, `tag`, `image prune` and
+`inspect` are implemented. [image.md](image.md) T-0201 and T-0202 are `done`;
+T-0203 and T-0204 are `partial`, each with exactly one half left and each naming
+the milestone it lands in: T-0203's second call site is before an extraction
+that does not exist until M2, and T-0204's `Prove` holds its lock with
+`podbox run -d`, which is M3.
+
+⚠ **A moving tag is a race, and the script handles it rather than ignoring it.**
+`alpine:latest` can be republished between podbox's pull and docker's, and the
+two digests would then differ for a reason that is not podbox's. Clause 1
+re-pulls both once on a mismatch and reports which of the two it was; it did not
+have to on this run.
+
+⭐ **The sweep stopped being inert.** `crates/podbox-image` is the first member
+to take a `[workspace.dependencies]` pin, and the artefact moved from 496,184 to
+**2,130,672 bytes**, a delta of **+1,634,488** against
+`experiments/results/bloat-baseline.txt`, with 5,869,328 bytes of headroom under
+the ceiling and still no `PT_INTERP`. `experiments/results/bloat-image.txt` is
+the reading.
 
 ---
 

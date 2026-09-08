@@ -566,7 +566,7 @@ Source:      `TOOL.md` section 6.1, last paragraph
 Category:    probe
 Priority:    P2
 Effort:      S
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     The probe forks 50 children, and everything downstream branches on
              its answer. Re-running the whole set for every `run` and every
@@ -624,6 +624,50 @@ Decision:    Refuse to use a cache whose key does not match, rather than
              until [T-1102](milestones.md), M1, so this lands beside the store
              and not before it.
 Prove:       `podbox probe --json > /tmp/a.json && podbox probe --json > /tmp/b.json && jq -e --slurpfile a /tmp/a.json '.rung == $a[0].rung' /tmp/b.json` and, inside `./experiments/20-enter-target.sh`, a probe run after a host run selects `chroot` rather than reading the host's cached `namespace`
+
+**Done 2026-09-08**, beside the store, as the entry's `Decision` said it would
+be. `crates/podbox-image/src/probe_cache.rs` holds the store I/O and the
+comparison; `crates/podbox-probe/src/identity.rs` holds the one reader of the
+key. `experiments/170-probe-cache.sh` is both halves of the `Prove` and exits 0.
+
+⭐ **The measurement that made this entry necessary reproduced, on one kernel,
+in one run:**
+
+```
+host      rung=namespace  boot_id=b538b475-930e-4dd1-9dec-3098dd77212f
+confined  rung=chroot     boot_id=b538b475-930e-4dd1-9dec-3098dd77212f
+measured now, because the confinement changed: mnt_ns, uid_map, gid_map,
+setgroups, seccomp, seccomp_filters differ(s) from the cached run
+```
+
+Equal boot ids, different rungs. A cache keyed on the boot id alone serves the
+host's `namespace` to a `chroot` process, which is the lie podbox exists to
+refuse. `experiments/results/probe-cache.txt` is that reading.
+
+⭐ **The cache stores what `--json` prints, verbatim**, and the key travels
+inside the document as `cache_key`. `crates/podbox-probe/src/report.rs` stays
+the one writer, so there is no second serializer to drift against the first.
+Five of the seven components also appear in the document's `identity` block;
+`docs/conventions/forbidden-patterns.md` forbids a value in two places **with
+no check that they agree**, and that check is the test
+`the_cache_key_agrees_with_the_identity_block_it_is_derived_from`.
+
+⛔ **An incomplete key never matches.** A component that could not be read is
+`null`, and `differences()` reports every missing component as differing on
+either side, so two `None`s can never produce a cache hit established by the
+absence of evidence.
+
+⚠ **`podbox probe` does not touch the store; `podbox probe --cached` is the hot
+path.** A diagnostic that can answer from a file is not a diagnostic, so the
+plain verb always measures. `--cached` is what `run` and `exec` take at M3, and
+it is already on a real hot path: `podbox pull` uses it to get the write
+allowlist T-0203 ranks by free space, so the cache is not dead code waiting for
+M3. Where it serves, the evidence line on stderr says so by name, and where it
+re-measures it says which components differed.
+
+⚠ **`--cached` and `--rows` are refused together**, exit 2: the stored document
+carries no per-probe rows, and letting one flag silently win is the class of
+defect this entry is about.
 
 ---
 
