@@ -629,8 +629,19 @@ Premise:     ⭐ **Measured on 2026-09-08, twice: once by accident and once on
              at `crates/podbox-image/src/store.rs:792`, the assertion
              `!s.in_use(&r).unwrap()` immediately after `drop(held)`. It did not
              reproduce in eleven consecutive runs of that test alone or of the
-             whole `podbox-image` suite, which is what a race looks like: the
-             other thread has to fork inside the window.
+             whole `podbox-image` suite, and it reproduces in the **full
+             workspace run at 2 of 6**. That difference is the diagnosis rather
+             than noise: running a suite in isolation removes the other test
+             threads, and the other test threads are what fork. They are named:
+             `probe_cache`'s tests call `resolve`, which calls `measure`, which
+             runs the probe, and the probe is one freshly forked child per
+             probe.
+             ⚠ **M1's own tip, `106aa6d`, measured 8 of 8 green**, in a worktree
+             at that commit. Both the defect and the fork that triggers it are
+             in M1's code and M2 touched neither, so M2 shifted the timing of a
+             race it did not create. ⛔ Why the probability moved is recorded as
+             **not diagnosed** rather than guessed at: it is not needed to fix
+             the defect, and the fix is not a timing change.
 
              ⛔ **"Flake" is not a root cause**, so it was reproduced
              deliberately: hold the lock, `clone_fork` a child that sleeps,

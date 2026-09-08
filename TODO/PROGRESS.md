@@ -110,7 +110,8 @@ $ ./scripts/plant.sh
   plants   18 caught, 0 missed
   controls 3 quiet, 0 fired
 $ cargo test --workspace
-test result: ok. 127 passed; 0 failed   (10 cli, 67 image, 50 probe)
+  173 tests. ⚠ 4 runs of 6 green; 2 red on ONE pre-existing test, and the
+  failure is [T-0211](image.md), authored this session. See below.
 $ cargo build --release --target x86_64-unknown-linux-musl
     Finished `release` profile [optimized] target(s)
 $ readelf -l target/x86_64-unknown-linux-musl/release/podbox | grep -c INTERP
@@ -203,7 +204,11 @@ than one mechanism written twice.
 ### ⛔ An intermittent test failure, run to ground rather than re-run
 
 ⭐ **`cargo test --workspace` failed once, at the very end, in M1's code.** It
-did not reproduce in eleven consecutive runs. "Flake" is not a root cause, so it
+did not reproduce in eleven consecutive runs of that test alone or of the
+`podbox-image` suite alone. ⛔ **It reproduces in the FULL workspace run, at 2
+of 6**, which is the reading to quote: the race needs another test thread
+forking inside the window, and running the suite in isolation removes the very
+thing that causes it. "Flake" is not a root cause, so it
 was reproduced on purpose: hold an image lock, fork a child that outlives the
 drop, release the lock, and ask.
 
@@ -219,6 +224,11 @@ nothing accounted for is that **every** child forked while the lock is held
 inherits it, not only the payload. In the suite the forking thread is the
 probe, which is one fresh child per probe. Outside the suite,
 `probe_cache::measure` forks the same way.
+
+⚠ **M1's own tip measured 8 of 8 green**, so M2 shifted the timing of a race it
+did not create: the defect is in `Store::hold` and the forking thread is
+`probe_cache`'s own tests, and M2 touched neither. Why the probability moved is
+recorded as not diagnosed rather than guessed at.
 
 ⚠ **It is authored, not fixed**, per `docs/AGENTS.md`'s routing table:
 [T-0211](image.md), P1, `S`, with the reproduction, the mechanism, the fix

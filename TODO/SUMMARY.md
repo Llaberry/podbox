@@ -30,7 +30,8 @@ whose collision blocks M2's own acceptance script on its first day.
 | Rust tests | 127 | **173** (10 cli, 67 image, 50 probe, **46 extract**) | `cargo test --workspace` |
 | Experiment scripts | 18 | 19 | `ls experiments/*.sh` |
 | Committed results | 41 | 43 | `git ls-files experiments/results/` |
-| Checks | | gate 0, plant 0, markers 0, fmt 0, clippy 0 with **0 warnings**, tests 0, musl build 0, `PT_INTERP` 0, `70-` 0, `110-` 0, `220-` 0 | each read unpiped |
+| Checks | | gate 0, plant 0, markers 0, fmt 0, clippy 0 with **0 warnings**, musl build 0, `PT_INTERP` 0, `70-` 0, `110-` 0, `220-` 0 | each read unpiped |
+| ⚠ `cargo test --workspace` | 127 green | 173 tests, **4 runs of 6 green** | 2 red on one M1 test, [T-0211](image.md). ⚠ M1's own tip measured **8 of 8 green**, so M2 shifted the timing of a race it did not create: the defect and the fork that triggers it are both in M1's code and M2 touched neither |
 | Health | clean | clean, 0 uncommitted | `git status` |
 | Debt cleared | | [T-0203](image.md)'s second call site; [T-1205](gate.md)'s four collisions | |
 | Debt introduced | | none. ⚠ [T-1204](gate.md)'s gap widened, and it was already open | |

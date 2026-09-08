@@ -1,5 +1,5 @@
 # podbox extraction path safety, TODO/extract.md T-0304 and T-0305
-# taken 2026-09-08T21:34:49Z on kernel 6.18.44-fc-v24
+# taken 2026-09-08T21:34:57Z on kernel 6.18.44-fc-v24
 # Every hostile layer is crafted: no honest image carries one, so a pass
 # against the pinned images would say nothing. Each is paired with a
 # legitimate case that must survive.
