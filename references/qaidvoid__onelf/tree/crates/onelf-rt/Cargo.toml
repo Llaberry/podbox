@@ -1,0 +1,24 @@
+[package]
+name = "onelf-rt"
+description = "Runtime stub for onelf packed binaries"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+default = []
+update = ["dep:zsync-rs", "dep:ed25519-compact", "dep:ureq"]
+
+[dependencies]
+onelf-format = { workspace = true }
+blake3 = { workspace = true }
+xxhash-rust = { workspace = true }
+rustix = { workspace = true }
+goblin = { workspace = true }
+zstd = { workspace = true }
+zsync-rs = { version = "0.1.4", optional = true }
+# Update-only: verify-only Ed25519 for signed self-update, and ureq to
+# fetch the detached signature. Kept out of the slim runtime.
+ed25519-compact = { version = "2", optional = true }
+ureq = { version = "3", optional = true, features = ["platform-verifier"] }

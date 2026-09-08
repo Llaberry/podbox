@@ -1,0 +1,101 @@
+version: "2"
+run:
+  concurrency: 4
+linters:
+  default: none
+  enable:
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - containedctx
+    - contextcheck
+    - copyloopvar
+    - decorder
+    - dogsled
+    - dupl
+    - dupword
+    - gomodguard
+    - goprintffuncname
+    - gosec
+    - govet
+    - grouper
+    - ineffassign
+    - interfacebloat
+    - maintidx
+    - misspell
+    - nakedret
+    - prealloc
+    - reassign
+    - revive
+    - staticcheck
+    - unused
+    - usetesting
+  settings:
+    misspell:
+      locale: US
+    staticcheck:
+      # SAxxxx checks in https://staticcheck.dev/docs/configuration/options/#checks
+      # Default: ["all", "-ST1000", "-ST1003", "-ST1016", "-ST1020", "-ST1021", "-ST1022"]
+      checks:
+        - all
+        - "-ST1000"
+        - "-ST1003"
+        - "-ST1016"
+        - "-ST1020"
+        - "-ST1021"
+        - "-ST1022"
+        # Disable: Apply De Morgan's law.
+        - "-QF1001"
+        # Disable: Merge conditional assignment into variable declaration
+        - "-QF1007"
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - gosec
+        text: '^(G107|G204|G306):'
+      - linters:
+          - revive
+        path: "internal/pkg/remote/util/.*.go$"
+        text: "var-naming: avoid meaningless package names"
+      - linters:
+          - revive
+        path: "pkg/build/types/.*.go$"
+        text: "var-naming: avoid meaningless package names"
+      # We have numerous packages that clash with go stlib package names. They
+      # can't be renamed without breaking pkg/ compatibility, which would need
+      # a major version bump. Some, e.g. 'plugin' don't have an obvious
+      # alternative name.
+      - linters:
+        - revive
+        text: "var-naming: avoid package names that conflict with Go standard library package names"
+      - linters:
+          - usetesting
+        # The usetesting linter shows a lot of lint for env var handling and
+        # tempdir creation in e2e tests. It's not really valid lint - the e2e
+        # tests were explicitly written to keep tempdirs in a per-run outer dir,
+        # and env var handling is complicated by the e2e.SingularityCmd
+        # execution flow etc.
+        path: "e2e/"
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

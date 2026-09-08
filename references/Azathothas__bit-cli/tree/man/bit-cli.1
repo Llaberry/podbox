@@ -1,0 +1,1862 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH bit-cli 1  "bit-cli 0.2.0" 
+.SH NAME
+bit\-cli \- Fetch, create, verify, and seed torrents, with first\-class web seed control.
+.SH SYNOPSIS
+\fBbit\-cli\fR [\fB\-\-version\fR] [\fB\-\-json\fR] [\fB\-\-jsonl\fR] [\fB\-\-schema\-version\fR] [\fB\-q\fR|\fB\-\-quiet\fR] [\fB\-v\fR|\fB\-\-verbose\fR]... [\fB\-\-log\-level\fR] [\fB\-\-log\-format\fR] [\fB\-l\fR|\fB\-\-log\-file\fR] [\fB\-\-log\-max\-size\fR] [\fB\-\-log\-max\-files\fR] [\fB\-\-trace\fR] [\fB\-\-no\-redact\fR] [\fB\-\-color\fR] [\fB\-\-progress\fR] [\fB\-\-config\fR] [\fB\-\-no\-config\fR] [\fB\-d\fR|\fB\-\-dir\fR] [\fB\-\-dry\-run\fR] [\fB\-\-stats\fR] [\fB\-\-timeout\fR] [\fB\-\-stop\-after\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fISOURCE\fR] [\fIsubcommands\fR]
+.SH DESCRIPTION
+Fetch, create, verify, and seed torrents, with first\-class web seed control.
+.SH OPTIONS
+.TP
+\fB\-\-version\fR
+Print the version and exit.
+
+There is no short form: `\-v` is verbosity and `\-V` is `\-\-check\-integrity`, both following `aria2`.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help (see a summary with \*(Aq\-h\*(Aq)
+.TP
+[\fISOURCE\fR]
+Sources to download when no subcommand is given.
+
+`bit\-cli <SOURCE>` is the same as `bit\-cli download <SOURCE>`.
+
+`help_heading = None` because this field is declared after the `Global` flatten, which sets "Global options", and a positional inherits the running heading like any other argument. Without it `bit\-cli \-\-help` has no "Arguments" section at all and documents `[SOURCE]...` at the bottom of the global flags. `TODO/cli\-surface.md`, T\-159.
+.SH "GLOBAL OPTIONS"
+.TP
+\fB\-\-json\fR
+Emit machine\-readable JSON on stdout. Implies \-\-progress=none
+.TP
+\fB\-\-jsonl\fR
+Emit newline\-delimited JSON events on stdout as they happen
+.TP
+\fB\-\-schema\-version\fR
+Print the output schema version and exit
+.TP
+\fB\-q\fR, \fB\-\-quiet\fR
+Suppress all non\-error output
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+Increase verbosity. Repeatable: \-v, \-vv, \-vvv.
+
+`aria2` uses \-v for \-\-version, so `bit\-cli` does not: \-\-version has no short form here. See docs/flags.md.
+.TP
+\fB\-\-log\-level\fR \fI<LEVEL>\fR [default: warn]
+Log level
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+off
+.IP \(bu 2
+error
+.IP \(bu 2
+warn
+.IP \(bu 2
+info
+.IP \(bu 2
+debug
+.IP \(bu 2
+trace
+.RE
+.TP
+\fB\-\-log\-format\fR \fI<FMT>\fR [default: text]
+Log format
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+text
+.IP \(bu 2
+json
+.RE
+.TP
+\fB\-l\fR, \fB\-\-log\-file\fR \fI<PATH>\fR
+Append logs to a file. Rotates by size and count.
+
+A second destination, not a replacement: stderr still carries the logs, so `bit\-cli ... \-\-json | jq` behaves the same either way. Redirect stderr if you want only the file. The directory is created if it is not there.
+.TP
+\fB\-\-log\-max\-size\fR \fI<SIZE>\fR [default: 16MiB]
+Rotate the log at this size. `0` never rotates
+.TP
+\fB\-\-log\-max\-files\fR \fI<N>\fR [default: 5]
+Keep this many logs in total, the live one included.
+
+`\-\-log\-max\-files 3` leaves `x.log`, `x.log.1`, and `x.log.2`. `1` keeps no history and starts the live file over instead.
+.TP
+\fB\-\-trace\fR \fI<SUBSYSTEM>\fR
+Enable detailed tracing for one subsystem without raising the global level.
+
+Repeatable or comma\-separated. Subsystems: peer, handshake, tracker, dht, http, piece, picker, disk, ratelimit, retry, config.
+.TP
+\fB\-\-no\-redact\fR
+Show credentials in trace output instead of redacting them
+.TP
+\fB\-\-color\fR \fI<WHEN>\fR [default: auto]
+When to use colour. Honours NO_COLOR
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+auto
+.IP \(bu 2
+always
+.IP \(bu 2
+never
+.RE
+.TP
+\fB\-\-progress\fR \fI<MODE>\fR [default: auto]
+Progress rendering. Defaults to none when stdout is not a terminal
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+auto
+.IP \(bu 2
+none
+.IP \(bu 2
+plain
+.IP \(bu 2
+json
+.RE
+.TP
+\fB\-\-config\fR \fI<PATH>\fR
+Config file path
+.TP
+\fB\-\-no\-config\fR
+Ignore all config files
+.TP
+\fB\-d\fR, \fB\-\-dir\fR \fI<DIR>\fR
+Output directory
+.TP
+\fB\-\-dry\-run\fR
+Resolve, validate, and report. Write nothing
+.TP
+\fB\-\-stats\fR
+Print every field of the report, rather than the usual summary.
+
+A rendering flag and nothing else: it changes no behaviour, takes no measurement, and leaves `\-\-json` byte for byte identical. Every number it prints was already computed and already in the JSON.
+.TP
+\fB\-\-timeout\fR \fI<DUR>\fR
+Overall operation deadline
+.TP
+\fB\-\-stop\-after\fR \fI<DUR>\fR
+Stop after this long regardless of state
+.SH SUBCOMMANDS
+.TP
+bit\-cli\-download(1)
+Fetch to completion in the foreground, then exit
+.TP
+bit\-cli\-info(1)
+Parse a torrent, magnet, or metalink and print its metadata
+.TP
+bit\-cli\-files(1)
+List files with index, path, size, and priority
+.TP
+bit\-cli\-tree(1)
+Print the torrent\*(Aqs directory structure, rolled up
+.TP
+bit\-cli\-peers(1)
+Connect, sample the swarm, report peers, then exit
+.TP
+bit\-cli\-trackers(1)
+Announce or scrape, report the result, then exit
+.TP
+bit\-cli\-webseed(1)
+Inspect, validate, and read from HTTP sources
+.TP
+bit\-cli\-verify(1)
+Hash\-check existing data against the torrent
+.TP
+bit\-cli\-create(1)
+Create a .torrent
+.TP
+bit\-cli\-edit(1)
+Rewrite metainfo fields on an existing .torrent, writing a new file
+.TP
+bit\-cli\-magnet(1)
+Convert a torrent to a magnet URI, or resolve a magnet to metadata
+.TP
+bit\-cli\-seed(1)
+Seed existing data in the foreground
+.TP
+bit\-cli\-bench(1)
+Measure a target
+.TP
+bit\-cli\-config(1)
+Configuration
+.TP
+bit\-cli\-completions(1)
+Generate shell completions
+.TP
+bit\-cli\-man(1)
+Generate a man page
+.TP
+bit\-cli\-version(1)
+Version, build metadata, enabled features, and protocol support
+.SH VERSION
+v0.2.0
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH bit-cli-download 1  "bit-cli-download " 
+.SH NAME
+bit\-cli\-download \- Fetch to completion in the foreground, then exit
+.SH SYNOPSIS
+\fBbit\-cli\-download\fR [\fB\-\-web\-seed\fR] [\fB\-\-web\-seed\-exact\fR] [\fB\-\-web\-seed\-for\fR] [\fB\-\-web\-seed\-mode\fR] [\fB\-\-web\-seed\-template\fR] [\fB\-\-web\-seed\-pieces\fR] [\fB\-\-web\-seed\-bytes\fR] [\fB\-\-web\-seed\-file\fR] [\fB\-\-web\-seed\-list\-url\fR] [\fB\-\-web\-seed\-config\fR] [\fB\-\-web\-seed\-style\fR] [\fB\-\-web\-seed\-only\fR] [\fB\-\-no\-web\-seed\fR] [\fB\-\-no\-torrent\-web\-seed\fR] [\fB\-\-web\-seed\-concurrency\fR] [\fB\-x\fR|\fB\-\-max\-connection\-per\-server\fR] [\fB\-s\fR|\fB\-\-split\fR] [\fB\-\-web\-seed\-connections\fR] [\fB\-\-web\-seed\-max\-total\fR] [\fB\-\-web\-seed\-chunk\-size\fR] [\fB\-k\fR|\fB\-\-min\-split\-size\fR] [\fB\-\-web\-seed\-timeout\fR] [\fB\-\-web\-seed\-connect\-timeout\fR] [\fB\-\-web\-seed\-max\-errors\fR] [\fB\-\-web\-seed\-cooldown\fR] [\fB\-\-web\-seed\-retries\fR] [\fB\-\-web\-seed\-retry\-status\fR] [\fB\-\-web\-seed\-fatal\-status\fR] [\fB\-\-web\-seed\-user\-agent\fR] [\fB\-\-web\-seed\-header\fR] [\fB\-\-web\-seed\-auth\fR] [\fB\-\-web\-seed\-speed\-limit\fR] [\fB\-\-web\-seed\-verify\fR] [\fB\-\-web\-seed\-priority\fR] [\fB\-\-prefer\-web\-seed\fR] [\fB\-\-web\-seed\-require\fR] [\fB\-\-tracker\fR] [\fB\-\-tracker\-file\fR] [\fB\-\-tracker\-list\-url\fR] [\fB\-\-exclude\-tracker\fR] [\fB\-\-replace\-trackers\fR] [\fB\-\-tracker\-timeout\fR] [\fB\-\-tracker\-connect\-timeout\fR] [\fB\-\-tracker\-interval\fR] [\fB\-\-no\-tracker\fR] [\fB\-\-max\-download\-rate\fR] [\fB\-u\fR|\fB\-\-max\-upload\-rate\fR] [\fB\-\-max\-overall\-download\-rate\fR] [\fB\-\-max\-overall\-upload\-rate\fR] [\fB\-\-max\-peer\-rate\fR] [\fB\-\-max\-peers\fR] [\fB\-\-max\-peers\-total\fR] [\fB\-\-encryption\fR] [\fB\-\-transport\fR] [\fB\-\-block\-peer\fR] [\fB\-\-max\-open\-files\fR] [\fB\-\-max\-handles\fR] [\fB\-\-max\-rss\fR] [\fB\-\-seed\-ratio\fR] [\fB\-\-seed\-time\fR] [\fB\-\-stop\-timeout\fR] [\fB\-\-init\-timeout\fR] [\fB\-\-lowest\-speed\-limit\fR] [\fB\-\-on\-complete\fR] [\fB\-\-on\-error\fR] [\fB\-\-on\-piece\-verified\fR] [\fB\-\-select\-file\fR] [\fB\-\-exclude\-file\fR] [\fB\-O\fR|\fB\-\-index\-out\fR] [\fB\-o\fR|\fB\-\-out\fR] [\fB\-\-file\-allocation\fR] [\fB\-\-piece\-selector\fR] [\fB\-\-port\fR] [\fB\-\-peer\fR] [\fB\-\-no\-dht\fR] [\fB\-\-no\-lsd\fR] [\fB\-\-redial\-after\fR] [\fB\-\-max\-redials\fR] [\fB\-j\fR|\fB\-\-max\-concurrent\-downloads\fR] [\fB\-\-no\-share\-files\fR] [\fB\-V\fR|\fB\-\-check\-integrity\fR] [\fB\-\-hash\-check\-only\fR] [\fB\-\-verify\-on\-complete\fR] [\fB\-c\fR|\fB\-\-continue\fR] [\fB\-\-no\-continue\fR] [\fB\-\-allow\-overwrite\fR] [\fB\-\-report\-interval\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fISOURCE\fR> 
+.SH DESCRIPTION
+Fetch to completion in the foreground, then exit
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help (see a summary with \*(Aq\-h\*(Aq)
+.TP
+<\fISOURCE\fR>
+Sources to fetch
+.SH "WEB SEEDS"
+.TP
+\fB\-\-web\-seed\fR \fI<URL>\fR
+Source for the whole torrent, under the current composition mode
+.TP
+\fB\-\-web\-seed\-exact\fR \fI<URL>\fR
+Shorthand for a source with composition=exact
+.TP
+\fB\-\-web\-seed\-for\fR \fI<SEL=URL>\fR
+Bind a scope selector to a source, as SELECTOR=URL.
+
+The selector may name one torrent: prefix it with that torrent\*(Aqs info hash and a colon, as `<40 hex>:file:0=URL`. Without a prefix the binding applies to every torrent in the invocation, which is what a single torrent run wants and wrong when the same file sits at a different index in two of them.
+
+Exactly forty hexadecimal characters followed by a colon is read as an info hash. A hash naming no torrent in the run is a usage error rather than a binding that quietly does nothing.
+.TP
+\fB\-\-web\-seed\-mode\fR \fI<MODE>\fR [default: auto]
+Composition mode for CLI\-supplied sources
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+auto
+.IP \(bu 2
+exact
+.IP \(bu 2
+prefix
+.IP \(bu 2
+template
+.RE
+.TP
+\fB\-\-web\-seed\-template\fR \fI<TMPL>\fR
+Template used when the mode is `template`
+.TP
+\fB\-\-web\-seed\-pieces\fR \fI<RANGE>\fR
+Restrict CLI\-supplied sources to these piece indices
+.TP
+\fB\-\-web\-seed\-bytes\fR \fI<RANGE>\fR
+Restrict CLI\-supplied sources to this byte range of the payload
+.TP
+\fB\-\-web\-seed\-file\fR \fI<PATH>\fR
+One URL per line. Blank lines and # comments are ignored
+.TP
+\fB\-\-web\-seed\-list\-url\fR \fI<URL>\fR
+Fetch a newline\-separated URL list over HTTP
+.TP
+\fB\-\-web\-seed\-config\fR \fI<PATH>\fR
+TOML or JSON binding table. Full control
+.TP
+\fB\-\-web\-seed\-style\fR \fI<STYLE>\fR [default: auto]
+BEP 19 or BEP 17 wire style
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+auto
+.IP \(bu 2
+getright
+.IP \(bu 2
+hoffman
+.RE
+.TP
+\fB\-\-web\-seed\-only\fR
+Disable peers, DHT, PEX, LSD, and trackers. HTTP sources only
+.TP
+\fB\-\-no\-web\-seed\fR
+Ignore all web seeds, including the torrent\*(Aqs own url\-list
+.TP
+\fB\-\-no\-torrent\-web\-seed\fR
+Ignore the torrent\*(Aqs url\-list but keep CLI\-supplied sources
+.TP
+\fB\-\-web\-seed\-concurrency\fR \fI<N>\fR
+Concurrent ranged requests per source
+.TP
+\fB\-x\fR, \fB\-\-max\-connection\-per\-server\fR \fI<N>\fR
+`aria2` spelling of `\-\-web\-seed\-concurrency`. Per source, not per server.
+
+In `aria2` this caps connections to one **server**. Here it caps concurrent ranged requests to one **source**, and the two differ when two sources share a host: `\-x 4` with two sources on the same host is eight requests to that host, where `aria2` would hold it to four. A warning says so on first use.
+
+The number behind it is measured: 940 MiB/s at one, 3.44 GiB/s at eight, and past eight throughput stops while p99 doubles. `bench/split\-20260823T182709577Z.json` is the curve. See `TODO/performance.md`, T\-033.
+.TP
+\fB\-s\fR, \fB\-\-split\fR \fI<N>\fR
+`aria2` spelling of `\-\-web\-seed\-concurrency`. The same knob as `\-x`.
+
+`aria2` splits one file into N ranges and caps per\-server connections separately, so `\-s` and `\-x` are two settings there. Here one source is fetched by concurrent ranged requests and that is the only knob, so these are two spellings of it. Passing both is not multiplied: the larger wins, and a warning names it when they differ.
+.TP
+\fB\-\-web\-seed\-connections\fR \fI<N>\fR
+Peer connections each source is presented over. Default: 1.
+
+One source is one peer to the torrent session, and a peer\*(Aqs blocks are written and verified one at a time on that connection\*(Aqs own task, so that path is what bounds the transfer. Several connections give the source several of them. `\-\-web\-seed\-concurrency` is divided between them rather than multiplied by them, so this does not hit the mirror harder. Measured in TODO/webseed.md, T\-009.
+.TP
+\fB\-\-web\-seed\-max\-total\fR \fI<N>\fR
+Concurrent ranged requests across all sources
+.TP
+\fB\-\-web\-seed\-chunk\-size\fR \fI<SIZE>\fR
+Bytes per ranged request. Independent of the torrent\*(Aqs piece length
+.TP
+\fB\-k\fR, \fB\-\-min\-split\-size\fR \fI<SIZE>\fR
+`aria2` spelling of a floor under `\-\-web\-seed\-chunk\-size`.
+
+A floor rather than a value: `aria2` will not split a file into pieces smaller than this, so a request is at least this big. Where `\-\-web\-seed\-chunk\-size` is also given, the larger of the two is what a request asks for.
+.TP
+\fB\-\-web\-seed\-timeout\fR \fI<DUR>\fR
+Per\-request timeout
+.TP
+\fB\-\-web\-seed\-connect\-timeout\fR \fI<DUR>\fR
+Connect timeout for web seed requests
+.TP
+\fB\-\-web\-seed\-max\-errors\fR \fI<N>\fR
+Consecutive failed requests before a source is retired.
+
+A request that fails transiently after its own `\-\-web\-seed\-retries` are spent drops the connection and reconnects, so a mirror that is down for a moment is not lost. This is how many of those in a row it takes before the source is out for the rest of the run. A success resets the count.
+.TP
+\fB\-\-web\-seed\-cooldown\fR \fI<DUR>\fR
+Give a source that spent its error budget another chance after this long. Zero, the default, means it does not come back.
+
+A source that runs out of its `\-\-web\-seed\-max\-errors` budget is out. With a cooldown set it is out for that long and then reconnects with the error run cleared, so a mirror that is down for five minutes is still usable at minute six. With the default of zero it is out for the rest of the run, which is what makes a run against one dead mirror fail in seconds instead of sitting on a timer.
+
+A cooling source is reported as `cooling`, not `failed`, so `\-\-web\-seed\-require` and the "every source is dead" stop condition keep waiting for it. Set `\-\-timeout` or `\-\-stop\-timeout` to bound that.
+.TP
+\fB\-\-web\-seed\-retries\fR \fI<N>\fR
+Per\-request retries before counting an error
+.TP
+\fB\-\-web\-seed\-retry\-status\fR \fI<CODES>\fR
+Statuses to retry that would otherwise retire the source.
+
+Codes and inclusive ranges: `403`, `403,429`, `500\-599`. A CDN that signs URLs answers 403 when a signature expires and the next request to the stable URL is redirected to a fresh one, so `403` there is transient. `\-\-web\-seed\-retries`, `\-\-web\-seed\-max\-errors`, and `\-\-web\-seed\-cooldown` still bound it.
+.TP
+\fB\-\-web\-seed\-fatal\-status\fR \fI<CODES>\fR
+Statuses that retire the source, which would otherwise be retried.
+
+The other direction of `\-\-web\-seed\-retry\-status`, same spelling. A code cannot be in both lists.
+.TP
+\fB\-\-web\-seed\-user\-agent\fR \fI<UA>\fR
+User\-Agent for web seed requests
+.TP
+\fB\-\-web\-seed\-header\fR \fI<K: V>\fR
+Extra header on web seed requests, as `Name: value`
+.TP
+\fB\-\-web\-seed\-auth\fR \fI<SPEC>\fR
+Credentials: basic:user:pass, bearer:TOKEN, netrc, or none
+.TP
+\fB\-\-web\-seed\-speed\-limit\fR \fI<RATE>\fR
+Rate cap per source
+.TP
+\fB\-\-web\-seed\-verify\fR \fI<MODE>\fR [default: piece]
+When to hash\-check HTTP\-sourced data
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+piece
+.IP \(bu 2
+file
+.IP \(bu 2
+none
+.RE
+.TP
+\fB\-\-web\-seed\-priority\fR \fI<N>\fR
+Bias among sources. Higher wins when several can serve a piece
+.TP
+\fB\-\-prefer\-web\-seed\fR
+Bias the picker toward HTTP when both a peer and a source have a piece
+.TP
+\fB\-\-web\-seed\-require\fR
+Fail the run if a declared source turns out to be unusable
+.SH TRACKERS
+.TP
+\fB\-\-tracker\fR \fI<URL>\fR
+Add a tracker at runtime. The .torrent is never rewritten
+.TP
+\fB\-\-tracker\-file\fR \fI<PATH>\fR
+One tracker per line. A blank line separates BEP 12 tiers
+.TP
+\fB\-\-tracker\-list\-url\fR \fI<URL>\fR
+Fetch a tracker list over HTTP
+.TP
+\fB\-\-exclude\-tracker\fR \fI<URL>\fR
+Remove trackers. `*` removes all
+.TP
+\fB\-\-replace\-trackers\fR
+Replace the torrent\*(Aqs tracker list instead of adding to it
+.TP
+\fB\-\-tracker\-timeout\fR \fI<DUR>\fR
+Tracker request timeout
+.TP
+\fB\-\-tracker\-connect\-timeout\fR \fI<DUR>\fR
+Tracker connect timeout
+.TP
+\fB\-\-tracker\-interval\fR \fI<DUR>\fR
+Override the announce interval
+.TP
+\fB\-\-no\-tracker\fR
+Disable tracker announces entirely
+.SH "LIMITS AND LIFECYCLE"
+.TP
+\fB\-\-max\-download\-rate\fR \fI<RATE>\fR
+Download rate cap, per torrent
+.TP
+\fB\-u\fR, \fB\-\-max\-upload\-rate\fR \fI<RATE>\fR
+Upload rate cap, per torrent
+.TP
+\fB\-\-max\-overall\-download\-rate\fR \fI<RATE>\fR
+Download rate cap across the whole run
+.TP
+\fB\-\-max\-overall\-upload\-rate\fR \fI<RATE>\fR
+Upload rate cap across the whole run
+.TP
+\fB\-\-max\-peer\-rate\fR \fI<RATE>\fR
+Download rate cap for swarm peers, not for attached HTTP sources
+.TP
+\fB\-\-max\-peers\fR \fI<N>\fR
+Peer connections per torrent
+.TP
+\fB\-\-max\-peers\-total\fR \fI<N>\fR
+Peer connections across the run
+.TP
+\fB\-\-encryption\fR \fI<MODE>\fR [default: prefer]
+Message stream encryption, for peer connections in both directions.
+
+`prefer` dials with MSE and dials again in plaintext when the peer does not speak it, and accepts either. `require` refuses a plaintext peer in both directions, which is what reaches a peer configured to require encryption, at the cost of every peer that cannot do it. `off` neither offers nor accepts it.
+
+One listening port serves both: an accepting end tells the two apart by reading the first twenty bytes, so there is no second port and nothing on the wire says which mode this run is in. `\-\-json` reports what each peer settled on as `encryption`. See `TODO/peers.md`, T\-163.
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+off: Never encrypt, and refuse a peer that opens with MSE
+.IP \(bu 2
+prefer: Try MSE, fall back to plaintext, accept both
+.IP \(bu 2
+require: MSE or nothing, in both directions
+.RE
+.TP
+\fB\-\-transport\fR \fI<MODE>\fR [default: tcp]
+Which transports this run listens on and dials.
+
+`tcp` is the default and is what every run before 2026\-08\-24 did. `utp` is BEP 29 over UDP, which carries the same peer wire protocol under LEDBAT congestion control: it yields to other traffic on the same link instead of competing with it, which is what keeps a seeding box from making its own connection unusable. `both` listens on each and lets the peer decide.
+
+One port number serves both, because they are different protocols: `\-\-port 6881` is TCP 6881 and UDP 6881. See `TODO/bep\-coverage.md`, T\-101.
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+tcp: TCP only. What every run did before this flag existed
+.IP \(bu 2
+utp: uTP only, BEP 29. Nothing reaches a TCP\-only peer
+.IP \(bu 2
+both: Listen on both and let the peer choose
+.RE
+.TP
+\fB\-\-block\-peer\fR \fI<ADDR>\fR
+Refuse this peer for the whole run. Repeatable.
+
+An address, an inclusive `START\-END` range, or a CIDR block, in either family. A `HOST:PORT` is refused rather than truncated: the session blocks an address, so accepting one would block every port on that host without saying so.
+
+Checked before an incoming handshake is read and before an outgoing connection is dialled, so a blocked address never takes a connection slot. There is no state file, so this lasts for the invocation. See `TODO/peers.md`, T\-164.
+.TP
+\fB\-\-max\-open\-files\fR \fI<N>\fR [default: 128]
+Payload files kept open at once.
+
+Files open when they are first touched and the least recently opened closes when this cap is reached, so a torrent with twenty thousand files does not need twenty thousand descriptors.
+.TP
+\fB\-\-max\-handles\fR \fI<N>\fR
+Stop when the process holds more than this many handles. Off by default.
+
+This is a backstop, not a tuning knob. A supervised deployment sets it and gets a loud exit 16 and a restart instead of a process that quietly runs the machine out of descriptors.
+
+It was written for a specific leak, one socket per peer that connected and closed before handshaking, which `TODO/peers.md` T\-020 measured and which is fixed: six hours of `scripts/soak.ps1` see zero sockets in `CLOSE_WAIT` at every sample. A backstop for a defect that is fixed still earns its place, because the next one has not been found yet.
+
+Counted against the whole process, so it includes threads, sockets, and payload files. Read `cost` in the report for a healthy baseline before picking a number.
+.TP
+\fB\-\-max\-rss\fR \fI<SIZE>\fR
+Stop when the process holds more than this much resident memory. Off by default.
+
+The other backstop, for the growth beside the handles. A seeder under load grows about 0.8 MiB an hour, and TODO/memory.md T\-040 attributes most of it to the peer row librqbit keeps for every peer it has ever accepted and never reclaims: 2,907 bytes a row, measured over 2,000 of them, retained after a minute of no traffic. Nothing here frees one, so a supervised deployment sets this and gets a loud exit 16 and a restart.
+
+Read `cost` in a healthy run\*(Aqs report for a baseline before picking a number: a seeder with nothing connected sits near 12 MiB.
+.TP
+\fB\-\-seed\-ratio\fR \fI<RATIO>\fR
+Stop seeding at this ratio. 0 means do not seed
+.TP
+\fB\-\-seed\-time\fR \fI<DUR>\fR
+Stop seeding after this long
+.TP
+\fB\-\-stop\-timeout\fR \fI<DUR>\fR
+Give up if there is no progress for this long
+.TP
+\fB\-\-init\-timeout\fR \fI<DUR>\fR [default: 10m]
+Give up if the hash check has not finished in this long.
+
+Initialisation is reading the metadata and hash\-checking whatever is on disk, and it is where a torrent can stop making progress without failing. The error names the phase and how far the check got, which a plain deadline does not.
+.TP
+\fB\-\-lowest\-speed\-limit\fR \fI<RATE>\fR
+Abort if the rate drops below this
+.SH HOOKS
+.TP
+\fB\-\-on\-complete\fR \fI<COMMAND>\fR
+Run this command on success. Arguments arrive through the environment.
+
+On `download` that is a torrent finishing. On `seed` it is the payload passing its hash check with the listener up, which is the moment a seeder starts being useful: a seeder has no completion of its own.
+.TP
+\fB\-\-on\-error\fR \fI<COMMAND>\fR
+Run this command on failure
+.TP
+\fB\-\-on\-piece\-verified\fR \fI<COMMAND>\fR
+Run this command after every verified piece. High frequency.
+
+`download` only. A seeder verifies every piece once, during the hash check on add, so the same flag there would fire in a burst at startup and then be silent for days. See `TODO/cli\-surface.md`, T\-214.
+.SH "FILE SELECTION"
+.TP
+\fB\-\-select\-file\fR \fI<INDEX>\fR
+Download only these files. Accepts ranges: 1\-5,8,10\-
+.TP
+\fB\-\-exclude\-file\fR \fI<INDEX>\fR
+Skip these files
+.TP
+\fB\-O\fR, \fB\-\-index\-out\fR \fI<INDEX=PATH>\fR
+Rename a file by index, as INDEX=PATH
+.TP
+\fB\-o\fR, \fB\-\-out\fR \fI<PATH>\fR
+Write the payload here instead of using the torrent\*(Aqs name.
+
+For a single\-file torrent this names the file. For a multi\-file one it names the directory that replaces the torrent\*(Aqs own name, so the files land directly under it. Relative to `\-\-dir` when one is given, and to the working directory otherwise. One source only: two torrents told to write to one path is a usage error. See `TODO/cli\-surface.md`, T\-226.
+.TP
+\fB\-\-file\-allocation\fR \fI<METHOD>\fR [default: sparse]
+How disk space is allocated
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+none
+.IP \(bu 2
+prealloc
+.IP \(bu 2
+sparse
+.IP \(bu 2
+falloc
+.RE
+.TP
+\fB\-\-piece\-selector\fR \fI<STRATEGY>\fR [default: default]
+Which piece to ask for next. `sequential` and `in\-order` are the same thing under two names, and both make a download readable front to back
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+default: Whatever the session does on its own: the first piece of each file, then the last, then the middle in ascending order
+.IP \(bu 2
+sequential: Front to back, by holding the session\*(Aqs priority window at the earliest piece still missing
+.IP \(bu 2
+in\-order: The same as [`Self::Sequential`], under `aria2`\*(Aqs spelling for it
+.RE
+.TP
+\fB\-\-port\fR \fI<PORT>\fR
+Listen port, or a range as START\-END. `0` asks the OS for a free one
+.TP
+\fB\-\-peer\fR \fI<ADDR>\fR
+Try this peer before any are discovered, as HOST:PORT. Repeatable.
+
+A peer given here is dialled whether or not a tracker or the DHT ever answers, which is what makes a swarm of known members testable and a private one reachable without discovery.
+.TP
+\fB\-\-no\-dht\fR
+Disable the DHT.
+
+With `\-\-peer` and `\-\-no\-tracker` this leaves a swarm of exactly the members named on the command line, which is what a measurement needs and what a private network wants.
+.TP
+\fB\-\-no\-lsd\fR
+Disable local service discovery
+.TP
+\fB\-\-redial\-after\fR \fI<DUR>\fR
+Drop every peer connection and dial again after this long with no progress. Off by default.
+
+A peer that dies is retried on a backoff with a 10 second minimum and a factor of 6, so attempts land at about 10s, 70s, 430s, and then 36 minutes. A peer that comes back one second after an attempt fails is not tried again for six times the last wait. On a swarm of one, which is what `\-\-peer` builds and what a private tracker often is, that is the difference between a download finishing and a download timing out.
+
+This throws the peer state away instead of waiting: the torrent is paused and started again, which drops the backoff counters and dials `\-\-peer` and the trackers from scratch. Piece state is kept and nothing is re\-hashed. What it costs is every live connection, so set it longer than a slow peer\*(Aqs quiet spell.
+
+Set it shorter than `\-\-stop\-timeout` or the run gives up first.
+.TP
+\fB\-\-max\-redials\fR \fI<N>\fR [default: 10]
+How many times `\-\-redial\-after` may fire in one run
+.TP
+\fB\-j\fR, \fB\-\-max\-concurrent\-downloads\fR \fI<N>\fR [default: 1]
+Sources fetched in parallel within this one invocation.
+
+Sources start in the order they were given, so `\-j 1` is a sequence: a torrent whose source is a file an earlier torrent writes can name it, and the earlier one will have finished.
+.TP
+\fB\-\-no\-share\-files\fR
+Do not read a file from another torrent in this run that is proven to hold it.
+
+Two torrents in one invocation often share a file. When their piece hashes prove the bytes are the same, the second one reads the first one\*(Aqs copy instead of fetching it again. The proof is the same evidence `bit\-cli files \-\-against` reports, and the copy is checked per piece on the way in like any other source. This turns that off and fetches everything.
+.TP
+\fB\-V\fR, \fB\-\-check\-integrity\fR
+Hash\-check before starting
+.TP
+\fB\-\-hash\-check\-only\fR
+Hash\-check and exit
+.TP
+\fB\-\-verify\-on\-complete\fR
+Re\-read the finished payload and report a hash per file.
+
+Redundant by construction, and that is the point: every byte has already been checked against the torrent\*(Aqs own piece hashes, once at the source and once by the session. This is the check a caller can run without trusting the thing that wrote the bytes, and it is the one whose output can be compared against a digest published somewhere else.
+
+It reads the whole payload from disk, so it costs one full read. See `docs/integrity.md` and `TODO/multi\-source.md`, T\-136.
+.TP
+\fB\-c\fR, \fB\-\-continue\fR
+Resume a partial download. On by default
+.TP
+\fB\-\-no\-continue\fR
+Refuse to write into a file that is already there.
+
+`\-\-continue` is the default, so this is how a run says "these files should not exist yet". Without it a partial download resumes and a complete one is hash\-checked and left alone. A flag that could only ever be on would not be a flag.
+.TP
+\fB\-\-allow\-overwrite\fR
+Overwrite existing files
+.TP
+\fB\-\-report\-interval\fR \fI<DUR>\fR [default: 1s]
+Emit a progress event this often
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH bit-cli-info 1  "bit-cli-info " 
+.SH NAME
+bit\-cli\-info \- Parse a torrent, magnet, or metalink and print its metadata
+.SH SYNOPSIS
+\fBbit\-cli\-info\fR [\fB\-\-peer\fR] [\fB\-\-no\-dht\fR] [\fB\-\-no\-lsd\fR] [\fB\-\-no\-tracker\fR] [\fB\-\-page\-select\fR] [\fB\-\-page\-client\fR] [\fB\-\-render\fR] [\fB\-\-browser\-path\fR] [\fB\-\-browser\-port\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fISOURCE\fR> 
+.SH DESCRIPTION
+Parse a torrent, magnet, or metalink and print its metadata
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help (see a summary with \*(Aq\-h\*(Aq)
+.TP
+<\fISOURCE\fR>
+A .torrent path, an HTTP(S) URL, a magnet URI, an info hash, a metalink, or `\-` for stdin.
+
+`help_heading = None` keeps it in clap\*(Aqs own "Arguments" section wherever it is flattened. Without it, a command that sets a heading before flattening this would file its own positional under that heading. `TODO/cli\-surface.md`, T\-159.
+.SH "RESOLVING A MAGNET"
+.TP
+\fB\-\-peer\fR \fI<ADDR>\fR
+Try this peer before any are discovered, as HOST:PORT. Repeatable.
+
+With `\-\-no\-dht`, `\-\-no\-lsd` and `\-\-no\-tracker` this resolves the metadata from exactly the peers named here and nowhere else.
+.TP
+\fB\-\-no\-dht\fR
+Disable the DHT while resolving
+.TP
+\fB\-\-no\-lsd\fR
+Disable local service discovery while resolving
+.TP
+\fB\-\-no\-tracker\fR
+Do not announce to the magnet\*(Aqs trackers while resolving
+.SH "RESOLVING A WEB PAGE"
+.TP
+\fB\-\-page\-select\fR \fI<TEXT>\fR
+Take the one link on a page whose URL or text contains TEXT.
+
+Matched case insensitively, as a substring, against both the resolved URL and the anchor text beside it. A page is still refused when this leaves more than one link, because a selector that matches two is not a selection.
+.TP
+\fB\-\-page\-client\fR \fI<PROFILE>\fR [default: browser]
+Which client to present as when fetching a source document.
+
+`browser` sends a current Chrome\*(Aqs header set in Chrome\*(Aqs order, which is what an origin reads before it decides which page to serve. `plain` sends `bit\-cli/<version>` and nothing else. This is the source document only: a web seed is a mirror you configured and always gets `bit\-cli`.
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+browser
+.IP \(bu 2
+plain
+.RE
+.TP
+\fB\-\-render\fR
+Read the page after its script has run, through an installed browser.
+
+A page that builds its links in script has none of them in the HTML the server sent. This drives a Chrome or Edge that is **already installed**, over the DevTools protocol, and extracts from the DOM afterwards. It never installs a browser and never bundles one.
+
+It needs a build with the `render` feature: `cargo build \-\-release \-\-features render`. Without one the flag is refused with a message saying so rather than silently reading the page unrendered.
+.TP
+\fB\-\-browser\-path\fR \fI<PATH>\fR
+The browser `\-\-render` drives, when it is not where this looks.
+
+Absent, an already\-running instance on `\-\-browser\-port` is tried, then the executables on `PATH`, then the platform\*(Aqs usual locations. A path given here is tried first and alone: naming one and getting a different browser is the tool ignoring its own instruction.
+.TP
+\fB\-\-browser\-port\fR \fI<HOST:PORT>\fR
+Attach to a browser already listening for the DevTools protocol.
+
+`HOST:PORT`, or just `PORT` for `127.0.0.1`. Attaching to a browser that is already up is cheaper than starting a second one.
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH bit-cli-files 1  "bit-cli-files " 
+.SH NAME
+bit\-cli\-files \- List files with index, path, size, and priority
+.SH SYNOPSIS
+\fBbit\-cli\-files\fR [\fB\-\-sort\fR] [\fB\-\-against\fR] [\fB\-\-peer\fR] [\fB\-\-no\-dht\fR] [\fB\-\-no\-lsd\fR] [\fB\-\-no\-tracker\fR] [\fB\-\-page\-select\fR] [\fB\-\-page\-client\fR] [\fB\-\-render\fR] [\fB\-\-browser\-path\fR] [\fB\-\-browser\-port\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fISOURCE\fR> 
+.SH DESCRIPTION
+List files with index, path, size, and priority
+.SH OPTIONS
+.TP
+\fB\-\-sort\fR \fI<KEY>\fR [default: index]
+Sort key, as KEY or KEY:ORDER. Keys: index, path, size
+.TP
+\fB\-\-against\fR \fI<TORRENT>\fR
+Also report which files another torrent holds identically. Repeatable.
+
+Two torrents that hold the same file are two downloads of the same bytes unless something connects them, and connecting them safely means knowing they are the same first. Each match says what the answer rests on: `piece\-hashes` when the pieces line up and their hashes agree, which proves the bytes equal; `length` when only the size matches, which proves nothing and is what a differing piece length leaves.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help (see a summary with \*(Aq\-h\*(Aq)
+.TP
+<\fISOURCE\fR>
+A .torrent path, an HTTP(S) URL, a magnet URI, an info hash, a metalink, or `\-` for stdin.
+
+`help_heading = None` keeps it in clap\*(Aqs own "Arguments" section wherever it is flattened. Without it, a command that sets a heading before flattening this would file its own positional under that heading. `TODO/cli\-surface.md`, T\-159.
+.SH "RESOLVING A MAGNET"
+.TP
+\fB\-\-peer\fR \fI<ADDR>\fR
+Try this peer before any are discovered, as HOST:PORT. Repeatable.
+
+With `\-\-no\-dht`, `\-\-no\-lsd` and `\-\-no\-tracker` this resolves the metadata from exactly the peers named here and nowhere else.
+.TP
+\fB\-\-no\-dht\fR
+Disable the DHT while resolving
+.TP
+\fB\-\-no\-lsd\fR
+Disable local service discovery while resolving
+.TP
+\fB\-\-no\-tracker\fR
+Do not announce to the magnet\*(Aqs trackers while resolving
+.SH "RESOLVING A WEB PAGE"
+.TP
+\fB\-\-page\-select\fR \fI<TEXT>\fR
+Take the one link on a page whose URL or text contains TEXT.
+
+Matched case insensitively, as a substring, against both the resolved URL and the anchor text beside it. A page is still refused when this leaves more than one link, because a selector that matches two is not a selection.
+.TP
+\fB\-\-page\-client\fR \fI<PROFILE>\fR [default: browser]
+Which client to present as when fetching a source document.
+
+`browser` sends a current Chrome\*(Aqs header set in Chrome\*(Aqs order, which is what an origin reads before it decides which page to serve. `plain` sends `bit\-cli/<version>` and nothing else. This is the source document only: a web seed is a mirror you configured and always gets `bit\-cli`.
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+browser
+.IP \(bu 2
+plain
+.RE
+.TP
+\fB\-\-render\fR
+Read the page after its script has run, through an installed browser.
+
+A page that builds its links in script has none of them in the HTML the server sent. This drives a Chrome or Edge that is **already installed**, over the DevTools protocol, and extracts from the DOM afterwards. It never installs a browser and never bundles one.
+
+It needs a build with the `render` feature: `cargo build \-\-release \-\-features render`. Without one the flag is refused with a message saying so rather than silently reading the page unrendered.
+.TP
+\fB\-\-browser\-path\fR \fI<PATH>\fR
+The browser `\-\-render` drives, when it is not where this looks.
+
+Absent, an already\-running instance on `\-\-browser\-port` is tried, then the executables on `PATH`, then the platform\*(Aqs usual locations. A path given here is tried first and alone: naming one and getting a different browser is the tool ignoring its own instruction.
+.TP
+\fB\-\-browser\-port\fR \fI<HOST:PORT>\fR
+Attach to a browser already listening for the DevTools protocol.
+
+`HOST:PORT`, or just `PORT` for `127.0.0.1`. Attaching to a browser that is already up is cheaper than starting a second one.
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH bit-cli-tree 1  "bit-cli-tree " 
+.SH NAME
+bit\-cli\-tree \- Print the torrent\*(Aqs directory structure, rolled up
+.SH SYNOPSIS
+\fBbit\-cli\-tree\fR [\fB\-\-depth\fR] [\fB\-\-no\-sizes\fR] [\fB\-\-peer\fR] [\fB\-\-no\-dht\fR] [\fB\-\-no\-lsd\fR] [\fB\-\-no\-tracker\fR] [\fB\-\-page\-select\fR] [\fB\-\-page\-client\fR] [\fB\-\-render\fR] [\fB\-\-browser\-path\fR] [\fB\-\-browser\-port\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fISOURCE\fR> 
+.SH DESCRIPTION
+Print the torrent\*(Aqs directory structure, rolled up
+.SH OPTIONS
+.TP
+\fB\-\-depth\fR \fI<N>\fR
+Stop at this depth and roll the rest up. The root is depth 0.
+
+A directory whose children are cut off still reports what is below it, and the line under it says how many files and directories that was, so a limit never drops anything in silence.
+.TP
+\fB\-\-no\-sizes\fR
+Print the piece ranges without the size and file count columns
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help (see a summary with \*(Aq\-h\*(Aq)
+.TP
+<\fISOURCE\fR>
+A .torrent path, an HTTP(S) URL, a magnet URI, an info hash, a metalink, or `\-` for stdin.
+
+`help_heading = None` keeps it in clap\*(Aqs own "Arguments" section wherever it is flattened. Without it, a command that sets a heading before flattening this would file its own positional under that heading. `TODO/cli\-surface.md`, T\-159.
+.SH "RESOLVING A MAGNET"
+.TP
+\fB\-\-peer\fR \fI<ADDR>\fR
+Try this peer before any are discovered, as HOST:PORT. Repeatable.
+
+With `\-\-no\-dht`, `\-\-no\-lsd` and `\-\-no\-tracker` this resolves the metadata from exactly the peers named here and nowhere else.
+.TP
+\fB\-\-no\-dht\fR
+Disable the DHT while resolving
+.TP
+\fB\-\-no\-lsd\fR
+Disable local service discovery while resolving
+.TP
+\fB\-\-no\-tracker\fR
+Do not announce to the magnet\*(Aqs trackers while resolving
+.SH "RESOLVING A WEB PAGE"
+.TP
+\fB\-\-page\-select\fR \fI<TEXT>\fR
+Take the one link on a page whose URL or text contains TEXT.
+
+Matched case insensitively, as a substring, against both the resolved URL and the anchor text beside it. A page is still refused when this leaves more than one link, because a selector that matches two is not a selection.
+.TP
+\fB\-\-page\-client\fR \fI<PROFILE>\fR [default: browser]
+Which client to present as when fetching a source document.
+
+`browser` sends a current Chrome\*(Aqs header set in Chrome\*(Aqs order, which is what an origin reads before it decides which page to serve. `plain` sends `bit\-cli/<version>` and nothing else. This is the source document only: a web seed is a mirror you configured and always gets `bit\-cli`.
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+browser
+.IP \(bu 2
+plain
+.RE
+.TP
+\fB\-\-render\fR
+Read the page after its script has run, through an installed browser.
+
+A page that builds its links in script has none of them in the HTML the server sent. This drives a Chrome or Edge that is **already installed**, over the DevTools protocol, and extracts from the DOM afterwards. It never installs a browser and never bundles one.
+
+It needs a build with the `render` feature: `cargo build \-\-release \-\-features render`. Without one the flag is refused with a message saying so rather than silently reading the page unrendered.
+.TP
+\fB\-\-browser\-path\fR \fI<PATH>\fR
+The browser `\-\-render` drives, when it is not where this looks.
+
+Absent, an already\-running instance on `\-\-browser\-port` is tried, then the executables on `PATH`, then the platform\*(Aqs usual locations. A path given here is tried first and alone: naming one and getting a different browser is the tool ignoring its own instruction.
+.TP
+\fB\-\-browser\-port\fR \fI<HOST:PORT>\fR
+Attach to a browser already listening for the DevTools protocol.
+
+`HOST:PORT`, or just `PORT` for `127.0.0.1`. Attaching to a browser that is already up is cheaper than starting a second one.
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH bit-cli-peers 1  "bit-cli-peers " 
+.SH NAME
+bit\-cli\-peers \- Connect, sample the swarm, report peers, then exit
+.SH SYNOPSIS
+\fBbit\-cli\-peers\fR [\fB\-\-duration\fR] [\fB\-\-count\fR] [\fB\-\-sort\fR] [\fB\-\-port\fR] [\fB\-\-tracker\fR] [\fB\-\-tracker\-file\fR] [\fB\-\-tracker\-list\-url\fR] [\fB\-\-exclude\-tracker\fR] [\fB\-\-replace\-trackers\fR] [\fB\-\-tracker\-timeout\fR] [\fB\-\-tracker\-connect\-timeout\fR] [\fB\-\-tracker\-interval\fR] [\fB\-\-no\-tracker\fR] [\fB\-\-max\-download\-rate\fR] [\fB\-u\fR|\fB\-\-max\-upload\-rate\fR] [\fB\-\-max\-overall\-download\-rate\fR] [\fB\-\-max\-overall\-upload\-rate\fR] [\fB\-\-max\-peer\-rate\fR] [\fB\-\-max\-peers\fR] [\fB\-\-max\-peers\-total\fR] [\fB\-\-encryption\fR] [\fB\-\-transport\fR] [\fB\-\-block\-peer\fR] [\fB\-\-max\-open\-files\fR] [\fB\-\-max\-handles\fR] [\fB\-\-max\-rss\fR] [\fB\-\-seed\-ratio\fR] [\fB\-\-seed\-time\fR] [\fB\-\-stop\-timeout\fR] [\fB\-\-init\-timeout\fR] [\fB\-\-lowest\-speed\-limit\fR] [\fB\-\-peer\fR] [\fB\-\-no\-dht\fR] [\fB\-\-no\-lsd\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fISOURCE\fR> 
+.SH DESCRIPTION
+Connect, sample the swarm, report peers, then exit
+.SH OPTIONS
+.TP
+\fB\-\-duration\fR \fI<DUR>\fR [default: 15s]
+How long to sample the swarm
+.TP
+\fB\-\-count\fR \fI<N>\fR
+Stop once this many distinct peers have been seen
+.TP
+\fB\-\-sort\fR \fI<KEY>\fR [default: addr]
+Sort key, as KEY or KEY:ORDER. Keys: addr, client, speed, pieces
+.TP
+\fB\-\-port\fR \fI<PORT>\fR
+Listen port, or a range as START\-END. `0` asks the OS for a free one
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help (see a summary with \*(Aq\-h\*(Aq)
+.TP
+<\fISOURCE\fR>
+A .torrent path, an HTTP(S) URL, a magnet URI, an info hash, a metalink, or `\-` for stdin.
+
+`help_heading = None` keeps it in clap\*(Aqs own "Arguments" section wherever it is flattened. Without it, a command that sets a heading before flattening this would file its own positional under that heading. `TODO/cli\-surface.md`, T\-159.
+.SH TRACKERS
+.TP
+\fB\-\-tracker\fR \fI<URL>\fR
+Add a tracker at runtime. The .torrent is never rewritten
+.TP
+\fB\-\-tracker\-file\fR \fI<PATH>\fR
+One tracker per line. A blank line separates BEP 12 tiers
+.TP
+\fB\-\-tracker\-list\-url\fR \fI<URL>\fR
+Fetch a tracker list over HTTP
+.TP
+\fB\-\-exclude\-tracker\fR \fI<URL>\fR
+Remove trackers. `*` removes all
+.TP
+\fB\-\-replace\-trackers\fR
+Replace the torrent\*(Aqs tracker list instead of adding to it
+.TP
+\fB\-\-tracker\-timeout\fR \fI<DUR>\fR
+Tracker request timeout
+.TP
+\fB\-\-tracker\-connect\-timeout\fR \fI<DUR>\fR
+Tracker connect timeout
+.TP
+\fB\-\-tracker\-interval\fR \fI<DUR>\fR
+Override the announce interval
+.TP
+\fB\-\-no\-tracker\fR
+Disable tracker announces entirely
+.SH "LIMITS AND LIFECYCLE"
+.TP
+\fB\-\-max\-download\-rate\fR \fI<RATE>\fR
+Download rate cap, per torrent
+.TP
+\fB\-u\fR, \fB\-\-max\-upload\-rate\fR \fI<RATE>\fR
+Upload rate cap, per torrent
+.TP
+\fB\-\-max\-overall\-download\-rate\fR \fI<RATE>\fR
+Download rate cap across the whole run
+.TP
+\fB\-\-max\-overall\-upload\-rate\fR \fI<RATE>\fR
+Upload rate cap across the whole run
+.TP
+\fB\-\-max\-peer\-rate\fR \fI<RATE>\fR
+Download rate cap for swarm peers, not for attached HTTP sources
+.TP
+\fB\-\-max\-peers\fR \fI<N>\fR
+Peer connections per torrent
+.TP
+\fB\-\-max\-peers\-total\fR \fI<N>\fR
+Peer connections across the run
+.TP
+\fB\-\-encryption\fR \fI<MODE>\fR [default: prefer]
+Message stream encryption, for peer connections in both directions.
+
+`prefer` dials with MSE and dials again in plaintext when the peer does not speak it, and accepts either. `require` refuses a plaintext peer in both directions, which is what reaches a peer configured to require encryption, at the cost of every peer that cannot do it. `off` neither offers nor accepts it.
+
+One listening port serves both: an accepting end tells the two apart by reading the first twenty bytes, so there is no second port and nothing on the wire says which mode this run is in. `\-\-json` reports what each peer settled on as `encryption`. See `TODO/peers.md`, T\-163.
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+off: Never encrypt, and refuse a peer that opens with MSE
+.IP \(bu 2
+prefer: Try MSE, fall back to plaintext, accept both
+.IP \(bu 2
+require: MSE or nothing, in both directions
+.RE
+.TP
+\fB\-\-transport\fR \fI<MODE>\fR [default: tcp]
+Which transports this run listens on and dials.
+
+`tcp` is the default and is what every run before 2026\-08\-24 did. `utp` is BEP 29 over UDP, which carries the same peer wire protocol under LEDBAT congestion control: it yields to other traffic on the same link instead of competing with it, which is what keeps a seeding box from making its own connection unusable. `both` listens on each and lets the peer decide.
+
+One port number serves both, because they are different protocols: `\-\-port 6881` is TCP 6881 and UDP 6881. See `TODO/bep\-coverage.md`, T\-101.
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+tcp: TCP only. What every run did before this flag existed
+.IP \(bu 2
+utp: uTP only, BEP 29. Nothing reaches a TCP\-only peer
+.IP \(bu 2
+both: Listen on both and let the peer choose
+.RE
+.TP
+\fB\-\-block\-peer\fR \fI<ADDR>\fR
+Refuse this peer for the whole run. Repeatable.
+
+An address, an inclusive `START\-END` range, or a CIDR block, in either family. A `HOST:PORT` is refused rather than truncated: the session blocks an address, so accepting one would block every port on that host without saying so.
+
+Checked before an incoming handshake is read and before an outgoing connection is dialled, so a blocked address never takes a connection slot. There is no state file, so this lasts for the invocation. See `TODO/peers.md`, T\-164.
+.TP
+\fB\-\-max\-open\-files\fR \fI<N>\fR [default: 128]
+Payload files kept open at once.
+
+Files open when they are first touched and the least recently opened closes when this cap is reached, so a torrent with twenty thousand files does not need twenty thousand descriptors.
+.TP
+\fB\-\-max\-handles\fR \fI<N>\fR
+Stop when the process holds more than this many handles. Off by default.
+
+This is a backstop, not a tuning knob. A supervised deployment sets it and gets a loud exit 16 and a restart instead of a process that quietly runs the machine out of descriptors.
+
+It was written for a specific leak, one socket per peer that connected and closed before handshaking, which `TODO/peers.md` T\-020 measured and which is fixed: six hours of `scripts/soak.ps1` see zero sockets in `CLOSE_WAIT` at every sample. A backstop for a defect that is fixed still earns its place, because the next one has not been found yet.
+
+Counted against the whole process, so it includes threads, sockets, and payload files. Read `cost` in the report for a healthy baseline before picking a number.
+.TP
+\fB\-\-max\-rss\fR \fI<SIZE>\fR
+Stop when the process holds more than this much resident memory. Off by default.
+
+The other backstop, for the growth beside the handles. A seeder under load grows about 0.8 MiB an hour, and TODO/memory.md T\-040 attributes most of it to the peer row librqbit keeps for every peer it has ever accepted and never reclaims: 2,907 bytes a row, measured over 2,000 of them, retained after a minute of no traffic. Nothing here frees one, so a supervised deployment sets this and gets a loud exit 16 and a restart.
+
+Read `cost` in a healthy run\*(Aqs report for a baseline before picking a number: a seeder with nothing connected sits near 12 MiB.
+.TP
+\fB\-\-seed\-ratio\fR \fI<RATIO>\fR
+Stop seeding at this ratio. 0 means do not seed
+.TP
+\fB\-\-seed\-time\fR \fI<DUR>\fR
+Stop seeding after this long
+.TP
+\fB\-\-stop\-timeout\fR \fI<DUR>\fR
+Give up if there is no progress for this long
+.TP
+\fB\-\-init\-timeout\fR \fI<DUR>\fR [default: 10m]
+Give up if the hash check has not finished in this long.
+
+Initialisation is reading the metadata and hash\-checking whatever is on disk, and it is where a torrent can stop making progress without failing. The error names the phase and how far the check got, which a plain deadline does not.
+.TP
+\fB\-\-lowest\-speed\-limit\fR \fI<RATE>\fR
+Abort if the rate drops below this
+.TP
+\fB\-\-peer\fR \fI<ADDR>\fR
+Try this peer before any are discovered, as HOST:PORT. Repeatable
+.TP
+\fB\-\-no\-dht\fR
+Disable the DHT.
+
+With `\-\-peer` and `\-\-no\-tracker` this samples a swarm of exactly the members named on the command line and reaches nothing else.
+.TP
+\fB\-\-no\-lsd\fR
+Disable local service discovery
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH bit-cli-trackers 1  "bit-cli-trackers " 
+.SH NAME
+bit\-cli\-trackers \- Announce or scrape, report the result, then exit
+.SH SYNOPSIS
+\fBbit\-cli\-trackers\fR [\fB\-\-tracker\fR] [\fB\-\-tracker\-file\fR] [\fB\-\-tracker\-list\-url\fR] [\fB\-\-exclude\-tracker\fR] [\fB\-\-replace\-trackers\fR] [\fB\-\-tracker\-timeout\fR] [\fB\-\-tracker\-connect\-timeout\fR] [\fB\-\-tracker\-interval\fR] [\fB\-\-no\-tracker\fR] [\fB\-\-scrape\fR] [\fB\-\-scrape\-url\fR] [\fB\-\-port\fR] [\fB\-\-no\-withdraw\fR] [\fB\-\-family\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fISOURCE\fR> 
+.SH DESCRIPTION
+Announce or scrape, report the result, then exit
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help (see a summary with \*(Aq\-h\*(Aq)
+.TP
+<\fISOURCE\fR>
+A .torrent path, an HTTP(S) URL, a magnet URI, an info hash, a metalink, or `\-` for stdin.
+
+`help_heading = None` keeps it in clap\*(Aqs own "Arguments" section wherever it is flattened. Without it, a command that sets a heading before flattening this would file its own positional under that heading. `TODO/cli\-surface.md`, T\-159.
+.SH TRACKERS
+.TP
+\fB\-\-tracker\fR \fI<URL>\fR
+Add a tracker at runtime. The .torrent is never rewritten
+.TP
+\fB\-\-tracker\-file\fR \fI<PATH>\fR
+One tracker per line. A blank line separates BEP 12 tiers
+.TP
+\fB\-\-tracker\-list\-url\fR \fI<URL>\fR
+Fetch a tracker list over HTTP
+.TP
+\fB\-\-exclude\-tracker\fR \fI<URL>\fR
+Remove trackers. `*` removes all
+.TP
+\fB\-\-replace\-trackers\fR
+Replace the torrent\*(Aqs tracker list instead of adding to it
+.TP
+\fB\-\-tracker\-timeout\fR \fI<DUR>\fR
+Tracker request timeout
+.TP
+\fB\-\-tracker\-connect\-timeout\fR \fI<DUR>\fR
+Tracker connect timeout
+.TP
+\fB\-\-tracker\-interval\fR \fI<DUR>\fR
+Override the announce interval
+.TP
+\fB\-\-no\-tracker\fR
+Disable tracker announces entirely
+.TP
+\fB\-\-scrape\fR
+Scrape instead of announcing
+.TP
+\fB\-\-scrape\-url\fR \fI<URL>\fR
+The scrape endpoint, for a tracker that does not follow BEP 48.
+
+BEP 48 derives the endpoint by replacing a trailing `announce` path component with `scrape`. A tracker whose path does not end that way has no derivable endpoint, and guessing one produces a 404 that reads like the tracker being down. This is how a caller who knows the endpoint says so. It replaces the derivation, so it names one tracker and the run has to be narrowed to that tracker.
+.TP
+\fB\-\-port\fR \fI<PORT>\fR
+Port to announce, or a range as START\-END. `0` asks the OS for a free one.
+
+The port is bound for the length of the announce, so what the tracker is told is a port something is actually listening on. The command then announces `stopped`, so the record does not outlive it.
+.TP
+\fB\-\-no\-withdraw\fR
+Announce and leave the peer record behind.
+
+The default withdraws it with a second announce carrying `event=stopped`, because asking a tracker a question should not register a peer that is gone by the time anyone dials it.
+.TP
+\fB\-\-family\fR \fI<FAMILY>\fR [default: auto]
+Which address family to announce over.
+
+A tracker records the source address of the connection it was announced over, so one announce registers one of this host\*(Aqs addresses. `auto` announces once per family the tracker resolves to and reports each separately, which is what says whether both are reachable.
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+auto: One announce per family the tracker has an address in
+.IP \(bu 2
+v4: IPv4 only
+.IP \(bu 2
+v6: IPv6 only
+.RE
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH bit-cli-webseed 1  "bit-cli-webseed " 
+.SH NAME
+bit\-cli\-webseed \- Inspect, validate, and read from HTTP sources
+.SH SYNOPSIS
+\fBbit\-cli\-webseed\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+Inspect, validate, and read from HTTP sources
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.SH SUBCOMMANDS
+.TP
+bit\-cli\-webseed\-list(1)
+Resolve every binding and print the exact URL each file maps to. No network
+.TP
+bit\-cli\-webseed\-test(1)
+Probe each source: range support, size, redirects, TLS, latency
+.TP
+bit\-cli\-webseed\-probe(1)
+Measure ranged\-GET latency and throughput as concurrency scales
+.TP
+bit\-cli\-webseed\-fetch(1)
+Fetch one range from one source and verify it against the torrent
+.TP
+bit\-cli\-webseed\-help(1)
+Print this message or the help of the given subcommand(s)
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH bit-cli-verify 1  "bit-cli-verify " 
+.SH NAME
+bit\-cli\-verify \- Hash\-check existing data against the torrent
+.SH SYNOPSIS
+\fBbit\-cli\-verify\fR [\fB\-\-data\fR] [\fB\-\-per\-piece\fR] [\fB\-\-select\-file\fR] [\fB\-\-exclude\-file\fR] [\fB\-O\fR|\fB\-\-index\-out\fR] [\fB\-\-peer\fR] [\fB\-\-no\-dht\fR] [\fB\-\-no\-lsd\fR] [\fB\-\-no\-tracker\fR] [\fB\-\-page\-select\fR] [\fB\-\-page\-client\fR] [\fB\-\-render\fR] [\fB\-\-browser\-path\fR] [\fB\-\-browser\-port\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fISOURCE\fR> 
+.SH DESCRIPTION
+Hash\-check existing data against the torrent
+.SH OPTIONS
+.TP
+\fB\-\-data\fR \fI<PATH>\fR
+Where the payload lives. Defaults to \-\-dir
+.TP
+\fB\-\-per\-piece\fR
+Report the result of every piece, not just the failures
+.TP
+\fB\-\-select\-file\fR \fI<INDEX>\fR
+Verify only the files a `\-\-select\-file` download asked for. Accepts ranges: 1\-5,8.
+
+A piece the selection does not cover is reported as not selected rather than as bad, and does not fail the run. Without this, verifying what `download \-\-select\-file` wrote reports every piece outside the selection as a failure, which is true of the bytes and wrong about the run. See `TODO/disk\-io.md`, T\-184.
+.TP
+\fB\-\-exclude\-file\fR \fI<INDEX>\fR
+Skip these files, as `\-\-select\-file`\*(Aqs complement
+.TP
+\fB\-O\fR, \fB\-\-index\-out\fR \fI<INDEX=PATH>\fR
+Where a file was written, as INDEX=PATH, for a payload downloaded with `\-O`/`\-\-index\-out`.
+
+`verify` looks where the bytes went rather than where the torrent said they would go, and a file the caller renamed is somewhere only the caller knows. Without this, verifying what `download \-O` wrote reports that file as missing. See `TODO/cli\-surface.md`, T\-116.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help (see a summary with \*(Aq\-h\*(Aq)
+.TP
+<\fISOURCE\fR>
+A .torrent path, an HTTP(S) URL, a magnet URI, an info hash, a metalink, or `\-` for stdin.
+
+`help_heading = None` keeps it in clap\*(Aqs own "Arguments" section wherever it is flattened. Without it, a command that sets a heading before flattening this would file its own positional under that heading. `TODO/cli\-surface.md`, T\-159.
+.SH "RESOLVING A MAGNET"
+.TP
+\fB\-\-peer\fR \fI<ADDR>\fR
+Try this peer before any are discovered, as HOST:PORT. Repeatable.
+
+With `\-\-no\-dht`, `\-\-no\-lsd` and `\-\-no\-tracker` this resolves the metadata from exactly the peers named here and nowhere else.
+.TP
+\fB\-\-no\-dht\fR
+Disable the DHT while resolving
+.TP
+\fB\-\-no\-lsd\fR
+Disable local service discovery while resolving
+.TP
+\fB\-\-no\-tracker\fR
+Do not announce to the magnet\*(Aqs trackers while resolving
+.SH "RESOLVING A WEB PAGE"
+.TP
+\fB\-\-page\-select\fR \fI<TEXT>\fR
+Take the one link on a page whose URL or text contains TEXT.
+
+Matched case insensitively, as a substring, against both the resolved URL and the anchor text beside it. A page is still refused when this leaves more than one link, because a selector that matches two is not a selection.
+.TP
+\fB\-\-page\-client\fR \fI<PROFILE>\fR [default: browser]
+Which client to present as when fetching a source document.
+
+`browser` sends a current Chrome\*(Aqs header set in Chrome\*(Aqs order, which is what an origin reads before it decides which page to serve. `plain` sends `bit\-cli/<version>` and nothing else. This is the source document only: a web seed is a mirror you configured and always gets `bit\-cli`.
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+browser
+.IP \(bu 2
+plain
+.RE
+.TP
+\fB\-\-render\fR
+Read the page after its script has run, through an installed browser.
+
+A page that builds its links in script has none of them in the HTML the server sent. This drives a Chrome or Edge that is **already installed**, over the DevTools protocol, and extracts from the DOM afterwards. It never installs a browser and never bundles one.
+
+It needs a build with the `render` feature: `cargo build \-\-release \-\-features render`. Without one the flag is refused with a message saying so rather than silently reading the page unrendered.
+.TP
+\fB\-\-browser\-path\fR \fI<PATH>\fR
+The browser `\-\-render` drives, when it is not where this looks.
+
+Absent, an already\-running instance on `\-\-browser\-port` is tried, then the executables on `PATH`, then the platform\*(Aqs usual locations. A path given here is tried first and alone: naming one and getting a different browser is the tool ignoring its own instruction.
+.TP
+\fB\-\-browser\-port\fR \fI<HOST:PORT>\fR
+Attach to a browser already listening for the DevTools protocol.
+
+`HOST:PORT`, or just `PORT` for `127.0.0.1`. Attaching to a browser that is already up is cheaper than starting a second one.
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH bit-cli-create 1  "bit-cli-create " 
+.SH NAME
+bit\-cli\-create \- Create a .torrent
+.SH SYNOPSIS
+\fBbit\-cli\-create\fR [\fB\-o\fR|\fB\-\-output\fR] [\fB\-\-name\fR] [\fB\-\-piece\-length\fR] [\fB\-\-version\fR] [\fB\-\-announce\fR] [\fB\-\-announce\-tier\fR] [\fB\-\-web\-seed\fR] [\fB\-\-http\-seed\fR] [\fB\-\-node\fR] [\fB\-\-comment\fR] [\fB\-\-source\fR] [\fB\-\-update\-url\fR] [\fB\-\-private\fR] [\fB\-\-md5\fR] [\fB\-\-glob\fR] [\fB\-\-ignore\fR] [\fB\-\-include\-hidden\fR] [\fB\-\-include\-junk\fR] [\fB\-\-follow\-symlinks\fR] [\fB\-\-sort\-by\fR] [\fB\-\-no\-created\-by\fR] [\fB\-\-no\-creation\-date\fR] [\fB\-\-allow\fR] [\fB\-\-force\fR] [\fB\-\-link\fR] [\fB\-\-show\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATH\fR> 
+.SH DESCRIPTION
+Create a .torrent
+.SH OPTIONS
+.TP
+\fB\-o\fR, \fB\-\-output\fR \fI<TARGET>\fR
+Write here, or `\-` for stdout. Defaults to alongside the input
+.TP
+\fB\-\-name\fR \fI<TEXT>\fR
+Torrent name. Defaults to the input filename
+.TP
+\fB\-\-piece\-length\fR \fI<SIZE>\fR
+Piece length. Accepts binary units. Chosen by heuristic when absent
+.TP
+\fB\-\-version\fR \fI<V>\fR [default: v1]
+Metainfo version
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+v1
+.IP \(bu 2
+v2
+.IP \(bu 2
+hybrid
+.RE
+.TP
+\fB\-\-announce\fR \fI<URL>\fR
+Primary tracker
+.TP
+\fB\-\-announce\-tier\fR \fI<URLS>\fR
+Add a BEP 12 tier. Repeatable. Comma\-separates within a tier
+.TP
+\fB\-\-web\-seed\fR \fI<URL>\fR
+Web seed written into `url\-list` (BEP 19)
+.TP
+\fB\-\-http\-seed\fR \fI<URL>\fR
+HTTP seed written into `httpseeds` (BEP 17)
+.TP
+\fB\-\-node\fR \fI<HOST:PORT>\fR
+DHT bootstrap node written into the torrent
+.TP
+\fB\-\-comment\fR \fI<TEXT>\fR
+Free\-text comment
+.TP
+\fB\-\-source\fR \fI<TEXT>\fR
+The `source` key in the info dict. Changes the info hash
+.TP
+\fB\-\-update\-url\fR \fI<URL>\fR
+BEP 39 feed URL
+.TP
+\fB\-\-private\fR
+Set the private flag (BEP 27)
+.TP
+\fB\-\-md5\fR
+Write per\-file MD5 checksums. MD5 is not collision resistant
+.TP
+\fB\-\-glob\fR \fI<GLOB>\fR
+Include or, with a leading `!`, exclude paths
+.TP
+\fB\-\-ignore\fR
+Respect .gitignore, .ignore, and .git/info/exclude
+.TP
+\fB\-\-include\-hidden\fR
+Include hidden files
+.TP
+\fB\-\-include\-junk\fR
+Include junk files such as .DS_Store and Thumbs.db
+.TP
+\fB\-\-follow\-symlinks\fR
+Follow symlinks
+.TP
+\fB\-\-sort\-by\fR \fI<KEY:ORDER>\fR [default: path:asc]
+Deterministic file ordering, as KEY:ORDER
+.TP
+\fB\-\-no\-created\-by\fR
+Omit the `created by` field
+.TP
+\fB\-\-no\-creation\-date\fR
+Omit the creation date. Required for byte\-reproducible output
+.TP
+\fB\-\-allow\fR \fI<LINT>\fR
+Permit a lint that would otherwise refuse the build. Repeatable
+.TP
+\fB\-\-force\fR
+Overwrite an existing output file
+.TP
+\fB\-\-link\fR
+Print the magnet URI to stdout
+.TP
+\fB\-\-show\fR
+Print a summary of what was created
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fIPATH\fR>
+File or directory to build a torrent from
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH bit-cli-edit 1  "bit-cli-edit " 
+.SH NAME
+bit\-cli\-edit \- Rewrite metainfo fields on an existing .torrent, writing a new file
+.SH SYNOPSIS
+\fBbit\-cli\-edit\fR [\fB\-o\fR|\fB\-\-output\fR] [\fB\-\-announce\fR] [\fB\-\-announce\-tier\fR] [\fB\-\-no\-announce\fR] [\fB\-\-web\-seed\fR] [\fB\-\-replace\-web\-seeds\fR] [\fB\-\-no\-web\-seed\fR] [\fB\-\-http\-seed\fR] [\fB\-\-comment\fR] [\fB\-\-no\-comment\fR] [\fB\-\-created\-by\fR] [\fB\-\-no\-creation\-date\fR] [\fB\-\-node\fR] [\fB\-\-update\-url\fR] [\fB\-\-allow\-new\-infohash\fR] [\fB\-\-force\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fITORRENT\fR> 
+.SH DESCRIPTION
+Rewrite metainfo fields on an existing .torrent, writing a new file
+.SH OPTIONS
+.TP
+\fB\-o\fR, \fB\-\-output\fR \fI<TARGET>\fR
+Write here, or `\-` for stdout. Never edits in place
+.TP
+\fB\-\-announce\fR \fI<URL>\fR
+Replace the primary tracker
+.TP
+\fB\-\-announce\-tier\fR \fI<URLS>\fR
+Add a BEP 12 tier. Repeatable
+.TP
+\fB\-\-no\-announce\fR
+Drop every tracker
+.TP
+\fB\-\-web\-seed\fR \fI<URL>\fR
+Add a web seed to `url\-list`
+.TP
+\fB\-\-replace\-web\-seeds\fR
+Replace `url\-list` rather than adding to it
+.TP
+\fB\-\-no\-web\-seed\fR
+Drop every web seed
+.TP
+\fB\-\-http\-seed\fR \fI<URL>\fR
+Add an HTTP seed to `httpseeds`
+.TP
+\fB\-\-comment\fR \fI<TEXT>\fR
+Replace the comment
+.TP
+\fB\-\-no\-comment\fR
+Drop the comment
+.TP
+\fB\-\-created\-by\fR \fI<TEXT>\fR
+Replace the `created by` field
+.TP
+\fB\-\-no\-creation\-date\fR
+Drop the creation date
+.TP
+\fB\-\-node\fR \fI<HOST:PORT>\fR
+Add a DHT bootstrap node
+.TP
+\fB\-\-update\-url\fR \fI<URL>\fR
+Replace the BEP 39 feed URL
+.TP
+\fB\-\-allow\-new\-infohash\fR
+Permit an edit that changes the info hash
+.TP
+\fB\-\-force\fR
+Overwrite an existing output file
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fITORRENT\fR>
+The torrent to read
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH bit-cli-magnet 1  "bit-cli-magnet " 
+.SH NAME
+bit\-cli\-magnet \- Convert a torrent to a magnet URI, or resolve a magnet to metadata
+.SH SYNOPSIS
+\fBbit\-cli\-magnet\fR [\fB\-o\fR|\fB\-\-output\fR] [\fB\-\-force\fR] [\fB\-\-peer\fR] [\fB\-\-no\-dht\fR] [\fB\-\-no\-lsd\fR] [\fB\-\-no\-tracker\fR] [\fB\-\-page\-select\fR] [\fB\-\-page\-client\fR] [\fB\-\-render\fR] [\fB\-\-browser\-path\fR] [\fB\-\-browser\-port\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fISOURCE\fR> 
+.SH DESCRIPTION
+Convert a torrent to a magnet URI, or resolve a magnet to metadata
+.SH OPTIONS
+.TP
+\fB\-o\fR, \fB\-\-output\fR \fI<PATH>\fR
+Write the resolved metainfo here as a `.torrent`. `\-` is stdout.
+
+The whole point of resolving a magnet twice is not having to: the metadata came off the swarm once and this keeps it. The bytes written carry the `info` dictionary exactly as it arrived, so the info hash of the file equals the one in the magnet, and `write_to_vec` proves that rather than trusting it. See `TODO/metainfo.md`, T\-241.
+.TP
+\fB\-\-force\fR
+Overwrite the output file if it is already there
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help (see a summary with \*(Aq\-h\*(Aq)
+.TP
+<\fISOURCE\fR>
+A .torrent path, an HTTP(S) URL, a magnet URI, an info hash, a metalink, or `\-` for stdin.
+
+`help_heading = None` keeps it in clap\*(Aqs own "Arguments" section wherever it is flattened. Without it, a command that sets a heading before flattening this would file its own positional under that heading. `TODO/cli\-surface.md`, T\-159.
+.SH "RESOLVING A MAGNET"
+.TP
+\fB\-\-peer\fR \fI<ADDR>\fR
+Try this peer before any are discovered, as HOST:PORT. Repeatable.
+
+With `\-\-no\-dht`, `\-\-no\-lsd` and `\-\-no\-tracker` this resolves the metadata from exactly the peers named here and nowhere else.
+.TP
+\fB\-\-no\-dht\fR
+Disable the DHT while resolving
+.TP
+\fB\-\-no\-lsd\fR
+Disable local service discovery while resolving
+.TP
+\fB\-\-no\-tracker\fR
+Do not announce to the magnet\*(Aqs trackers while resolving
+.SH "RESOLVING A WEB PAGE"
+.TP
+\fB\-\-page\-select\fR \fI<TEXT>\fR
+Take the one link on a page whose URL or text contains TEXT.
+
+Matched case insensitively, as a substring, against both the resolved URL and the anchor text beside it. A page is still refused when this leaves more than one link, because a selector that matches two is not a selection.
+.TP
+\fB\-\-page\-client\fR \fI<PROFILE>\fR [default: browser]
+Which client to present as when fetching a source document.
+
+`browser` sends a current Chrome\*(Aqs header set in Chrome\*(Aqs order, which is what an origin reads before it decides which page to serve. `plain` sends `bit\-cli/<version>` and nothing else. This is the source document only: a web seed is a mirror you configured and always gets `bit\-cli`.
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+browser
+.IP \(bu 2
+plain
+.RE
+.TP
+\fB\-\-render\fR
+Read the page after its script has run, through an installed browser.
+
+A page that builds its links in script has none of them in the HTML the server sent. This drives a Chrome or Edge that is **already installed**, over the DevTools protocol, and extracts from the DOM afterwards. It never installs a browser and never bundles one.
+
+It needs a build with the `render` feature: `cargo build \-\-release \-\-features render`. Without one the flag is refused with a message saying so rather than silently reading the page unrendered.
+.TP
+\fB\-\-browser\-path\fR \fI<PATH>\fR
+The browser `\-\-render` drives, when it is not where this looks.
+
+Absent, an already\-running instance on `\-\-browser\-port` is tried, then the executables on `PATH`, then the platform\*(Aqs usual locations. A path given here is tried first and alone: naming one and getting a different browser is the tool ignoring its own instruction.
+.TP
+\fB\-\-browser\-port\fR \fI<HOST:PORT>\fR
+Attach to a browser already listening for the DevTools protocol.
+
+`HOST:PORT`, or just `PORT` for `127.0.0.1`. Attaching to a browser that is already up is cheaper than starting a second one.
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH bit-cli-seed 1  "bit-cli-seed " 
+.SH NAME
+bit\-cli\-seed \- Seed existing data in the foreground
+.SH SYNOPSIS
+\fBbit\-cli\-seed\fR [\fB\-\-tracker\fR] [\fB\-\-tracker\-file\fR] [\fB\-\-tracker\-list\-url\fR] [\fB\-\-exclude\-tracker\fR] [\fB\-\-replace\-trackers\fR] [\fB\-\-tracker\-timeout\fR] [\fB\-\-tracker\-connect\-timeout\fR] [\fB\-\-tracker\-interval\fR] [\fB\-\-no\-tracker\fR] [\fB\-\-max\-download\-rate\fR] [\fB\-u\fR|\fB\-\-max\-upload\-rate\fR] [\fB\-\-max\-overall\-download\-rate\fR] [\fB\-\-max\-overall\-upload\-rate\fR] [\fB\-\-max\-peer\-rate\fR] [\fB\-\-max\-peers\fR] [\fB\-\-max\-peers\-total\fR] [\fB\-\-encryption\fR] [\fB\-\-transport\fR] [\fB\-\-block\-peer\fR] [\fB\-\-max\-open\-files\fR] [\fB\-\-max\-handles\fR] [\fB\-\-max\-rss\fR] [\fB\-\-seed\-ratio\fR] [\fB\-\-seed\-time\fR] [\fB\-\-stop\-timeout\fR] [\fB\-\-init\-timeout\fR] [\fB\-\-lowest\-speed\-limit\fR] [\fB\-\-on\-complete\fR] [\fB\-\-on\-error\fR] [\fB\-\-data\fR] [\fB\-O\fR|\fB\-\-index\-out\fR] [\fB\-\-verify\fR] [\fB\-\-fastresume\fR] [\fB\-\-fastresume\-dir\fR] [\fB\-\-superseed\fR] [\fB\-\-announce\-only\fR] [\fB\-\-port\fR] [\fB\-\-no\-dht\fR] [\fB\-\-no\-pex\fR] [\fB\-\-no\-lsd\fR] [\fB\-\-report\-interval\fR] [\fB\-\-exit\-when\-idle\fR] [\fB\-\-listener\-check\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fISOURCE\fR> 
+.SH DESCRIPTION
+Seed existing data in the foreground
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help (see a summary with \*(Aq\-h\*(Aq)
+.TP
+<\fISOURCE\fR>
+A .torrent path, an HTTP(S) URL, a magnet URI, an info hash, a metalink, or `\-` for stdin.
+
+`help_heading = None` keeps it in clap\*(Aqs own "Arguments" section wherever it is flattened. Without it, a command that sets a heading before flattening this would file its own positional under that heading. `TODO/cli\-surface.md`, T\-159.
+.SH TRACKERS
+.TP
+\fB\-\-tracker\fR \fI<URL>\fR
+Add a tracker at runtime. The .torrent is never rewritten
+.TP
+\fB\-\-tracker\-file\fR \fI<PATH>\fR
+One tracker per line. A blank line separates BEP 12 tiers
+.TP
+\fB\-\-tracker\-list\-url\fR \fI<URL>\fR
+Fetch a tracker list over HTTP
+.TP
+\fB\-\-exclude\-tracker\fR \fI<URL>\fR
+Remove trackers. `*` removes all
+.TP
+\fB\-\-replace\-trackers\fR
+Replace the torrent\*(Aqs tracker list instead of adding to it
+.TP
+\fB\-\-tracker\-timeout\fR \fI<DUR>\fR
+Tracker request timeout
+.TP
+\fB\-\-tracker\-connect\-timeout\fR \fI<DUR>\fR
+Tracker connect timeout
+.TP
+\fB\-\-tracker\-interval\fR \fI<DUR>\fR
+Override the announce interval
+.TP
+\fB\-\-no\-tracker\fR
+Disable tracker announces entirely
+.SH "LIMITS AND LIFECYCLE"
+.TP
+\fB\-\-max\-download\-rate\fR \fI<RATE>\fR
+Download rate cap, per torrent
+.TP
+\fB\-u\fR, \fB\-\-max\-upload\-rate\fR \fI<RATE>\fR
+Upload rate cap, per torrent
+.TP
+\fB\-\-max\-overall\-download\-rate\fR \fI<RATE>\fR
+Download rate cap across the whole run
+.TP
+\fB\-\-max\-overall\-upload\-rate\fR \fI<RATE>\fR
+Upload rate cap across the whole run
+.TP
+\fB\-\-max\-peer\-rate\fR \fI<RATE>\fR
+Download rate cap for swarm peers, not for attached HTTP sources
+.TP
+\fB\-\-max\-peers\fR \fI<N>\fR
+Peer connections per torrent
+.TP
+\fB\-\-max\-peers\-total\fR \fI<N>\fR
+Peer connections across the run
+.TP
+\fB\-\-encryption\fR \fI<MODE>\fR [default: prefer]
+Message stream encryption, for peer connections in both directions.
+
+`prefer` dials with MSE and dials again in plaintext when the peer does not speak it, and accepts either. `require` refuses a plaintext peer in both directions, which is what reaches a peer configured to require encryption, at the cost of every peer that cannot do it. `off` neither offers nor accepts it.
+
+One listening port serves both: an accepting end tells the two apart by reading the first twenty bytes, so there is no second port and nothing on the wire says which mode this run is in. `\-\-json` reports what each peer settled on as `encryption`. See `TODO/peers.md`, T\-163.
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+off: Never encrypt, and refuse a peer that opens with MSE
+.IP \(bu 2
+prefer: Try MSE, fall back to plaintext, accept both
+.IP \(bu 2
+require: MSE or nothing, in both directions
+.RE
+.TP
+\fB\-\-transport\fR \fI<MODE>\fR [default: tcp]
+Which transports this run listens on and dials.
+
+`tcp` is the default and is what every run before 2026\-08\-24 did. `utp` is BEP 29 over UDP, which carries the same peer wire protocol under LEDBAT congestion control: it yields to other traffic on the same link instead of competing with it, which is what keeps a seeding box from making its own connection unusable. `both` listens on each and lets the peer decide.
+
+One port number serves both, because they are different protocols: `\-\-port 6881` is TCP 6881 and UDP 6881. See `TODO/bep\-coverage.md`, T\-101.
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+tcp: TCP only. What every run did before this flag existed
+.IP \(bu 2
+utp: uTP only, BEP 29. Nothing reaches a TCP\-only peer
+.IP \(bu 2
+both: Listen on both and let the peer choose
+.RE
+.TP
+\fB\-\-block\-peer\fR \fI<ADDR>\fR
+Refuse this peer for the whole run. Repeatable.
+
+An address, an inclusive `START\-END` range, or a CIDR block, in either family. A `HOST:PORT` is refused rather than truncated: the session blocks an address, so accepting one would block every port on that host without saying so.
+
+Checked before an incoming handshake is read and before an outgoing connection is dialled, so a blocked address never takes a connection slot. There is no state file, so this lasts for the invocation. See `TODO/peers.md`, T\-164.
+.TP
+\fB\-\-max\-open\-files\fR \fI<N>\fR [default: 128]
+Payload files kept open at once.
+
+Files open when they are first touched and the least recently opened closes when this cap is reached, so a torrent with twenty thousand files does not need twenty thousand descriptors.
+.TP
+\fB\-\-max\-handles\fR \fI<N>\fR
+Stop when the process holds more than this many handles. Off by default.
+
+This is a backstop, not a tuning knob. A supervised deployment sets it and gets a loud exit 16 and a restart instead of a process that quietly runs the machine out of descriptors.
+
+It was written for a specific leak, one socket per peer that connected and closed before handshaking, which `TODO/peers.md` T\-020 measured and which is fixed: six hours of `scripts/soak.ps1` see zero sockets in `CLOSE_WAIT` at every sample. A backstop for a defect that is fixed still earns its place, because the next one has not been found yet.
+
+Counted against the whole process, so it includes threads, sockets, and payload files. Read `cost` in the report for a healthy baseline before picking a number.
+.TP
+\fB\-\-max\-rss\fR \fI<SIZE>\fR
+Stop when the process holds more than this much resident memory. Off by default.
+
+The other backstop, for the growth beside the handles. A seeder under load grows about 0.8 MiB an hour, and TODO/memory.md T\-040 attributes most of it to the peer row librqbit keeps for every peer it has ever accepted and never reclaims: 2,907 bytes a row, measured over 2,000 of them, retained after a minute of no traffic. Nothing here frees one, so a supervised deployment sets this and gets a loud exit 16 and a restart.
+
+Read `cost` in a healthy run\*(Aqs report for a baseline before picking a number: a seeder with nothing connected sits near 12 MiB.
+.TP
+\fB\-\-seed\-ratio\fR \fI<RATIO>\fR
+Stop seeding at this ratio. 0 means do not seed
+.TP
+\fB\-\-seed\-time\fR \fI<DUR>\fR
+Stop seeding after this long
+.TP
+\fB\-\-stop\-timeout\fR \fI<DUR>\fR
+Give up if there is no progress for this long
+.TP
+\fB\-\-init\-timeout\fR \fI<DUR>\fR [default: 10m]
+Give up if the hash check has not finished in this long.
+
+Initialisation is reading the metadata and hash\-checking whatever is on disk, and it is where a torrent can stop making progress without failing. The error names the phase and how far the check got, which a plain deadline does not.
+.TP
+\fB\-\-lowest\-speed\-limit\fR \fI<RATE>\fR
+Abort if the rate drops below this
+.SH HOOKS
+.TP
+\fB\-\-on\-complete\fR \fI<COMMAND>\fR
+Run this command on success. Arguments arrive through the environment.
+
+On `download` that is a torrent finishing. On `seed` it is the payload passing its hash check with the listener up, which is the moment a seeder starts being useful: a seeder has no completion of its own.
+.TP
+\fB\-\-on\-error\fR \fI<COMMAND>\fR
+Run this command on failure
+.TP
+\fB\-\-data\fR \fI<PATH>\fR
+Where the payload already lives. Defaults to \-\-dir
+.TP
+\fB\-O\fR, \fB\-\-index\-out\fR \fI<INDEX=PATH>\fR
+Serve this file from this path, as INDEX=PATH.
+
+The same flag `download` writes with and `verify` reads with, and for the same reason: a payload fetched with `download \-O 0=renamed.bin` is on disk under a name only the caller knows, and a seeder that looks where the torrent said finds nothing there. See `TODO/cli\-surface.md`, T\-213.
+.TP
+\fB\-\-verify\fR \fI<MODE>\fR [default: full]
+Hash\-check before announcing.
+
+`full` is what happens today whatever this says: the session hash\-checks the whole payload on add and offers no way to skip it. `quick` and `none` are accepted, warn, and do the same thing. `\-\-fastresume` is the flag that skips the check. See `TODO/disk\-io.md`, T\-016.
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+full
+.IP \(bu 2
+quick
+.IP \(bu 2
+none
+.RE
+.TP
+\fB\-\-fastresume\fR
+Reuse the previous run\*(Aqs hash check when the payload has not changed
+.TP
+\fB\-\-fastresume\-dir\fR \fI<DIR>\fR
+Where the resume cache lives. Default: .bit\-cli\-resume beside the data
+.TP
+\fB\-\-superseed\fR
+BEP 16 superseeding for initial distribution
+.TP
+\fB\-\-announce\-only\fR
+Announce, report the tracker response, do not serve
+.TP
+\fB\-\-port\fR \fI<PORT>\fR
+Listen port, or a range as START\-END
+.TP
+\fB\-\-no\-dht\fR
+Disable the DHT
+.TP
+\fB\-\-no\-pex\fR
+Disable peer exchange
+.TP
+\fB\-\-no\-lsd\fR
+Disable local service discovery
+.TP
+\fB\-\-report\-interval\fR \fI<DUR>\fR [default: 5s]
+Emit a progress event this often
+.TP
+\fB\-\-exit\-when\-idle\fR \fI<DUR>\fR
+Exit after this long with no connected peers
+.TP
+\fB\-\-listener\-check\fR \fI<DUR>\fR
+Check this often that our own listener still answers. Off by default.
+
+A seeder that cannot be handshaked is down, and nothing a supervisor normally watches says so: the process is alive, the port is open, and the ratio still gets reported.
+
+The failure it was written for is fixed. `librqbit` 9.0.0\*(Aqs accept loop disabled its own drain arm on the first handshake check that errored, so a run of peers closing before they handshook left a backlog and twenty were enough to stop a seeder serving anybody; the vendored tree handles every outcome and the backlog clears in one connection. See `TODO/peers.md`, T\-020. What the check is for now is the general question rather than that one answer: whether this process still answers a handshake.
+
+Each check dials this run\*(Aqs own listen port over loopback and completes a real handshake for a torrent it is serving. Three failures in a row stop the run with `"stopped": "listener_unhealthy"` and exit 17, which is a restart a supervisor can act on. It costs the session one peer row per check, which is dropped from the reported peer list and never counted as a swarm member.
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH bit-cli-bench 1  "bit-cli-bench " 
+.SH NAME
+bit\-cli\-bench \- Measure a target
+.SH SYNOPSIS
+\fBbit\-cli\-bench\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+Measure a target
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.SH SUBCOMMANDS
+.TP
+bit\-cli\-bench\-leech(1)
+Download from a target and measure
+.TP
+bit\-cli\-bench\-seed(1)
+Seed and measure what the swarm pulls
+.TP
+bit\-cli\-bench\-webseed(1)
+Measure HTTP sources: latency percentiles, concurrency scaling, ranges
+.TP
+bit\-cli\-bench\-disk(1)
+Measure the payload file under several writers, with no session
+.TP
+bit\-cli\-bench\-swarm(1)
+Synthetic peer load against a target
+.TP
+bit\-cli\-bench\-probe(1)
+One\-shot capability and reachability probe
+.TP
+bit\-cli\-bench\-help(1)
+Print this message or the help of the given subcommand(s)
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH bit-cli-config 1  "bit-cli-config " 
+.SH NAME
+bit\-cli\-config \- Configuration
+.SH SYNOPSIS
+\fBbit\-cli\-config\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+Configuration
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.SH SUBCOMMANDS
+.TP
+bit\-cli\-config\-show(1)
+Print the fully resolved configuration with the origin of every value
+.TP
+bit\-cli\-config\-help(1)
+Print this message or the help of the given subcommand(s)
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH bit-cli-completions 1  "bit-cli-completions " 
+.SH NAME
+bit\-cli\-completions \- Generate shell completions
+.SH SYNOPSIS
+\fBbit\-cli\-completions\fR [\fB\-h\fR|\fB\-\-help\fR] <\fISHELL\fR> 
+.SH DESCRIPTION
+Generate shell completions
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fISHELL\fR>
+Which shell to generate for
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+bash
+.IP \(bu 2
+zsh
+.IP \(bu 2
+fish
+.IP \(bu 2
+powershell
+.IP \(bu 2
+elvish
+.IP \(bu 2
+nushell
+.RE
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH bit-cli-man 1  "bit-cli-man " 
+.SH NAME
+bit\-cli\-man \- Generate a man page
+.SH SYNOPSIS
+\fBbit\-cli\-man\fR [\fB\-o\fR|\fB\-\-output\fR] [\fB\-\-format\fR] [\fB\-h\fR|\fB\-\-help\fR] 
+.SH DESCRIPTION
+Generate a man page
+.SH OPTIONS
+.TP
+\fB\-o\fR, \fB\-\-output\fR \fI<PATH>\fR
+Write the man page here instead of to stdout
+.TP
+\fB\-\-format\fR \fI<FMT>\fR [default: roff]
+What to render. `roff` is the man page; `json` is the same surface as a CLIspec document, for a reader that cannot parse roff
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+roff: A troff man page, the committed `man/bit\-cli.1`
+.IP \(bu 2
+json: A CLIspec 0.3 document, the committed `man/bit\-cli.json`
+.IP \(bu 2
+markdown: The same manual as Markdown, the committed `man/bit\-cli.md`
+.RE
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help (see a summary with \*(Aq\-h\*(Aq)
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH bit-cli-version 1  "bit-cli-version " 
+.SH NAME
+bit\-cli\-version \- Version, build metadata, enabled features, and protocol support
+.SH SYNOPSIS
+\fBbit\-cli\-version\fR [\fB\-h\fR|\fB\-\-help\fR] 
+.SH DESCRIPTION
+Version, build metadata, enabled features, and protocol support
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help

@@ -1,0 +1,104 @@
+# Base ignores, from Azathothas/TEMPLATE dotfiles (common + rust + os-editor),
+# with the additions this project needs.
+#
+# ⛔ .gitignore only applies to files git is not ALREADY tracking. Adding a line
+# does not untrack what is already in. Check with: git ls-files
+
+# -- secrets. Never committed, no exceptions ---------------------------------
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+id_rsa
+id_ed25519
+credentials.json
+service-account*.json
+*.token
+.*_token
+.*-token
+
+# -- scratch and temporary work ---------------------------------------------
+.tmp/
+tmp/
+temp/
+scratch/
+.scratch/
+
+# -- logs --------------------------------------------------------------------
+*.log
+logs/
+
+# -- coverage and test output -----------------------------------------------
+coverage/
+.coverage
+htmlcov/
+test-results/
+.nyc_output/
+
+# -- agent and assistant local files ----------------------------------------
+.claude/settings.local.json
+CLAUDE.local.md
+.aider*
+.cursorignore
+
+# -- Rust --------------------------------------------------------------------
+# ⛔ ROOTED. A bare `target/` also swallows `references/*/tree/target`, which is
+# somebody else's source directory in several of the corpus trees.
+/target/
+**/*.rs.bk
+*.pdb
+
+# Cargo.lock IS committed: podbox ships a binary and the lock is what makes a
+# build reproducible.
+
+# -- experiment scratch ------------------------------------------------------
+# The scripts' working directories. `experiments/results/` is tracked: it is
+# the evidence.
+experiments/.stage/
+experiments/.langbuild/
+experiments/.interpose/
+verification/build/
+
+# ⛔ `references/` IS NOT IGNORED. docs/methodology/references.md section 4:
+# the corpus is the evidence, and an ignored corpus is lost on the next
+# machine. scripts/common/mine-repo.sh refuses to write into a directory these
+# rules would swallow.
+
+# ⛔ Windows reserved device names. A shell that does not map `2>/dev/null`
+# creates a real file called `nul`, which breaks `git stash`.
+nul
+CON
+PRN
+AUX
+NUL
+COM[1-9]
+LPT[1-9]
+CON.*
+PRN.*
+AUX.*
+NUL.*
+COM[1-9].*
+LPT[1-9].*
+
+# -- OS and editor noise -----------------------------------------------------
+.DS_Store
+.DS_Store?
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+desktop.ini
+$RECYCLE.BIN/
+*.lnk

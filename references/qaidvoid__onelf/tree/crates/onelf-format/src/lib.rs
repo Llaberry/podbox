@@ -1,0 +1,21 @@
+//! ONELF format definitions
+
+#[macro_use]
+mod macros;
+
+pub mod cache_layout;
+pub mod drivers;
+pub mod elf;
+pub mod entry;
+pub mod footer;
+pub mod manifest;
+pub mod reader;
+pub mod resolve;
+pub mod update;
+pub mod verdef;
+
+pub use entry::{Block, Entry, EntryKind, EntryPoint, EntryPointFlags, WorkingDir};
+pub use footer::{END_MAGIC, FOOTER_SIZE, Flags, Footer, HostLibsPolicy, MAGIC};
+pub use manifest::{
+    Manifest, ManifestHeader, StringTableBuilder, is_safe_component, symlink_target_within_root,
+};

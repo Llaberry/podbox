@@ -1,0 +1,52 @@
+[
+ {
+  "name": "v0.2.3",
+  "zipball_url": "https://api.github.com/repos/pkgforge-dev/cross-libc-dlopen/zipball/refs/tags/v0.2.3",
+  "tarball_url": "https://api.github.com/repos/pkgforge-dev/cross-libc-dlopen/tarball/refs/tags/v0.2.3",
+  "commit": {
+   "sha": "34482c71f7d59c3948333f99681c73aaa8c56f9e",
+   "url": "https://api.github.com/repos/pkgforge-dev/cross-libc-dlopen/commits/34482c71f7d59c3948333f99681c73aaa8c56f9e"
+  },
+  "node_id": "REF_kwDOUEZXyrByZWZzL3RhZ3MvdjAuMi4z"
+ },
+ {
+  "name": "v0.2.2",
+  "zipball_url": "https://api.github.com/repos/pkgforge-dev/cross-libc-dlopen/zipball/refs/tags/v0.2.2",
+  "tarball_url": "https://api.github.com/repos/pkgforge-dev/cross-libc-dlopen/tarball/refs/tags/v0.2.2",
+  "commit": {
+   "sha": "2f617ad33ffd964cf3a6b1078bb80640be8c6641",
+   "url": "https://api.github.com/repos/pkgforge-dev/cross-libc-dlopen/commits/2f617ad33ffd964cf3a6b1078bb80640be8c6641"
+  },
+  "node_id": "REF_kwDOUEZXyrByZWZzL3RhZ3MvdjAuMi4y"
+ },
+ {
+  "name": "v0.2.1",
+  "zipball_url": "https://api.github.com/repos/pkgforge-dev/cross-libc-dlopen/zipball/refs/tags/v0.2.1",
+  "tarball_url": "https://api.github.com/repos/pkgforge-dev/cross-libc-dlopen/tarball/refs/tags/v0.2.1",
+  "commit": {
+   "sha": "793f3f3ff15955c73c719a2dbc15b3a1ec36a03f",
+   "url": "https://api.github.com/repos/pkgforge-dev/cross-libc-dlopen/commits/793f3f3ff15955c73c719a2dbc15b3a1ec36a03f"
+  },
+  "node_id": "REF_kwDOUEZXyrByZWZzL3RhZ3MvdjAuMi4x"
+ },
+ {
+  "name": "v0.2.0",
+  "zipball_url": "https://api.github.com/repos/pkgforge-dev/cross-libc-dlopen/zipball/refs/tags/v0.2.0",
+  "tarball_url": "https://api.github.com/repos/pkgforge-dev/cross-libc-dlopen/tarball/refs/tags/v0.2.0",
+  "commit": {
+   "sha": "1cecf50ef603ed146dfcebda8553ff1558470965",
+   "url": "https://api.github.com/repos/pkgforge-dev/cross-libc-dlopen/commits/1cecf50ef603ed146dfcebda8553ff1558470965"
+  },
+  "node_id": "REF_kwDOUEZXyrByZWZzL3RhZ3MvdjAuMi4w"
+ },
+ {
+  "name": "v0.1.0",
+  "zipball_url": "https://api.github.com/repos/pkgforge-dev/cross-libc-dlopen/zipball/refs/tags/v0.1.0",
+  "tarball_url": "https://api.github.com/repos/pkgforge-dev/cross-libc-dlopen/tarball/refs/tags/v0.1.0",
+  "commit": {
+   "sha": "21e923690bcf68c1fd1d40e9c743991c719d445e",
+   "url": "https://api.github.com/repos/pkgforge-dev/cross-libc-dlopen/commits/21e923690bcf68c1fd1d40e9c743991c719d445e"
+  },
+  "node_id": "REF_kwDOUEZXyrByZWZzL3RhZ3MvdjAuMS4w"
+ }
+]

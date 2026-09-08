@@ -1,0 +1,15 @@
+# Allow repeated headers (changelog sections)
+MD024: false
+# Allow hard tabs (go snippets in e2e)
+MD010: false
+# Allow mixing of asterisks and underscores for emphasis
+MD049: false
+MD050: false
+# Allow bare urls
+MD034: false
+# Line-length
+MD013:
+  # Disable line-length check inside code blocks
+  code_blocks: false
+# Allow non-descriptive link texts.
+MD059: false

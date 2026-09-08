@@ -1,0 +1,32 @@
+[
+ {
+  "name": "v0.0.3",
+  "zipball_url": "https://api.github.com/repos/89luca89/lilipod/zipball/refs/tags/v0.0.3",
+  "tarball_url": "https://api.github.com/repos/89luca89/lilipod/tarball/refs/tags/v0.0.3",
+  "commit": {
+   "sha": "68b04f28b30332ffae74e626209a64642407efeb",
+   "url": "https://api.github.com/repos/89luca89/lilipod/commits/68b04f28b30332ffae74e626209a64642407efeb"
+  },
+  "node_id": "REF_kwDOH9pDaLByZWZzL3RhZ3MvdjAuMC4z"
+ },
+ {
+  "name": "v0.0.2",
+  "zipball_url": "https://api.github.com/repos/89luca89/lilipod/zipball/refs/tags/v0.0.2",
+  "tarball_url": "https://api.github.com/repos/89luca89/lilipod/tarball/refs/tags/v0.0.2",
+  "commit": {
+   "sha": "428c72460e154f3b1dedb8a1acb130655cc9412e",
+   "url": "https://api.github.com/repos/89luca89/lilipod/commits/428c72460e154f3b1dedb8a1acb130655cc9412e"
+  },
+  "node_id": "REF_kwDOH9pDaLByZWZzL3RhZ3MvdjAuMC4y"
+ },
+ {
+  "name": "v0.0.1",
+  "zipball_url": "https://api.github.com/repos/89luca89/lilipod/zipball/refs/tags/v0.0.1",
+  "tarball_url": "https://api.github.com/repos/89luca89/lilipod/tarball/refs/tags/v0.0.1",
+  "commit": {
+   "sha": "2ff84e5bf7032e52f65469a694b62f1f4eb805f3",
+   "url": "https://api.github.com/repos/89luca89/lilipod/commits/2ff84e5bf7032e52f65469a694b62f1f4eb805f3"
+  },
+  "node_id": "REF_kwDOH9pDaLByZWZzL3RhZ3MvdjAuMC4x"
+ }
+]

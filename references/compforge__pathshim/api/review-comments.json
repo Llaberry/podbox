@@ -1,0 +1,71 @@
+[
+ {
+  "url": "https://api.github.com/repos/compforge/pathshim/pulls/comments/3885428731",
+  "pull_request_review_id": 5056693144,
+  "id": 3885428731,
+  "node_id": "PRRC_kwDOUHP6GM7nlu_7",
+  "diff_hunk": "@@ -0,0 +1,150 @@\n+#![cfg(target_os = \"linux\")]\n+\n+use std::fs;\n+use std::path::{Path, PathBuf};\n+use std::process::Command;\n+use std::sync::atomic::{AtomicU64, Ordering};\n+\n+static NEXT_ID: AtomicU64 = AtomicU64::new(0);\n+\n+struct TestPaths {\n+    base: PathBuf,\n+    rootfs: PathBuf,\n+}\n+\n+impl TestPaths {\n+    fn new() -> Self {\n+        let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);\n+        let base =\n+            std::env::temp_dir().join(format!(\"pathshim-cwd-e2e-{}-{id}\", std::process::id()));\n+        let rootfs = base.join(\"rootfs\");\n+        fs::create_dir_all(&rootfs).expect(\"create rootfs fixture\");\n+        Self { base, rootfs }\n+    }\n+}\n+\n+impl Drop for TestPaths {\n+    fn drop(&mut self) {\n+        let _ = fs::remove_dir_all(&self.base);\n+    }\n+}\n+\n+#[test]\n+fn initial_guest_cwd_sets_pwd_and_resolves_relative_writes() {\n+    let paths = TestPaths::new();\n+    fs::create_dir_all(paths.rootfs.join(\"workspace\")).unwrap();\n+\n+    let output = run_pathshim(\n+        &paths.rootfs,\n+        \"/workspace\",\n+        \"/bin/sh\",\n+        &[\"-c\", \"printf '%s\\\\n' \\\"$PWD\\\"; pwd; echo cwd > result.txt\"],\n+    );\n+\n+    assert!(\n+        output.status.success(),\n+        \"pathshim: {}\",\n+        String::from_utf8_lossy(&output.stderr)\n+    );\n+    assert_eq!(output.stdout, b\"/workspace\\n/workspace\\n\");\n+    assert_eq!(\n+        fs::read_to_string(paths.rootfs.join(\"workspace/result.txt\")).unwrap(),\n+        \"cwd\\n\"\n+    );\n+}\n+\n+#[test]\n+fn missing_initial_guest_cwd_is_created_in_upper() {\n+    let paths = TestPaths::new();\n+\n+    let output = run_pathshim(\n+        &paths.rootfs,\n+        \"/does-not-exist\",\n+        \"/bin/sh\",\n+        &[\n+            \"-c\",\n+            \"printf '%s\\\\n' \\\"$PWD\\\"; pwd; echo created > relative.txt\",\n+        ],\n+    );\n+\n+    assert!(\n+        output.status.success(),\n+        \"pathshim: {}\",\n+        String::from_utf8_lossy(&output.stderr)\n+    );\n+    assert_eq!(output.stdout, b\"/does-not-exist\\n/does-not-exist\\n\");\n+    assert!(\n+        String::from_utf8_lossy(&output.stderr).contains(\"created guest cwd path=/does-not-exist\")\n+    );\n+    assert_eq!(\n+        fs::read_to_string(paths.rootfs.join(\"does-not-exist/relative.txt\")).unwrap(),\n+        \"created\\n\"\n+    );\n+}\n+\n+#[test]\n+fn non_directory_initial_guest_cwd_falls_back_to_root() {\n+    let paths = TestPaths::new();\n+    fs::write(paths.rootfs.join(\"not-a-directory\"), \"file\").unwrap();\n+",
+  "path": "tests/linux_cwd.rs",
+  "commit_id": "b0c6634cabe59741b507c7e9252674f206570aa7",
+  "original_commit_id": "b0c6634cabe59741b507c7e9252674f206570aa7",
+  "user": {
+   "login": "qiankunli",
+   "id": 8024725,
+   "node_id": "MDQ6VXNlcjgwMjQ3MjU=",
+   "avatar_url": "https://avatars.githubusercontent.com/u/8024725?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/qiankunli",
+   "html_url": "https://github.com/qiankunli",
+   "followers_url": "https://api.github.com/users/qiankunli/followers",
+   "following_url": "https://api.github.com/users/qiankunli/following{/other_user}",
+   "gists_url": "https://api.github.com/users/qiankunli/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/qiankunli/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/qiankunli/subscriptions",
+   "organizations_url": "https://api.github.com/users/qiankunli/orgs",
+   "repos_url": "https://api.github.com/users/qiankunli/repos",
+   "events_url": "https://api.github.com/users/qiankunli/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/qiankunli/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "\ud83e\udd16 **devloop code-review** \u00b7 seed-2.1-pro \u00b7 ready in 9m 46s\n\nThe new integration test `cwd_namespace_matches_common_proot_process_semantics` hard-requires a C compiler at test runtime. It invokes `Command::new(\"cc\")...output().expect(\"compile cwd fixture\")` without first checking that `cc` exists, so on a Linux host without a C compiler (no `cc` in PATH) the `output()` call returns `Err` and the `expect` panics, failing the whole test binary. This diverges from the sibling Go coverage test in `tests/linux_cow.rs`, which checks `go` availability and skips gracefully. The fixture test should do the same: probe for a working `cc` and skip (or otherwise degrade) when it is absent, keeping `cargo test` green on minimal Linux environments/CI images.\n\n<sub>ccr:fp=ee7097ebaceb</sub>\n<!-- ccr:history=eyJrZXkiOiJ0ZXN0cy9saW51eF9jd2QucnM6OmN3ZF9uYW1lc3BhY2VfbWF0Y2hlc19jb21tb25fcHJvb3RfcHJvY2Vzc19zZW1hbnRpY3MiLCJtc2ciOiJUaGUgbmV3IGludGVncmF0aW9uIHRlc3QgYGN3ZF9uYW1lc3BhY2VfbWF0Y2hlc19jb21tb25fcHJvb3RfcHJvY2Vzc19zZW1hbnRpY3NgIGhhcmQtcmVxdWlyZXMgYSBDIGNvbXBpbGVyIGF0IHRlc3QgcnVudGltZS4gSXQgaW52b2tlcyBgQ29tbWFuZDo6bmV3KFwiY2NcIikuLi5vdXRwdXQoKS5leHBlY3QoXCJjb21waWxlIGN3ZCBmaXh0dXJlXCIpYCB3aXRob3V0IGZpcnN0IGNoZWNraW5nIHRoYXQgYGNjYCBleGlzdHMsIHNvIG9uIGEgTGludXggaG9zdCB3aXRob3V0IGEgQyBjb21waWxlciAobm8gYGNjYCBpbiBQQVRIKSB0aGUgYG91dHB1dCgpYCBjYWxsIHJldHVybnMgYEVycmAgYW5kIHRoZSBgZXhwZWN0YCBwYW5pY3MsIGZhaWxpbmcgdGhlIHdob2xlIHRlc3QgYmluYXJ5LiBUaGlzIGRpdmVyZ2VzIGZyb20gdGhlIHNpYmxpbmcgR28gY292ZXJhZ2UgdGVzdCBpbiBgdGVzdHMvbGludXhfY293LnJzYCwgd2hpY2ggY2hlY2tzIGBnb2AgYXZhaWxhYmlsaXR5IGFuZCBza2lwcyBncmFjZWZ1bGx5LiBUaGUgZml4dHVyZSB0ZXN0IHNob3VsZCBkbyB0aGUgc2FtZTogcHJvYmUgZm9yIGEgd29ya2luZyBgY2NgIGFuZCBza2lwIChvciBvdGhlcndpc2UgZGVncmFkZSkgd2hlbiBpdCBpcyBhYnNlbnQsIGtlZXBpbmcgYGNhcmdvIHRlc3RgIGdyZWVuIG9uIG1pbmltYWwgTGludXggZW52aXJvbm1lbnRzL0NJIGltYWdlcy4iLCJzaGEiOiI1ZjNhZmNkZTQiLCJmcCI6ImVlNzA5N2ViYWNlYiJ9 -->",
+  "created_at": "2026-08-29T03:31:16Z",
+  "updated_at": "2026-08-29T03:31:16Z",
+  "html_url": "https://github.com/compforge/pathshim/pull/2#discussion_r3885428731",
+  "pull_request_url": "https://api.github.com/repos/compforge/pathshim/pulls/2",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/compforge/pathshim/pulls/comments/3885428731"
+   },
+   "html": {
+    "href": "https://github.com/compforge/pathshim/pull/2#discussion_r3885428731"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/compforge/pathshim/pulls/2"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/compforge/pathshim/pulls/comments/3885428731/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": 89,
+  "original_line": 89,
+  "side": "RIGHT",
+  "author_association": "CONTRIBUTOR",
+  "original_position": 89,
+  "position": 89,
+  "subject_type": "line"
+ }
+]

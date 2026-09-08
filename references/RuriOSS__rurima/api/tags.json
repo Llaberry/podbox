@@ -1,0 +1,42 @@
+[
+ {
+  "name": "v0.9.2",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/rurima/zipball/refs/tags/v0.9.2",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/rurima/tarball/refs/tags/v0.9.2",
+  "commit": {
+   "sha": "c9507d9bd2e67b1bcc8b08a2a5e1c731f24d36ad",
+   "url": "https://api.github.com/repos/RuriOSS/rurima/commits/c9507d9bd2e67b1bcc8b08a2a5e1c731f24d36ad"
+  },
+  "node_id": "REF_kwDONFpazLByZWZzL3RhZ3MvdjAuOS4y"
+ },
+ {
+  "name": "v0.9.1",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/rurima/zipball/refs/tags/v0.9.1",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/rurima/tarball/refs/tags/v0.9.1",
+  "commit": {
+   "sha": "3c2a4a15cb9b08da7c03e60c9d2395a235bbe8ff",
+   "url": "https://api.github.com/repos/RuriOSS/rurima/commits/3c2a4a15cb9b08da7c03e60c9d2395a235bbe8ff"
+  },
+  "node_id": "REF_kwDONFpazLByZWZzL3RhZ3MvdjAuOS4x"
+ },
+ {
+  "name": "v0.9.0",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/rurima/zipball/refs/tags/v0.9.0",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/rurima/tarball/refs/tags/v0.9.0",
+  "commit": {
+   "sha": "ef562db9d7553b4c3d67b0088d9b01e3183e6bc7",
+   "url": "https://api.github.com/repos/RuriOSS/rurima/commits/ef562db9d7553b4c3d67b0088d9b01e3183e6bc7"
+  },
+  "node_id": "REF_kwDONFpazLByZWZzL3RhZ3MvdjAuOS4w"
+ },
+ {
+  "name": "null",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/rurima/zipball/refs/tags/null",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/rurima/tarball/refs/tags/null",
+  "commit": {
+   "sha": "37cf69f9a2db3e5dc8bf2ab5e2ea1d0a710a2bff",
+   "url": "https://api.github.com/repos/RuriOSS/rurima/commits/37cf69f9a2db3e5dc8bf2ab5e2ea1d0a710a2bff"
+  },
+  "node_id": "REF_kwDONFpazK5yZWZzL3RhZ3MvbnVsbA"
+ }
+]

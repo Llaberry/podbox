@@ -1,0 +1,732 @@
+[
+ {
+  "name": "v0.8.1",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.8.1",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.8.1",
+  "commit": {
+   "sha": "b1ef744989533d8b1b4327b647fb315a42765ab9",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/b1ef744989533d8b1b4327b647fb315a42765ab9"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuOC4x"
+ },
+ {
+  "name": "v0.7.9",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.7.9",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.7.9",
+  "commit": {
+   "sha": "9ced775c762193ab525acfb9a9497b17945db8de",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/9ced775c762193ab525acfb9a9497b17945db8de"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNy45"
+ },
+ {
+  "name": "v0.7.8",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.7.8",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.7.8",
+  "commit": {
+   "sha": "a6fa8538565fbbe476f16ebd38f593406c766c5a",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/a6fa8538565fbbe476f16ebd38f593406c766c5a"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNy44"
+ },
+ {
+  "name": "v0.7.7",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.7.7",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.7.7",
+  "commit": {
+   "sha": "cfa0e2fcdab616df978e49c24ed5add0bb3bd545",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/cfa0e2fcdab616df978e49c24ed5add0bb3bd545"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNy43"
+ },
+ {
+  "name": "v0.7.6",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.7.6",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.7.6",
+  "commit": {
+   "sha": "a133816386be37bfb17be40e8457f11cd03b05f2",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/a133816386be37bfb17be40e8457f11cd03b05f2"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNy42"
+ },
+ {
+  "name": "v0.7.5",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.7.5",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.7.5",
+  "commit": {
+   "sha": "cf550713cf7101b25e64f31ee7dc6143628d0a36",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/cf550713cf7101b25e64f31ee7dc6143628d0a36"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNy41"
+ },
+ {
+  "name": "v0.7.4",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.7.4",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.7.4",
+  "commit": {
+   "sha": "3c6703e7542b8994a6abe6d6be7d4504d6783d61",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/3c6703e7542b8994a6abe6d6be7d4504d6783d61"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNy40"
+ },
+ {
+  "name": "v0.7.3",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.7.3",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.7.3",
+  "commit": {
+   "sha": "a53e32559f2bf533a222eedbdd63803636e909fe",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/a53e32559f2bf533a222eedbdd63803636e909fe"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNy4z"
+ },
+ {
+  "name": "v0.7.2",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.7.2",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.7.2",
+  "commit": {
+   "sha": "5cd69df23accc4ccfebc58f550f796578d4783e7",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/5cd69df23accc4ccfebc58f550f796578d4783e7"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNy4y"
+ },
+ {
+  "name": "v0.7.1",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.7.1",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.7.1",
+  "commit": {
+   "sha": "ea8cc75542aa20d37faf72a1738b954a543c6597",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/ea8cc75542aa20d37faf72a1738b954a543c6597"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNy4x"
+ },
+ {
+  "name": "v0.6.9",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.6.9",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.6.9",
+  "commit": {
+   "sha": "e4f7b0105d549e2200b4179a8431a82d6dff097e",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/e4f7b0105d549e2200b4179a8431a82d6dff097e"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNi45"
+ },
+ {
+  "name": "v0.6.8",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.6.8",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.6.8",
+  "commit": {
+   "sha": "157927d4c7a695cedb687f7a61a51675bb0eea55",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/157927d4c7a695cedb687f7a61a51675bb0eea55"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNi44"
+ },
+ {
+  "name": "v0.6.7",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.6.7",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.6.7",
+  "commit": {
+   "sha": "e0d98f1f32cabe9fe390f07ad3f3f230583fa3f7",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/e0d98f1f32cabe9fe390f07ad3f3f230583fa3f7"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNi43"
+ },
+ {
+  "name": "v0.6.6",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.6.6",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.6.6",
+  "commit": {
+   "sha": "e467ceef882699036f9690e48434231b07f6a18d",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/e467ceef882699036f9690e48434231b07f6a18d"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNi42"
+ },
+ {
+  "name": "v0.6.5",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.6.5",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.6.5",
+  "commit": {
+   "sha": "c7a000a08216c39d7156497ee9931340b485294a",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/c7a000a08216c39d7156497ee9931340b485294a"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNi41"
+ },
+ {
+  "name": "v0.6.4",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.6.4",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.6.4",
+  "commit": {
+   "sha": "42618ca34df53c1016e7244652b4bae47eca35f9",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/42618ca34df53c1016e7244652b4bae47eca35f9"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNi40"
+ },
+ {
+  "name": "v0.6.3",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.6.3",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.6.3",
+  "commit": {
+   "sha": "5ab10d15960a989c328a3582b48710092e753778",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/5ab10d15960a989c328a3582b48710092e753778"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNi4z"
+ },
+ {
+  "name": "v0.6.2",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.6.2",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.6.2",
+  "commit": {
+   "sha": "39ee6bbc2478f097f7b538b0f24b2c3f5f434b46",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/39ee6bbc2478f097f7b538b0f24b2c3f5f434b46"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNi4y"
+ },
+ {
+  "name": "v0.6.1",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.6.1",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.6.1",
+  "commit": {
+   "sha": "2ba2857373e405f268a00a7bc75fac8ea29195e6",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/2ba2857373e405f268a00a7bc75fac8ea29195e6"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNi4x"
+ },
+ {
+  "name": "v0.5.9",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.5.9",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.5.9",
+  "commit": {
+   "sha": "8de17247bb8d3512c60479312e8b227cbf648df6",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/8de17247bb8d3512c60479312e8b227cbf648df6"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNS45"
+ },
+ {
+  "name": "v0.5.8",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.5.8",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.5.8",
+  "commit": {
+   "sha": "61f9b6c04de5879aaaf000e690b60b5c02504306",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/61f9b6c04de5879aaaf000e690b60b5c02504306"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNS44"
+ },
+ {
+  "name": "v0.5.7",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.5.7",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.5.7",
+  "commit": {
+   "sha": "6a825be313c7b7d04642fea5fb039aca00a9e087",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/6a825be313c7b7d04642fea5fb039aca00a9e087"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNS43"
+ },
+ {
+  "name": "v0.5.6",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.5.6",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.5.6",
+  "commit": {
+   "sha": "942a9d17bbbd62e3a092327e9ddf95e5d2a50da8",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/942a9d17bbbd62e3a092327e9ddf95e5d2a50da8"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNS42"
+ },
+ {
+  "name": "v0.5.5",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.5.5",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.5.5",
+  "commit": {
+   "sha": "b31295050715da6cae19d5165011df7d6ba10646",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/b31295050715da6cae19d5165011df7d6ba10646"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNS41"
+ },
+ {
+  "name": "v0.5.4",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.5.4",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.5.4",
+  "commit": {
+   "sha": "b37d9f836ff3f6106581a2ad8d2ef24e5181c091",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/b37d9f836ff3f6106581a2ad8d2ef24e5181c091"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNS40"
+ },
+ {
+  "name": "v0.5.3",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.5.3",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.5.3",
+  "commit": {
+   "sha": "b09a6f77d364c0c3496e369228a5a8df393cd600",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/b09a6f77d364c0c3496e369228a5a8df393cd600"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNS4z"
+ },
+ {
+  "name": "v0.5.2",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.5.2",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.5.2",
+  "commit": {
+   "sha": "cf52fa9c75763c0c0e157d78ecacfb81d8fe6ddf",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/cf52fa9c75763c0c0e157d78ecacfb81d8fe6ddf"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNS4y"
+ },
+ {
+  "name": "v0.5.1",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.5.1",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.5.1",
+  "commit": {
+   "sha": "5d9e1c6e15330af1e8f31255d54c3ebc31cf2910",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/5d9e1c6e15330af1e8f31255d54c3ebc31cf2910"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNS4x"
+ },
+ {
+  "name": "v0.4.9",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.4.9",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.4.9",
+  "commit": {
+   "sha": "6b671743861aef6077ae91a45b4edf59dbf89d58",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/6b671743861aef6077ae91a45b4edf59dbf89d58"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNC45"
+ },
+ {
+  "name": "v0.4.8",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.4.8",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.4.8",
+  "commit": {
+   "sha": "8d6307adcd9c8ec185abe91130c925f8e755a024",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/8d6307adcd9c8ec185abe91130c925f8e755a024"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNC44"
+ },
+ {
+  "name": "v0.4.7",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.4.7",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.4.7",
+  "commit": {
+   "sha": "f998bd99fccc666f076a867c0e8b45e676f3e597",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/f998bd99fccc666f076a867c0e8b45e676f3e597"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNC43"
+ },
+ {
+  "name": "v0.4.6",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.4.6",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.4.6",
+  "commit": {
+   "sha": "e7ae477d97ae64827eafa3e15fd6b50b806bc598",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/e7ae477d97ae64827eafa3e15fd6b50b806bc598"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNC42"
+ },
+ {
+  "name": "v0.4.5",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.4.5",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.4.5",
+  "commit": {
+   "sha": "fbf85e52044c236c901c658b61732b17a701fb46",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/fbf85e52044c236c901c658b61732b17a701fb46"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNC41"
+ },
+ {
+  "name": "v0.4.4",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.4.4",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.4.4",
+  "commit": {
+   "sha": "63c060c4bed10aa97d0547d584fb562064c27621",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/63c060c4bed10aa97d0547d584fb562064c27621"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNC40"
+ },
+ {
+  "name": "v0.4.3",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.4.3",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.4.3",
+  "commit": {
+   "sha": "ace632c74f7f0661acaf0a78c1c195617adb51c5",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/ace632c74f7f0661acaf0a78c1c195617adb51c5"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNC4z"
+ },
+ {
+  "name": "v0.4.2",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.4.2",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.4.2",
+  "commit": {
+   "sha": "803a77621b471182db4ac562439d83a53a4a1705",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/803a77621b471182db4ac562439d83a53a4a1705"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNC4y"
+ },
+ {
+  "name": "v0.4.1",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.4.1",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.4.1",
+  "commit": {
+   "sha": "68061c75d8d1af4ba4a992a7d39cf7be19d5d518",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/68061c75d8d1af4ba4a992a7d39cf7be19d5d518"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuNC4x"
+ },
+ {
+  "name": "v0.3.9",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.3.9",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.3.9",
+  "commit": {
+   "sha": "a12937e276f725db6ff805d8f44470fa36a09bd9",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/a12937e276f725db6ff805d8f44470fa36a09bd9"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMy45"
+ },
+ {
+  "name": "v0.3.8",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.3.8",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.3.8",
+  "commit": {
+   "sha": "88329d3f0fab618daa9a80b0d17c9c51a36bdadf",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/88329d3f0fab618daa9a80b0d17c9c51a36bdadf"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMy44"
+ },
+ {
+  "name": "v0.3.7",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.3.7",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.3.7",
+  "commit": {
+   "sha": "8262e08668442b21ee4a2895263f2c72780807ff",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/8262e08668442b21ee4a2895263f2c72780807ff"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMy43"
+ },
+ {
+  "name": "v0.3.6",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.3.6",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.3.6",
+  "commit": {
+   "sha": "8881820ed2134b5129de0ecfb3e8c2f9313caf8b",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/8881820ed2134b5129de0ecfb3e8c2f9313caf8b"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMy42"
+ },
+ {
+  "name": "v0.3.5",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.3.5",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.3.5",
+  "commit": {
+   "sha": "2d99a9ed0db3b3a7b367d20f2f2f5ccb94a7dbd0",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/2d99a9ed0db3b3a7b367d20f2f2f5ccb94a7dbd0"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMy41"
+ },
+ {
+  "name": "v0.3.4",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.3.4",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.3.4",
+  "commit": {
+   "sha": "5e9c00a2c4dcccac6c68c4b8356188bc3856ba1c",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/5e9c00a2c4dcccac6c68c4b8356188bc3856ba1c"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMy40"
+ },
+ {
+  "name": "v0.3.3",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.3.3",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.3.3",
+  "commit": {
+   "sha": "9a6124a82595a835b07ea7fad7301be736e5a39b",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/9a6124a82595a835b07ea7fad7301be736e5a39b"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMy4z"
+ },
+ {
+  "name": "v0.3.2",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.3.2",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.3.2",
+  "commit": {
+   "sha": "c7c2a3638d37516b5b34409ca2bfa62a3795cb84",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/c7c2a3638d37516b5b34409ca2bfa62a3795cb84"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMy4y"
+ },
+ {
+  "name": "v0.3.1",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.3.1",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.3.1",
+  "commit": {
+   "sha": "ab77f8a22f81bef53d0f47696bc5706aa3c07d0a",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/ab77f8a22f81bef53d0f47696bc5706aa3c07d0a"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMy4x"
+ },
+ {
+  "name": "v0.2.9",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.2.9",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.2.9",
+  "commit": {
+   "sha": "a62dc57adeb1741505845b26bc3a549d01fb268c",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/a62dc57adeb1741505845b26bc3a549d01fb268c"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMi45"
+ },
+ {
+  "name": "v0.2.8",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.2.8",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.2.8",
+  "commit": {
+   "sha": "456d3c9729c02f095bbbe4fede4aa257bd945af8",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/456d3c9729c02f095bbbe4fede4aa257bd945af8"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMi44"
+ },
+ {
+  "name": "v0.2.7",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.2.7",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.2.7",
+  "commit": {
+   "sha": "62a62d20e46482cf1ecdb0f85365df1deafa4447",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/62a62d20e46482cf1ecdb0f85365df1deafa4447"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMi43"
+ },
+ {
+  "name": "v0.2.6",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.2.6",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.2.6",
+  "commit": {
+   "sha": "2a23962ab107b684f69df5c6cc100c85ef64a291",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/2a23962ab107b684f69df5c6cc100c85ef64a291"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMi42"
+ },
+ {
+  "name": "v0.2.5",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.2.5",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.2.5",
+  "commit": {
+   "sha": "032ae0495daadb07effb7bb331707c3151ab8518",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/032ae0495daadb07effb7bb331707c3151ab8518"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMi41"
+ },
+ {
+  "name": "v0.2.4",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.2.4",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.2.4",
+  "commit": {
+   "sha": "edfb7ce37fa3b3b25cbee39b2fb015c821424ec9",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/edfb7ce37fa3b3b25cbee39b2fb015c821424ec9"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMi40"
+ },
+ {
+  "name": "v0.2.3",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.2.3",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.2.3",
+  "commit": {
+   "sha": "93054faaeb3084f841ba9148e00d77e12bb4740d",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/93054faaeb3084f841ba9148e00d77e12bb4740d"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMi4z"
+ },
+ {
+  "name": "v0.2.2",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.2.2",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.2.2",
+  "commit": {
+   "sha": "ac223fdc0e53fb3a407da9681cb9177ddf34bd41",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/ac223fdc0e53fb3a407da9681cb9177ddf34bd41"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMi4y"
+ },
+ {
+  "name": "v0.2.1",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.2.1",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.2.1",
+  "commit": {
+   "sha": "b373a191dcb0dd2fe494e6609606846819c336e1",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/b373a191dcb0dd2fe494e6609606846819c336e1"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMi4x"
+ },
+ {
+  "name": "v0.1.9",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.1.9",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.1.9",
+  "commit": {
+   "sha": "f680adfdc432c6da7445d7e0f05aa82345036f97",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/f680adfdc432c6da7445d7e0f05aa82345036f97"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMS45"
+ },
+ {
+  "name": "v0.1.8",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.1.8",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.1.8",
+  "commit": {
+   "sha": "558fddda206d3ab2d05862dab3476f9e7bb5572a",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/558fddda206d3ab2d05862dab3476f9e7bb5572a"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMS44"
+ },
+ {
+  "name": "v0.1.7",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.1.7",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.1.7",
+  "commit": {
+   "sha": "7ca76ccd577457571fca1509403951fbcc4adf2b",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/7ca76ccd577457571fca1509403951fbcc4adf2b"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMS43"
+ },
+ {
+  "name": "v0.1.6",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.1.6",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.1.6",
+  "commit": {
+   "sha": "39738d5abe9d5c60732c6783c88b058da973fdce",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/39738d5abe9d5c60732c6783c88b058da973fdce"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMS42"
+ },
+ {
+  "name": "v0.1.5",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.1.5",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.1.5",
+  "commit": {
+   "sha": "7f9ffb05cc2c8d5d264644e8720fd836b98e97fe",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/7f9ffb05cc2c8d5d264644e8720fd836b98e97fe"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMS41"
+ },
+ {
+  "name": "v0.1.4",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.1.4",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.1.4",
+  "commit": {
+   "sha": "23073195edc34038153c076b8a02068191ce100f",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/23073195edc34038153c076b8a02068191ce100f"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMS40"
+ },
+ {
+  "name": "v0.1.3",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.1.3",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.1.3",
+  "commit": {
+   "sha": "c353cc85ed46f2c7487f604802b95563992c3eb8",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/c353cc85ed46f2c7487f604802b95563992c3eb8"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMS4z"
+ },
+ {
+  "name": "v0.1.2",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.1.2",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.1.2",
+  "commit": {
+   "sha": "19665f31f4ac913eb641d1ced694ad2e5a57447f",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/19665f31f4ac913eb641d1ced694ad2e5a57447f"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMS4y"
+ },
+ {
+  "name": "v0.1.1",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.1.1",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.1.1",
+  "commit": {
+   "sha": "3a2f859acc5317aaa0c26be5b9dcaecd493bd5f4",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/3a2f859acc5317aaa0c26be5b9dcaecd493bd5f4"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMS4x"
+ },
+ {
+  "name": "v0.0.9",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.0.9",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.0.9",
+  "commit": {
+   "sha": "e8fa6b8c194091acef1d111663fa46400f75b47b",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/e8fa6b8c194091acef1d111663fa46400f75b47b"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMC45"
+ },
+ {
+  "name": "v0.0.8",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.0.8",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.0.8",
+  "commit": {
+   "sha": "6b59081b4021f76df5dd21e65475e566c2e234c7",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/6b59081b4021f76df5dd21e65475e566c2e234c7"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMC44"
+ },
+ {
+  "name": "v0.0.7",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.0.7",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.0.7",
+  "commit": {
+   "sha": "ce2983ea9d681c1cdaece95c8fc07ee79a34a8c1",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/ce2983ea9d681c1cdaece95c8fc07ee79a34a8c1"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMC43"
+ },
+ {
+  "name": "v0.0.6",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.0.6",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.0.6",
+  "commit": {
+   "sha": "42db53a9c5273eff0612cbd35e4e7ea086a7a7cc",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/42db53a9c5273eff0612cbd35e4e7ea086a7a7cc"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMC42"
+ },
+ {
+  "name": "v0.0.5",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.0.5",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.0.5",
+  "commit": {
+   "sha": "ae8badbdaa871ed94b51c8180405234451eeb453",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/ae8badbdaa871ed94b51c8180405234451eeb453"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMC41"
+ },
+ {
+  "name": "v0.0.4",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.0.4",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.0.4",
+  "commit": {
+   "sha": "404f04bf3c197aa780011de19605ad8ace9829cf",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/404f04bf3c197aa780011de19605ad8ace9829cf"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMC40"
+ },
+ {
+  "name": "v0.0.3",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.0.3",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.0.3",
+  "commit": {
+   "sha": "426ee484fc201c26690a247e68677c6095f35831",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/426ee484fc201c26690a247e68677c6095f35831"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMC4z"
+ },
+ {
+  "name": "v0.0.2",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.0.2",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.0.2",
+  "commit": {
+   "sha": "6166e15588a3dfcd8baed3f908e3cbde52114a3e",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/6166e15588a3dfcd8baed3f908e3cbde52114a3e"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMC4y"
+ },
+ {
+  "name": "v0.0.1",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/sharun/zipball/refs/tags/v0.0.1",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/sharun/tarball/refs/tags/v0.0.1",
+  "commit": {
+   "sha": "56d1e0fd6151bdaf600056541d928e181ca7070c",
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/commits/56d1e0fd6151bdaf600056541d928e181ca7070c"
+  },
+  "node_id": "REF_kwDOM2ZEx7ByZWZzL3RhZ3MvdjAuMC4x"
+ }
+]

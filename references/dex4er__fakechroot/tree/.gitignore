@@ -1,0 +1,78 @@
+# Autotools
+*.log
+Makefile
+Makefile.in
+/aclocal.m4
+/autom4te.cache
+/build-aux/
+/config.cache
+/config.guess
+/config.h
+/config.h.in
+/config.log
+/config.sh
+/config.status
+/config.sub
+/configure
+/install-sh
+/m4/libtool.m4
+/m4/ltoptions.m4
+/m4/ltsugar.m4
+/m4/ltversion.m4
+/m4/lt~obsolete.m4
+/missing
+/stamp-h1
+
+# Libtool
+*.la
+*.lo
+*.o
+.deps/
+.libs/
+/libtool
+/ltmain.sh
+
+# pod2man
+*.1
+*.8
+
+# scripts
+/scripts/*.env
+/scripts/*.fakechroot
+/scripts/fakechroot
+
+# Tests
+*.trs
+.proverc
+/test/*.debs.tgz
+/test/*.rpms.tgz
+/test/rinse-cache/
+/test/src/test-*
+!/test/src/test-*.c
+/test/testtree/
+/test/testtree-*/
+
+# Java
+*.class
+*.jar
+
+# Dist
+*.gz
+
+# quilt
+/.pc
+
+# gtags
+GPATH
+GRTAGS
+GTAGS
+
+# Editors
+*~
+*.orig
+.vstags
+/.autotools
+/.cproject
+/.project
+/.settings/
+/.vscode/

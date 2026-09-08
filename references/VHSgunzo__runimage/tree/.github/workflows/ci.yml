@@ -1,0 +1,59 @@
+name: ⚙️ Continuous bootstrap 📦
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * 0" #At 00:00 UTC on Sunday every Week
+
+jobs:
+  bootstrap_and_release:
+    name: runimage-bootstrap
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: main
+          filter: "blob:none"
+
+      - name: Install deps
+        run: |
+          sudo sh -c 'apt update && apt install qemu-user-static zsync -y'
+          sudo tee /proc/sys/kernel/apparmor_restrict_unprivileged_userns <<<0
+          docker pull tonistiigi/binfmt:latest
+          docker run --privileged --rm tonistiigi/binfmt --uninstall qemu-*
+          docker run --privileged --rm tonistiigi/binfmt --install all
+
+      - name: Bootstrap RunImage
+        run: |
+            set -x ; set -e
+            mkdir -p release && cd release||exit 1
+
+            # x86_64
+            ../main/rim-bootstrap
+            zsyncmake runimage-x86_64
+
+            # aarch64
+            TARGETARCH=arm64 ../main/rim-bootstrap
+            zsyncmake runimage-aarch64
+
+            rm -f runimage
+
+            echo "\
+            -----------------------------------------------------------------------------------------------------------------------------
+            * [runimage-x86_64](https://github.com/VHSgunzo/runimage/releases/download/continuous/runimage-x86_64) | [pkg_list-x86_64.txt](https://github.com/VHSgunzo/runimage/releases/download/continuous/pkg_list-x86_64.txt)
+            -----------------------------------------------------------------------------------------------------------------------------
+            * [runimage-aarch64](https://github.com/VHSgunzo/runimage/releases/download/continuous/runimage-aarch64) | [pkg_list-aarch64.txt](https://github.com/VHSgunzo/runimage/releases/download/continuous/pkg_list-aarch64.txt)
+            -----------------------------------------------------------------------------------------------------------------------------
+            " > ../RELEASE_NOTE.md
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "continuous"
+          prerelease: false
+          draft: false
+          body_path: "RELEASE_NOTE.md"
+          files: release/*

@@ -1,0 +1,42 @@
+#!/bin/sh
+. ./defs || exit 1
+
+# system binaries are immune to fakeroot on macOS
+skip_if_darwin
+
+# Skip the test if we can't find getfattr
+PATH=$PATH:/usr/local/sbin:/usr/sbin:/sbin
+getfattr --version 2>/dev/null
+res=$?
+test "$res" -le 1 || exit 77
+
+# Skip the test if we can't find setfattr
+setfattr --version 2>/dev/null
+res=$?
+test "$res" -le 1 || exit 77
+
+mkdir $tmp
+
+# Skip the test if we can't setfattr outside of fakeroot
+touch $tmp/realtest
+setfattr --name=user.test --value=test $tmp/realtest || exit 77
+
+touch $tmp/foo
+cat > $tmp/sh <<EOF
+setfattr --name=user.test --value=test $tmp/foo
+setfattr --name=gnu.translator --value=/hurd/pflocal $tmp/foo
+EOF
+run_fakeroot -- \
+  ${posixshell} $tmp/sh >$tmp/set.out
+
+# Did fakeroot setfattr actually make it onto the file-system?
+cat > $tmp/sh <<EOF
+getfattr --name=user.test $tmp/foo
+getfattr --name=gnu.translator $tmp/foo
+EOF
+run_fakeroot -- \
+  ${posixshell} $tmp/sh >$tmp/get.out
+
+cat $tmp/get.out
+grep '^user\.test="test"' $tmp/get.out
+grep '^gnu\.translator="/hurd/pflocal"' $tmp/get.out

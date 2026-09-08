@@ -1,0 +1,9 @@
+[submodule "src/ruri"]
+	path = src/ruri
+	url = https://github.com/Moe-hacker/ruri
+[submodule "src/catsh"]
+	path = src/catsh
+	url = https://github.com/rurioss/catsh
+[submodule "src/ssfx"]
+	path = src/ssfx
+	url = https://github.com/rurioss/ssfx

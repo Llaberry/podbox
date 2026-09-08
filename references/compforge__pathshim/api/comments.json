@@ -1,0 +1,48 @@
+[
+ {
+  "url": "https://api.github.com/repos/compforge/pathshim/issues/comments/5460064953",
+  "html_url": "https://github.com/compforge/pathshim/pull/2#issuecomment-5460064953",
+  "issue_url": "https://api.github.com/repos/compforge/pathshim/issues/2",
+  "id": 5460064953,
+  "node_id": "IC_kwDOUHP6GM8AAAABRXH6uQ",
+  "user": {
+   "login": "qiankunli",
+   "id": 8024725,
+   "node_id": "MDQ6VXNlcjgwMjQ3MjU=",
+   "avatar_url": "https://avatars.githubusercontent.com/u/8024725?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/qiankunli",
+   "html_url": "https://github.com/qiankunli",
+   "followers_url": "https://api.github.com/users/qiankunli/followers",
+   "following_url": "https://api.github.com/users/qiankunli/following{/other_user}",
+   "gists_url": "https://api.github.com/users/qiankunli/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/qiankunli/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/qiankunli/subscriptions",
+   "organizations_url": "https://api.github.com/users/qiankunli/orgs",
+   "repos_url": "https://api.github.com/users/qiankunli/repos",
+   "events_url": "https://api.github.com/users/qiankunli/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/qiankunli/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "created_at": "2026-08-29T03:31:30Z",
+  "updated_at": "2026-08-29T03:31:30Z",
+  "body": "\ud83e\udd16 **devloop code-review** \u00b7 `origin/main..HEAD` \u00b7 `5f3afcde4` \u00b7 models: deepseek-v4-pro\u00d713, seed-2.1-pro\u00d716, seed-2.1-turbo\u00d710 \u00b7 cost: 601s \u00b7 ccr v1.13.50\n\n**1 finding(s)**\uff081 \u6761\u5df2\u4f5c\u4e3a\u72ec\u7acb review thread \u53d1\u5e03\uff09\n",
+  "author_association": "CONTRIBUTOR",
+  "reactions": {
+   "url": "https://api.github.com/repos/compforge/pathshim/issues/comments/5460064953/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "performed_via_github_app": null,
+  "minimized": null
+ }
+]

@@ -1,0 +1,185 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  rust:
+    name: Rust tests (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      # Ubuntu 24.04 images restrict unprivileged user namespaces via
+      # AppArmor: unshare(CLONE_NEWUSER) yields a capability-less namespace,
+      # the child's uid_map write fails, and the uid-mapping tests see the
+      # overflow uid (65534) instead of the mapped one.
+      - name: Allow unprivileged user namespaces
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Build
+        run: cargo build --release
+
+      # timeout-minutes: the suite finishes in a few minutes; a hang here is
+      # the known supervisor wedge under load, and should fail fast rather
+      # than hold the job for the 6-hour default.
+      - name: Run all tests
+        timeout-minutes: 20
+        run: cargo test --release --workspace --no-fail-fast -- --test-threads=1
+
+  rust-low-abi:
+    name: Rust low-ABI (ubuntu-22.04)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release
+
+      # The ubuntu-22.04 image runs a 6.8 Azure kernel (Landlock ABI v4),
+      # below the project's MIN_ABI = 6. Surface the host ABI so a future
+      # runner-image kernel bump that changes it is visible at a glance.
+      - name: Report Landlock ABI on this runner
+        run: ./target/release/sandlock check || true
+
+      # The default strict_all() suite (test_sandbox, test_network, ...)
+      # hard-requires v6 and would panic on this runner, so we run only the
+      # host-ABI-independent resolution tests plus the end-to-end degrade
+      # test. That degrade test is the point of having a sub-v6 runner: it
+      # proves a fully-degradable policy still builds and confines on v4,
+      # exercising the Protection opt-out path that the v6 runners cannot.
+      - name: Run host-ABI-independent and degrade tests
+        run: cargo test --release --test integration test_protection -- --test-threads=1
+
+  rust-riscv64-cross:
+    name: Rust cross-build (riscv64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (riscv64 target)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: riscv64gc-unknown-linux-gnu
+
+      - name: Install riscv64 cross toolchain
+        run: sudo apt-get update && sudo apt-get install -y gcc-riscv64-linux-gnu
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      # Build-only: GitHub has no riscv64 runner, and seccomp/Landlock do not
+      # emulate faithfully under qemu-user, so the suite runs on a real riscv64
+      # host instead. This guards the port against compile regressions.
+      - name: Cross-build
+        env:
+          CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_LINKER: riscv64-linux-gnu-gcc
+          CC_riscv64gc_unknown_linux_gnu: riscv64-linux-gnu-gcc
+        run: cargo build --release --target riscv64gc-unknown-linux-gnu
+
+  cbindgen-header:
+    name: cbindgen header up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cbindgen
+        run: cargo install cbindgen --version 0.29.2 --locked
+
+      # Regenerate include/sandlock.h in place and fail if it differs from the
+      # committed copy, so the C ABI header can never drift from the crate's
+      # #[no_mangle] definitions.
+      - name: Regenerate header and check it is up to date
+        run: |
+          cbindgen --config crates/sandlock-ffi/cbindgen.toml \
+            --crate sandlock-ffi \
+            --output crates/sandlock-ffi/include/sandlock.h
+          git diff --exit-code crates/sandlock-ffi/include/sandlock.h \
+            || { echo "::error::sandlock.h is stale; regenerate it with cbindgen (see crates/sandlock-ffi/cbindgen.toml)"; exit 1; }
+
+  python:
+    name: Python tests (${{ matrix.runner }}, py${{ matrix.python-version }})
+    runs-on: ${{ matrix.runner }}
+    needs: rust
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Python SDK
+        working-directory: python
+        run: |
+          pip install pytest
+          pip install -e '.[mcp]'
+
+      - name: Run Python tests
+        working-directory: python
+        run: pytest tests/ -v
+
+  go:
+    name: Go SDK (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    needs: rust
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - name: Build FFI library
+        run: cargo build --release -p sandlock-ffi
+
+      - name: Vet and test
+        working-directory: go
+        run: |
+          go vet -tags sandlock_repo ./...
+          go test -tags sandlock_repo ./... -v

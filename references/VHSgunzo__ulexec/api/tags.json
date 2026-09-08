@@ -1,0 +1,122 @@
+[
+ {
+  "name": "v0.1.3",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/ulexec/zipball/refs/tags/v0.1.3",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/ulexec/tarball/refs/tags/v0.1.3",
+  "commit": {
+   "sha": "00934f882ae204aa7007b816a430e885559da4cc",
+   "url": "https://api.github.com/repos/VHSgunzo/ulexec/commits/00934f882ae204aa7007b816a430e885559da4cc"
+  },
+  "node_id": "REF_kwDOM6UOK7ByZWZzL3RhZ3MvdjAuMS4z"
+ },
+ {
+  "name": "v0.1.2",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/ulexec/zipball/refs/tags/v0.1.2",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/ulexec/tarball/refs/tags/v0.1.2",
+  "commit": {
+   "sha": "2ded3dd609ac827b422de26ed1cc558a503ce6a2",
+   "url": "https://api.github.com/repos/VHSgunzo/ulexec/commits/2ded3dd609ac827b422de26ed1cc558a503ce6a2"
+  },
+  "node_id": "REF_kwDOM6UOK7ByZWZzL3RhZ3MvdjAuMS4y"
+ },
+ {
+  "name": "v0.1.1",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/ulexec/zipball/refs/tags/v0.1.1",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/ulexec/tarball/refs/tags/v0.1.1",
+  "commit": {
+   "sha": "fa4bad7d191afafd292dd88330ce2307de370803",
+   "url": "https://api.github.com/repos/VHSgunzo/ulexec/commits/fa4bad7d191afafd292dd88330ce2307de370803"
+  },
+  "node_id": "REF_kwDOM6UOK7ByZWZzL3RhZ3MvdjAuMS4x"
+ },
+ {
+  "name": "v0.0.9",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/ulexec/zipball/refs/tags/v0.0.9",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/ulexec/tarball/refs/tags/v0.0.9",
+  "commit": {
+   "sha": "e63b5bfcecf77737b556dce5062b864cbc4093ae",
+   "url": "https://api.github.com/repos/VHSgunzo/ulexec/commits/e63b5bfcecf77737b556dce5062b864cbc4093ae"
+  },
+  "node_id": "REF_kwDOM6UOK7ByZWZzL3RhZ3MvdjAuMC45"
+ },
+ {
+  "name": "v0.0.8",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/ulexec/zipball/refs/tags/v0.0.8",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/ulexec/tarball/refs/tags/v0.0.8",
+  "commit": {
+   "sha": "256b6edbfad662d077d27c935b236a36b9e431b2",
+   "url": "https://api.github.com/repos/VHSgunzo/ulexec/commits/256b6edbfad662d077d27c935b236a36b9e431b2"
+  },
+  "node_id": "REF_kwDOM6UOK7ByZWZzL3RhZ3MvdjAuMC44"
+ },
+ {
+  "name": "v0.0.7",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/ulexec/zipball/refs/tags/v0.0.7",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/ulexec/tarball/refs/tags/v0.0.7",
+  "commit": {
+   "sha": "36ff2eb88edf4adec240d61f38ee2ad9fd984f01",
+   "url": "https://api.github.com/repos/VHSgunzo/ulexec/commits/36ff2eb88edf4adec240d61f38ee2ad9fd984f01"
+  },
+  "node_id": "REF_kwDOM6UOK7ByZWZzL3RhZ3MvdjAuMC43"
+ },
+ {
+  "name": "v0.0.6",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/ulexec/zipball/refs/tags/v0.0.6",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/ulexec/tarball/refs/tags/v0.0.6",
+  "commit": {
+   "sha": "33d4ce82b79ee088c03c3b34fc5a3f0cc7ff4a95",
+   "url": "https://api.github.com/repos/VHSgunzo/ulexec/commits/33d4ce82b79ee088c03c3b34fc5a3f0cc7ff4a95"
+  },
+  "node_id": "REF_kwDOM6UOK7ByZWZzL3RhZ3MvdjAuMC42"
+ },
+ {
+  "name": "v0.0.5",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/ulexec/zipball/refs/tags/v0.0.5",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/ulexec/tarball/refs/tags/v0.0.5",
+  "commit": {
+   "sha": "97acbf556d51727573c1ebfa3709bab8c0fa44f8",
+   "url": "https://api.github.com/repos/VHSgunzo/ulexec/commits/97acbf556d51727573c1ebfa3709bab8c0fa44f8"
+  },
+  "node_id": "REF_kwDOM6UOK7ByZWZzL3RhZ3MvdjAuMC41"
+ },
+ {
+  "name": "v0.0.4",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/ulexec/zipball/refs/tags/v0.0.4",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/ulexec/tarball/refs/tags/v0.0.4",
+  "commit": {
+   "sha": "443337da6472111ef7b259e663b72bf34021df4e",
+   "url": "https://api.github.com/repos/VHSgunzo/ulexec/commits/443337da6472111ef7b259e663b72bf34021df4e"
+  },
+  "node_id": "REF_kwDOM6UOK7ByZWZzL3RhZ3MvdjAuMC40"
+ },
+ {
+  "name": "v0.0.3",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/ulexec/zipball/refs/tags/v0.0.3",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/ulexec/tarball/refs/tags/v0.0.3",
+  "commit": {
+   "sha": "b0d4723551e9d81aaf5a9df85f89bd51e16e97d3",
+   "url": "https://api.github.com/repos/VHSgunzo/ulexec/commits/b0d4723551e9d81aaf5a9df85f89bd51e16e97d3"
+  },
+  "node_id": "REF_kwDOM6UOK7ByZWZzL3RhZ3MvdjAuMC4z"
+ },
+ {
+  "name": "v0.0.2",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/ulexec/zipball/refs/tags/v0.0.2",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/ulexec/tarball/refs/tags/v0.0.2",
+  "commit": {
+   "sha": "317a53473ded0514532b29c0a7a0f686986acddd",
+   "url": "https://api.github.com/repos/VHSgunzo/ulexec/commits/317a53473ded0514532b29c0a7a0f686986acddd"
+  },
+  "node_id": "REF_kwDOM6UOK7ByZWZzL3RhZ3MvdjAuMC4y"
+ },
+ {
+  "name": "v0.0.1",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/ulexec/zipball/refs/tags/v0.0.1",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/ulexec/tarball/refs/tags/v0.0.1",
+  "commit": {
+   "sha": "1ff22a162bcd78610a33526ae184395594f5cc21",
+   "url": "https://api.github.com/repos/VHSgunzo/ulexec/commits/1ff22a162bcd78610a33526ae184395594f5cc21"
+  },
+  "node_id": "REF_kwDOM6UOK7ByZWZzL3RhZ3MvdjAuMC4x"
+ }
+]

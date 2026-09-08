@@ -1,0 +1,15 @@
+#!/bin/sh
+. ./defs || exit 1
+
+# various system binaries are immune to fakeroot on macOS
+skip_if_darwin
+
+mkdir $tmp
+run_fakeroot -- \
+ ${posixshell} -c "touch $tmp/justafile &&
+                   ln -s justafile $tmp/alink &&
+                   $LDPRELOADVAR= FAKEROOT_TEST_PRELOAD=1 rm $tmp/alink &&
+                   touch $tmp/alink &&
+                   ls -ld $tmp/alink" | grep "^-"
+TEMP=$?
+exit $TEMP

@@ -1,0 +1,52 @@
+[
+ {
+  "name": "v0.2.6",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/memfd-exec/zipball/refs/tags/v0.2.6",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/memfd-exec/tarball/refs/tags/v0.2.6",
+  "commit": {
+   "sha": "9708cb7e6e2c9cc8d7e7976d7d5f2249998ca78d",
+   "url": "https://api.github.com/repos/VHSgunzo/memfd-exec/commits/9708cb7e6e2c9cc8d7e7976d7d5f2249998ca78d"
+  },
+  "node_id": "REF_kwDONuc-wrByZWZzL3RhZ3MvdjAuMi42"
+ },
+ {
+  "name": "v0.2.5",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/memfd-exec/zipball/refs/tags/v0.2.5",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/memfd-exec/tarball/refs/tags/v0.2.5",
+  "commit": {
+   "sha": "72c975893f8c54b1e160b0a5ada83afd800712b0",
+   "url": "https://api.github.com/repos/VHSgunzo/memfd-exec/commits/72c975893f8c54b1e160b0a5ada83afd800712b0"
+  },
+  "node_id": "REF_kwDONuc-wrByZWZzL3RhZ3MvdjAuMi41"
+ },
+ {
+  "name": "v0.2.4",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/memfd-exec/zipball/refs/tags/v0.2.4",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/memfd-exec/tarball/refs/tags/v0.2.4",
+  "commit": {
+   "sha": "55aa0d89c060af00d6fbf2919a4475f90be6f638",
+   "url": "https://api.github.com/repos/VHSgunzo/memfd-exec/commits/55aa0d89c060af00d6fbf2919a4475f90be6f638"
+  },
+  "node_id": "REF_kwDONuc-wrByZWZzL3RhZ3MvdjAuMi40"
+ },
+ {
+  "name": "v0.2.3",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/memfd-exec/zipball/refs/tags/v0.2.3",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/memfd-exec/tarball/refs/tags/v0.2.3",
+  "commit": {
+   "sha": "e310f8f666edf2e731d2d956f9727cd7126848f6",
+   "url": "https://api.github.com/repos/VHSgunzo/memfd-exec/commits/e310f8f666edf2e731d2d956f9727cd7126848f6"
+  },
+  "node_id": "REF_kwDONuc-wrByZWZzL3RhZ3MvdjAuMi4z"
+ },
+ {
+  "name": "v0.2.2",
+  "zipball_url": "https://api.github.com/repos/VHSgunzo/memfd-exec/zipball/refs/tags/v0.2.2",
+  "tarball_url": "https://api.github.com/repos/VHSgunzo/memfd-exec/tarball/refs/tags/v0.2.2",
+  "commit": {
+   "sha": "f13c646b3fd6223a62193ef482cbdeb8643e886e",
+   "url": "https://api.github.com/repos/VHSgunzo/memfd-exec/commits/f13c646b3fd6223a62193ef482cbdeb8643e886e"
+  },
+  "node_id": "REF_kwDONuc-wrByZWZzL3RhZ3MvdjAuMi4y"
+ }
+]

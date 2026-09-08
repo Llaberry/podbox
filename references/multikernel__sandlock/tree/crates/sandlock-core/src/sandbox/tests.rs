@@ -1,0 +1,439 @@
+use super::*;
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
+
+#[test]
+fn run_as_parses_uid_and_gid() {
+    let r = RunAs::from_str("1000:2000").unwrap();
+    assert_eq!(r.uid, 1000);
+    assert_eq!(r.gid, 2000);
+}
+
+#[test]
+fn run_as_requires_both_ids() {
+    // A bare UID (no `:GID`) is rejected — gid is not defaulted.
+    assert!(RunAs::from_str("1000").is_err());
+}
+
+#[test]
+fn run_as_rejects_garbage() {
+    assert!(RunAs::from_str("root").is_err());
+    assert!(RunAs::from_str("1000:abc").is_err());
+    assert!(RunAs::from_str("").is_err());
+}
+
+#[test]
+fn resolve_sandbox_path_plain() {
+    let r = resolve_sandbox_path_to_host(Path::new("/etc/ssl/x.pem"), None, &[]);
+    assert_eq!(r, PathBuf::from("/etc/ssl/x.pem"));
+}
+
+#[test]
+fn resolve_sandbox_path_under_chroot() {
+    let r = resolve_sandbox_path_to_host(
+        Path::new("/etc/ssl/x.pem"),
+        Some(Path::new("/srv/root")),
+        &[],
+    );
+    assert_eq!(r, PathBuf::from("/srv/root/etc/ssl/x.pem"));
+}
+
+#[test]
+fn resolve_sandbox_path_mount_takes_precedence() {
+    let mounts = vec![(PathBuf::from("/etc/ssl"), PathBuf::from("/host/ssl"))];
+    let r = resolve_sandbox_path_to_host(
+        Path::new("/etc/ssl/x.pem"),
+        Some(Path::new("/srv/root")),
+        &mounts,
+    );
+    assert_eq!(r, PathBuf::from("/host/ssl/x.pem"));
+}
+
+#[tokio::test]
+async fn inject_ca_nonexistent_path_errors_at_run() {
+    // Wildcard host rule avoids DNS; the missing inject path must error
+    // before any fork or network work.
+    let mut policy = Sandbox::builder()
+        .http_allow("GET */*")
+        .http_inject_ca("/definitely/not/here/sandlock-bundle.pem")
+        .build()
+        .unwrap();
+    let res = policy.run(&["true"]).await;
+    assert!(res.is_err(), "expected error for missing --http-inject-ca path");
+}
+
+// --- SandboxBuilder integration ---
+
+#[test]
+fn builder_http_rules() {
+    let policy = Sandbox::builder()
+        .http_allow("GET api.example.com/v1/*")
+        .http_deny("* */admin/*")
+        .build()
+        .unwrap();
+    assert_eq!(policy.http_allow.len(), 1);
+    assert_eq!(policy.http_deny.len(), 1);
+    assert_eq!(policy.http_allow[0].method, "GET");
+    assert_eq!(policy.http_deny[0].host, "*");
+}
+
+#[test]
+fn builder_invalid_http_allow_returns_error() {
+    let result = Sandbox::builder()
+        .http_allow("GETexample.com")
+        .build();
+    assert!(result.is_err());
+}
+
+#[test]
+fn builder_invalid_http_deny_returns_error() {
+    let result = Sandbox::builder()
+        .http_deny("BADRULE")
+        .build();
+    assert!(result.is_err());
+}
+
+#[test]
+fn builder_http_ca_without_key_returns_error() {
+    let result = Sandbox::builder()
+        .http_ca("/tmp/ca.pem")
+        .build();
+    assert!(result.is_err());
+}
+
+#[test]
+fn builder_http_key_without_ca_returns_error() {
+    let result = Sandbox::builder()
+        .http_key("/tmp/key.pem")
+        .build();
+    assert!(result.is_err());
+}
+
+#[test]
+fn builder_http_ca_and_key_together_ok() {
+    let policy = Sandbox::builder()
+        .http_ca("/tmp/ca.pem")
+        .http_key("/tmp/key.pem")
+        .build()
+        .unwrap();
+    assert!(policy.http_ca.is_some());
+    assert!(policy.http_key.is_some());
+}
+
+#[test]
+fn inject_ca_adds_443_and_requires_http_rule() {
+    // No http rule -> error.
+    let err = Sandbox::builder()
+        .http_inject_ca("/etc/ssl/certs/ca-certificates.crt")
+        .build();
+    assert!(err.is_err());
+
+    // With an http rule -> ok, and 443 is intercepted.
+    let policy = Sandbox::builder()
+        .http_allow("GET example.com/*")
+        .http_inject_ca("/etc/ssl/certs/ca-certificates.crt")
+        .build()
+        .unwrap();
+    assert!(policy.http_ports.contains(&443));
+    assert_eq!(policy.http_inject_ca.len(), 1);
+}
+
+#[test]
+fn http_ca_out_requires_trigger() {
+    let err = Sandbox::builder()
+        .http_allow("GET example.com/*")
+        .http_ca_out("/tmp/out.pem")
+        .build();
+    assert!(err.is_err());
+
+    let ok = Sandbox::builder()
+        .http_allow("GET example.com/*")
+        .http_inject_ca("/etc/ssl/certs/ca-certificates.crt")
+        .http_ca_out("/tmp/out.pem")
+        .build();
+    assert!(ok.is_ok());
+}
+
+#[test]
+fn allows_sysv_ipc_reads_extra_allow_syscalls() {
+    let p = Sandbox::builder()
+        .extra_allow_syscalls(vec!["sysv_ipc".into()])
+        .build()
+        .unwrap();
+    assert!(p.allows_sysv_ipc());
+
+    let p2 = Sandbox::builder().build().unwrap();
+    assert!(!p2.allows_sysv_ipc());
+
+    let err = Sandbox::builder()
+        .extra_allow_syscalls(vec!["other_group".into()])
+        .build()
+        .unwrap_err();
+    assert!(err.to_string().contains("unknown syscall group"));
+}
+
+#[test]
+fn extra_allow_rejects_individual_syscall_names() {
+    let err = Sandbox::builder()
+        .extra_allow_syscalls(vec!["io_uring_setup".into()])
+        .build()
+        .unwrap_err();
+    assert!(err.to_string().contains("unknown syscall group"));
+}
+
+#[test]
+fn extra_deny_accepts_group_names() {
+    let p = Sandbox::builder()
+        .extra_deny_syscalls(vec!["sysv_ipc".into()])
+        .build()
+        .unwrap();
+    assert_eq!(p.extra_deny_syscalls, vec!["sysv_ipc".to_string()]);
+
+    let err = Sandbox::builder()
+        .extra_deny_syscalls(vec!["not_a_syscall_or_group".into()])
+        .build()
+        .unwrap_err();
+    assert!(err.to_string().contains("unknown syscall or group"));
+}
+
+#[test]
+fn extra_allow_and_deny_of_same_group_conflict() {
+    let err = Sandbox::builder()
+        .extra_allow_syscalls(vec!["sysv_ipc".into()])
+        .extra_deny_syscalls(vec!["sysv_ipc".into()])
+        .build()
+        .unwrap_err();
+    assert!(err.to_string().contains("both allowed and denied"));
+}
+
+#[test]
+fn extra_deny_of_member_syscall_conflicts_with_allowed_group() {
+    let err = Sandbox::builder()
+        .extra_allow_syscalls(vec!["sysv_ipc".into()])
+        .extra_deny_syscalls(vec!["shmget".into()])
+        .build()
+        .unwrap_err();
+    assert!(err.to_string().contains("belongs to allowed group"));
+}
+
+#[test]
+fn builder_parses_net_deny() {
+    let policy = Sandbox::builder()
+        .net_deny("10.0.0.0/8")
+        .build()
+        .unwrap();
+    // Scheme-less deny expands to a TCP rule plus a UDP rule.
+    assert_eq!(policy.net_deny.len(), 2);
+}
+
+#[test]
+fn builder_net_allow_bind_comma_and_ranges() {
+    // Comma-separated ports and `lo-hi` ranges expand, sort, and dedup.
+    let policy = Sandbox::builder()
+        .net_allow_bind("8080,9000-9002")
+        .net_allow_bind_port(443)
+        .net_allow_bind("9001,443") // overlaps dedup away
+        .build()
+        .unwrap();
+    assert_eq!(
+        policy.net_allow_bind,
+        BindPorts::Ports(vec![443, 8080, 9000, 9001, 9002])
+    );
+}
+
+#[test]
+fn builder_net_allow_bind_rejects_bad_specs() {
+    assert!(Sandbox::builder().net_allow_bind("9000-8000").build().is_err()); // reversed
+    assert!(Sandbox::builder().net_allow_bind("80,abc").build().is_err());    // bad port
+    assert!(Sandbox::builder().net_allow_bind("70000").build().is_err());     // > u16
+    assert!(Sandbox::builder().net_allow_bind("8080,").build().is_err());     // empty part
+}
+
+#[test]
+fn builder_net_allow_bind_wildcard() {
+    // `*`, padded ` * `, and a repeated bare wildcard (idempotent) all
+    // mean "any port". This parser is the single implementation of the
+    // wildcard rule; the SDKs forward specs verbatim over the C ABI.
+    for specs in [vec!["*"], vec![" * "], vec!["*", "*"], vec!["*,*"]] {
+        let mut builder = Sandbox::builder();
+        for spec in specs.iter() {
+            builder = builder.net_allow_bind(*spec);
+        }
+        let policy = builder.build().unwrap();
+        assert_eq!(policy.net_allow_bind, BindPorts::All, "specs: {specs:?}");
+    }
+}
+
+#[test]
+fn builder_net_allow_bind_wildcard_rejects_mixing() {
+    // Within one spec.
+    assert!(Sandbox::builder().net_allow_bind("*,8080").build().is_err());
+    // Across specs.
+    assert!(Sandbox::builder()
+        .net_allow_bind("*")
+        .net_allow_bind_port(8080)
+        .build()
+        .is_err());
+    assert!(Sandbox::builder()
+        .net_allow_bind("8080")
+        .net_allow_bind("*")
+        .build()
+        .is_err());
+}
+
+#[test]
+fn builder_net_deny_bind_rejects_wildcard() {
+    assert!(Sandbox::builder().net_deny_bind("*").build().is_err());
+}
+
+#[test]
+fn builder_net_allow_bind_wildcard_exclusive_with_deny_bind() {
+    assert!(Sandbox::builder()
+        .net_allow_bind("*")
+        .net_deny_bind_port(22)
+        .build()
+        .is_err());
+}
+
+#[test]
+fn builder_rejects_net_allow_and_net_deny_together() {
+    let err = Sandbox::builder()
+        .net_allow("github.com:443")
+        .net_deny("10.0.0.0/8")
+        .build();
+    assert!(err.is_err());
+}
+
+#[test]
+fn builder_net_deny_bind_comma_and_ranges() {
+    // Same port grammar as --net-allow-bind (comma lists + lo-hi ranges).
+    let policy = Sandbox::builder()
+        .net_deny_bind("8080,9000-9002")
+        .net_deny_bind_port(443)
+        .build()
+        .unwrap();
+    assert_eq!(policy.net_deny_bind, vec![443, 8080, 9000, 9001, 9002]);
+    assert!(policy.net_allow_bind.is_default());
+}
+
+#[test]
+fn builder_rejects_allow_bind_and_deny_bind_together() {
+    let err = Sandbox::builder()
+        .net_allow_bind("8080")
+        .net_deny_bind("9090")
+        .build();
+    assert!(err.is_err());
+    assert!(format!("{}", err.unwrap_err()).contains("mutually exclusive"));
+}
+
+#[test]
+fn builder_net_deny_rejects_hostname() {
+    let err = Sandbox::builder().net_deny("evil.com:443").build();
+    assert!(err.is_err());
+}
+
+#[test]
+fn net_deny_resolves_to_denylist_policies() {
+    let policy = Sandbox::builder().net_deny("10.0.0.0/8").build().unwrap();
+    let set = crate::network::resolve_net_deny(&policy.net_deny);
+    assert!(!set.tcp.allows("10.0.0.5".parse().unwrap(), 443));
+    assert!(set.tcp.allows("8.8.8.8".parse().unwrap(), 443));
+}
+
+// Keystone of the popen child-side fd wiring: relocate_high must move a pipe
+// end to a fd >= 3 (disjoint from the 0/1/2 stdio targets) so dup2 onto a
+// target can never alias or clobber it — the regression that lost a stream
+// when a pipe end was allocated onto a std fd. Lock the invariant here; the
+// full closed-std-fd trigger is not deterministically reproducible (the
+// control PipePair claims the low fds first), so the value is this unit check
+// plus the end-to-end popen tests exercising the relocate path.
+#[test]
+fn relocate_high_moves_fd_above_stdio_range() {
+    use std::os::fd::AsRawFd;
+    let f = std::fs::File::open("/dev/null").unwrap();
+    let src = f.as_raw_fd();
+    let hi = unsafe { relocate_high(src) };
+    assert!(hi >= 3, "relocated fd must be >= 3 (disjoint from 0/1/2), got {hi}");
+    assert_ne!(hi, src, "relocate must produce a new fd");
+
+    // It is a dup of the same description, not a fresh open.
+    let mut a: libc::stat = unsafe { std::mem::zeroed() };
+    let mut b: libc::stat = unsafe { std::mem::zeroed() };
+    assert_eq!(unsafe { libc::fstat(src, &mut a) }, 0);
+    assert_eq!(unsafe { libc::fstat(hi, &mut b) }, 0);
+    assert_eq!((a.st_dev, a.st_ino), (b.st_dev, b.st_ino));
+
+    // And it carries CLOEXEC (F_DUPFD_CLOEXEC), so it won't leak past execve.
+    let flags = unsafe { libc::fcntl(hi, libc::F_GETFD) };
+    assert!(flags >= 0 && (flags & libc::FD_CLOEXEC) != 0, "relocated fd must be CLOEXEC");
+
+    unsafe { libc::close(hi) };
+}
+
+/// A `wait()` cancelled while it is joining the drains must leave the drain
+/// parked, so a later `wait()` still returns the capture. Reaching that state
+/// end to end needs a descendant holding the write end past the child's exit,
+/// which is inherently racy (the integration test retries for it), so the
+/// contract itself is pinned here: a pending join leaves the task parked, a
+/// finished one leaves the bytes parked, and only an explicit take hands them
+/// over.
+#[tokio::test]
+async fn a_cancelled_join_leaves_the_drain_parked() {
+    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+    let mut slot = Some(ParkedDrain::Running(tokio::spawn(async move {
+        let _ = rx.await;
+        b"hello".to_vec()
+    })));
+
+    // The task cannot finish while the sender is held, so this join is still
+    // pending when the timeout drops it — that drop is the cancellation.
+    let cancelled = tokio::time::timeout(
+        std::time::Duration::from_millis(50),
+        finish_parked_drain(&mut slot),
+    )
+    .await;
+    assert!(cancelled.is_err(), "the join must still have been pending");
+    assert!(
+        matches!(slot, Some(ParkedDrain::Running(_))),
+        "a cancelled join must leave the task parked",
+    );
+
+    // Releasing it parks the bytes rather than handing them out.
+    tx.send(()).unwrap();
+    finish_parked_drain(&mut slot).await;
+    assert!(
+        matches!(slot, Some(ParkedDrain::Done(ref buf)) if buf == b"hello"),
+        "a finished join must park its bytes in the slot",
+    );
+
+    assert_eq!(take_drained(&mut slot).as_deref(), Some(&b"hello"[..]));
+    assert!(slot.is_none(), "taking the bytes must empty the slot");
+}
+
+/// The reason the bytes are parked rather than returned: the two streams are
+/// joined one after the other, so the second join is a suspension point for a
+/// capture the first one has already read in full. A cancellation there must
+/// not take it.
+#[tokio::test]
+async fn a_finished_capture_survives_a_cancellation_at_the_sibling_join() {
+    let mut stdout = Some(ParkedDrain::Running(tokio::spawn(async { b"hello".to_vec() })));
+    // Held for the whole test, so this drain never finishes.
+    let (_tx, rx) = tokio::sync::oneshot::channel::<()>();
+    let mut stderr = Some(ParkedDrain::Running(tokio::spawn(async move {
+        let _ = rx.await;
+        Vec::new()
+    })));
+
+    // The shape of `collect_pipe_drains`: finish one, then the other.
+    let cancelled = tokio::time::timeout(std::time::Duration::from_millis(50), async {
+        finish_parked_drain(&mut stdout).await;
+        finish_parked_drain(&mut stderr).await;
+    })
+    .await;
+    assert!(cancelled.is_err(), "the second join must still have been pending");
+
+    assert!(
+        matches!(stdout, Some(ParkedDrain::Done(ref buf)) if buf == b"hello"),
+        "a capture that finished before the cancellation must still be parked",
+    );
+}

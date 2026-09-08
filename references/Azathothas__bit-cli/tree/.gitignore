@@ -1,0 +1,80 @@
+# Build output
+/target/
+
+# Reference material cloned for study. Never committed to `main`.
+#
+# It lives on the `references` branch instead, which scripts/git-sync.ps1
+# pushes for you. See TODO/RULES.md.
+/reference/
+
+# Scratch: downloads, fixtures, payloads, intermediate state
+/.tmp/
+
+# Downloaded payloads and metainfo produced by tests and manual runs.
+#
+# `.bin` and `.torrent` are here because a payload reached the remote without
+# them: `under/inner.bin`, 1,000 bytes, left in the working tree by a T-226
+# acceptance run and taken by `git add -A`. The vendored trees legitimately
+# hold both kinds as upstream fixtures, so they are excepted by path rather
+# than by extension. See TODO/cli-surface.md, T-230.
+*.iso
+*.img
+*.qcow2
+*.part
+*.bit-cli-part
+*.bin
+*.torrent
+!/vendor/**/*.bin
+!/vendor/**/*.torrent
+
+# Benchmark and acceptance output.
+#
+# Every check-*.ps1 and bench-*.ps1 script writes a timestamped report here,
+# and a session runs them dozens of times, so an unignored bench/ buries the
+# working tree in files nobody meant to keep.
+#
+# `.gitignore` only applies to files git is not already tracking, so the
+# reports a TODO entry cites stay committed and stay in every diff. When a run
+# IS the evidence for an entry, add it on purpose:
+#
+#   git add -f bench/soak-20260821T012428252Z.json
+#
+# That is the rule in TODO/RULES.md: a comparative claim without a committed
+# benchmark does not ship. This ignores the other ninety runs, not that one.
+/bench/*.json
+/bench/*.csv
+
+# Logs
+*.log
+/logs/
+
+# Editor and OS junk
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Upstream scan records.
+#
+# `scripts/upstream-scan.ps1` writes one per run and a session runs it several
+# times while tuning what it triages against. The same rule as bench/ applies:
+# the run that IS the record for a reconciliation goes in on purpose, and the
+# other nine do not.
+#
+#   git add -f patches/scan/upstream-20260822T124645139Z.json
+#
+/patches/scan/*.json
+
+# Client profile scan records.
+#
+# `scripts/check-client-profile.ps1` writes one per run, for the same reason
+# and under the same rule: the run that records a construction change goes in
+# on purpose and the daily green ones do not.
+#
+#   git add -f patches/profiles/profiles-20260824T105731398Z.json
+#
+/patches/profiles/*.json

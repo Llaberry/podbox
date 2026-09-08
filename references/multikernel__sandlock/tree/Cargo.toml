@@ -1,0 +1,17 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/sandlock-core",
+    "crates/sandlock-cli",
+    "crates/sandlock-ffi",
+    "crates/sandlock-oci",
+]
+
+[workspace.package]
+version = "0.8.7"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/multikernel/sandlock"
+homepage = "https://github.com/multikernel/sandlock"
+description = "Lightweight process sandbox using Landlock, seccomp, and seccomp user notification"
+readme = "README.md"

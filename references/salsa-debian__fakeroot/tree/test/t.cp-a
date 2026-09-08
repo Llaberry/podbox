@@ -1,0 +1,7 @@
+#!/bin/sh
+. ./defs || exit 1
+
+# cp, chown, and stat are immune to fakeroot on macOS
+skip_if_darwin
+
+run_fakeroot -- ${srcdir}/cp-atest

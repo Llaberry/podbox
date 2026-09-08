@@ -1,0 +1,19 @@
+[package]
+name = "podbox-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "podbox"
+path = "src/main.rs"
+
+[dependencies]
+podbox-probe = { path = "../podbox-probe" }
+podbox-image = { path = "../podbox-image" }
+podbox-extract = { path = "../podbox-extract" }
+podbox-complete = { path = "../podbox-complete" }
+podbox-enter = { path = "../podbox-enter" }
+podbox-supervise = { path = "../podbox-supervise" }

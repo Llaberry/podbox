@@ -1,0 +1,299 @@
+#!/usr/bin/env bash
+
+RED='\033[1;91m'
+BLUE='\033[1;94m'
+GREEN='\033[1;92m'
+YELLOW='\033[1;33m'
+RESETCOLOR='\033[1;00m'
+
+[ -f "$RIMENVFL" ] && \
+    source "$RIMENVFL"
+
+[[ ! "$RUNTTY" =~ tty|pts ]] && \
+    NOT_TERM=1||NOT_TERM=0
+
+[[ "$RIM_PORTABLE_HOME" == 1 && -d "$SYS_HOME" ]] && \
+    HOME="$SYS_HOME"
+
+RIM_DINTEG_DIR="${RIM_DINTEG_DIR:=$HOME/.local/share}"
+DINTEG_APPS_DIR="$RIM_DINTEG_DIR/applications"
+ICONS_DIRS=('/usr/share/icons' '/usr/share/pixmaps')
+APPS_DIR='/usr/share/applications'
+
+IGNORE_FILES=(
+    'mimeinfo.cache'
+    'icon-theme.cache'
+)
+INTEG_DIRS=(
+    "$APPS_DIR"
+    '/usr/share/desktop-directories'
+    '/etc/xdg/menus/applications-merged'
+)
+for ICONS_DIR in "${ICONS_DIRS[@]}"
+    do INTEG_DIRS+=("$ICONS_DIR"/*.svg "$ICONS_DIR"/*.png "$ICONS_DIR/hicolor")
+done
+MIME_DIRS=(
+    '/usr/share/mime/packages'
+    '/usr/share/mime/inode'
+    '/usr/share/mime/text'
+    '/usr/share/mime/application'
+    '/usr/share/mime/model'
+    '/usr/share/mime/video'
+    '/usr/share/mime/font'
+    '/usr/share/mime/image'
+    '/usr/share/mime/audio'
+    '/usr/share/mime/multipart'
+    '/usr/share/mime/x-content'
+    '/usr/share/mime/message'
+    '/usr/share/mime/chemical'
+    '/usr/share/mime/x-epoc'
+)
+
+if [ -d "$RUNDINTEGDIR" ]
+    then
+        ACTINTEGFL="$RUNDINTEGDIR/act"
+        ADDINTEGFL="$RUNDINTEGDIR/add"
+        RMINTEGFL="$RUNDINTEGDIR/rm"
+        LSINTEGFL="$RUNDINTEGDIR/ls"
+fi
+
+nocolor() { sed -r 's|\x1B\[([0-9]{1,3}(;[0-9]{1,2};?)?)?[mGK]||g' ; }
+
+info_msg() {
+    if [ "$RIM_QUIET_MODE" != 1 ]
+        then echo -e "${GREEN}[ INFO ][$(date +"%Y.%m.%d %T")]: $@ $RESETCOLOR" 1>&2
+            if [[ "$NOT_TERM" == 1 && "$RIM_NOTIFY" == 1 ]]
+                then notify-send -a 'RunImage Info' "$(echo -e "$@"|nocolor)" 2>/dev/null &
+            fi
+    fi
+}
+
+error_msg() {
+    echo -e "${RED}[ ERROR ][$(date +"%Y.%m.%d %T")]: $@ $RESETCOLOR" 1>&2
+    if [ "$NOT_TERM" == 1 ]
+        then notify-send -a 'RunImage Error' "$(echo -e "$@"|nocolor)" 2>/dev/null &
+    fi
+}
+
+empty_msg() {
+    error_msg "${YELLOW}Option ${BLUE}$1 ${YELLOW}requires a non-empty argument!\n"
+    print_help
+}
+
+lsapps() {
+    local apps="$(grep -m1 '^Name=' -nr "$APPS_DIR" 2>/dev/null|\
+                  sed 's|.*:Name=||g;s|.*|"&"|g'|sort -u)"
+    [ -n "$apps" ] && cat -n<<<"$apps"
+}
+
+lsintegapps() {
+    if [ -d "$RUNDINTEGDIR" ]
+        then fifo_ls
+        else
+             local apps="$(grep -m1 '^Name=.*' -nr "$DINTEG_APPS_DIR"/*-rim.desktop 2>/dev/null|\
+                           sed 's|.*:Name=||g;s| \[RunImage\]$||g;s|.*|"&"|g'|sort -u)"
+             [ -n "$apps" ] && cat -n<<<"$apps"
+    fi
+}
+
+find_fl() { find "$@" -type f 2>/dev/null|sort ; }
+
+upd_ddb() { update-desktop-database -q "$DINTEG_APPS_DIR" &>/dev/null ; }
+
+upd_mdb() { update-mime-database "$RIM_DINTEG_DIR/mime" &>/dev/null ; }
+
+fifo_add() {
+    echo a > "$ACTINTEGFL"
+    echo "$1" > "$ADDINTEGFL"
+}
+
+fifo_ls() {
+    echo l > "$ACTINTEGFL"
+    cat "$LSINTEGFL"
+}
+
+fifo_rm() {
+    echo r > "$ACTINTEGFL"
+    echo "$1" > "$RMINTEGFL"
+}
+
+dinteg() {
+    while read -r file
+        do
+            [[ ! "${IGNORE_FILES[@]}" =~ "$(basename "$file")" ]]||\
+                continue
+            [ "${file:0:1}" == '/' ]||\
+                file="/${file}"
+            if [[ -f "$file" || "$file" == "$RUNPIDDIR/dinteg/"* ]]
+                then
+                    unset postfix postfix_dir exec_args
+                    if [ -d "$RUNDINTEGDIR" ]
+                        then dinteg_dir="$RUNDINTEGDIR"
+                        else
+                            if [ "$file" == *'/menus/'* ]
+                                then
+                                    [[ "$RIM_DINTEG_DIR" =~ ^"$HOME" ]] && \
+                                        dinteg_dir="$HOME/.config"||\
+                                        dinteg_dir='/etc/xdg'
+                                else dinteg_dir="$RIM_DINTEG_DIR"
+                            fi
+                    fi
+                    if [[ "$file" == "$RUNPIDDIR/dinteg/"* ]]
+                        then
+                            cp_mv=mv
+                            postfix="$(sed "s|$RUNPIDDIR/dinteg/||g"<<<"$file")"
+                        else
+                            cp_mv=cp
+                            postfix="$(cut -d'/' -f4-<<<"$file"|sed 's|.desktop$|-rim.desktop|i;s|.png$|-rim.png|i;s|.svg$|-rim.svg|i;s|.xml$|-rim.xml|i')"
+                    fi
+                    postfix_dir="$(dirname "$postfix")"
+                    dinteg_file="${dinteg_dir}/${postfix}"
+                    dinteg_file_dir="${dinteg_dir}/${postfix_dir}"
+                    case "$act" in
+                        a)
+                            mkdir $verb -p "$dinteg_file_dir"
+                            "$cp_mv" $verb -f "$file" "$dinteg_file"
+                            if [[ "$dinteg_file" == *'.desktop' && "$file" != "$RUNPIDDIR/dinteg/"* ]]
+                                then
+                                    exec_args="env "
+                                    [ -n "$RIM_OVERFS_ID" ] && \
+                                    exec_args+="RIM_OVERFS_ID='$RIM_OVERFS_ID' "
+                                    exec_args+="RIM_AUTORUN=0 "
+                                    exec_args+="'$RUNSRC' "
+
+                                    if grep -oq '^Icon=/' "$dinteg_file"
+                                        then
+                                            sed -i "s|^Icon.*|Icon=${dinteg_dir}/$(grep -m1 '^Icon=' "$dinteg_file"|\
+                                            cut -d'/' -f4-)|g;s|.png$|-rim.png|i;s|.svg$|-rim.svg|i" "$dinteg_file"
+                                        else sed -i "s|^Icon.*|&-rim|g" "$dinteg_file"
+                                    fi
+                                    sed -i "s|^Comment.*=.*|& [RunImage]|g;s|^Exec=|Exec=$exec_args|g;/^TryExec/d;/^DBusActivatable/d" "$dinteg_file"
+                                    chmod $verb +x "$dinteg_file"
+                            fi
+                            if [ -d "$RUNDINTEGDIR" ]
+                                then fifo_add "$dinteg_file"
+                            fi
+                        ;;
+                        r)
+                            if [ -d "$RUNDINTEGDIR" ]
+                                then fifo_rm "$dinteg_file"
+                                else
+                                    [ -f "$dinteg_file" ] && \
+                                        rm $verb -f "$dinteg_file"
+                            fi
+                        ;;
+                        *) return 1 ;;
+                    esac
+            fi
+    done
+}
+
+print_help() {
+    echo -e "[ Usage ]: rim-dinteg [OPTIONS] app app...
+
+[ Options ]:
+    -a, --add     [num|name|all|mime] Add applications to apps menu
+    -h, --help                        Show this message
+    -l, --list    [a|added]           List applications
+    -m, --mime                        With MIME types (env: RIM_DINTEG_MIME=1)
+    -d, --dinteg-dir /path            Desktop integration directory (env: RIM_DINTEG_DIR=/path)
+    -v, --verbose                     Verbose output
+    -r, --remove  [num|name|all|mime] Remove applications from apps menu"
+    exit 1
+}
+
+unset act ret verb
+while [[ $# -gt 0 ]]
+    do
+        case "$1" in
+            -m|--mime   )   shift ; RIM_DINTEG_MIME=1 ;;
+            -d|--dinteg-dir)
+                if [[ -n "$2" && "$2" != -* ]]
+                    then
+                        RIM_DINTEG_DIR="$2"
+                        DINTEG_APPS_DIR="$RIM_DINTEG_DIR/applications"; shift 2
+                    else empty_msg "$1"
+                fi ;;
+            -v|--verbose)   shift ; verb='-v' ;;
+            -a|--add    )   shift ; act=a ;;
+            -r|--remove )   shift ; act=r ;;
+            -h|--help   )   print_help ;;
+            -l|--list   )   shift
+                            ret=1
+                            case "$1" in
+                                a|added) lsintegapps ;;
+                                *) lsapps ;;
+                            esac
+                            if [ "$?" == 0 ]
+                                then ret=0
+                                else error_msg "No apps found!"
+                            fi
+                            exit $ret
+                ;;
+            -*) error_msg "Unknown parameter: ${BLUE}$1\n"; print_help ;;
+            *) break ;;
+        esac
+done
+
+if [[ -n "$1" && -n "$act" ]]
+    then
+        case "$1" in
+            hook) shift
+                unset verb
+                if [ "$RIM_DINTEG" == 1 ]
+                    then dinteg
+                    else echo "Desktop integration is disabled!"
+                fi
+            ;;
+            all) shift
+                [ "$RIM_DINTEG_MIME" == 1 ] && \
+                    INTEG_DIRS+=("${MIME_DIRS[@]}")
+                find_fl "${INTEG_DIRS[@]}"|dinteg
+                upd_ddb
+                if [ "$RIM_DINTEG_MIME" == 1 ]
+                    then upd_mdb
+                fi
+            ;;
+            mime) shift
+                find_fl "${MIME_DIRS[@]}"|dinteg
+                upd_mdb
+            ;;
+            *)  IFS=$'\n'
+                app_list="$(case "$act" in
+                    a) lsapps ;;
+                    r) lsintegapps ;;
+                esac)"
+                for app in "$@"
+                    do
+                        (if [[ "$app" =~ ^[0-9]+$ ]]
+                            then app_name="$(gawk '($1 == "'$app'")'<<<"$app_list"|gawk '{$1=""}1'|sed 's|"||g'|sed 's|^ ||g')"
+                            else app_name="$app"
+                        fi
+                        integ_files=("$(grep -wim1 "^Name=$app_name$" -lr "$APPS_DIR" 2>/dev/null|head -1)")
+                        if [ -n "$integ_files" ]
+                            then
+                                case "$act" in
+                                    a) act_info='Add' ;;
+                                    r) act_info='Remove' ;;
+                                esac
+                                info_msg "$act_info app: $app_name"
+                                icon_name="$(grep -m1 "^Icon=" "$integ_files" 2>/dev/null|sed 's|^Icon=||')"
+                                if [ -n "$icon_name" ]
+                                    then
+                                        if [ -f "$icon_name" ]
+                                            then integ_files+=("$icon_name")
+                                            else integ_files+=($(find_fl "${ICONS_DIRS[@]}" -name "${icon_name}.*" 2>/dev/null))
+                                        fi
+                                fi
+                                for file in "${integ_files[@]}";do echo "$file";done|dinteg
+                            else
+                                error_msg "The app was not found: $([ "$app_name" ] && echo "$app_name"||echo "$app")"
+                                exit 1
+                        fi)
+                done
+            ;;
+        esac
+    else
+        error_msg "Specify the action and the name or number of the app!"
+        print_help
+fi

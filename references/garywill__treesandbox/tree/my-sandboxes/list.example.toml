@@ -1,0 +1,27 @@
+
+# (Do only once) Copy this 'list.example.toml' file
+# and name it 'list.toml' . Define your specific sandbox(es) in this file.
+
+# When you are going to create a new specific sandbox:
+# Copy the 'userconfig' part from treesandbox.py.
+# Paste the code into your 'my-sandboxes/uc.<name>.py',
+# and start to modify the userconfig code
+
+# After you have edited your sandbox's userconfig:
+# Run 'python3 deploy.py'
+
+my_sandboxes = [
+    # Will associate 'name' with 'uc.<name>.py'.
+    # Will create a start script '{destdir}/tsbxrun_<name>.pyz' for one specific sandbox, if 'destdir' is used. Otherwise use 'destfile'.
+
+    {name='ExampleMyapp0',  destdir='/tmp' },
+    {name='ExampleMyapp0',  destfile='/tmp/tsbxrun_example0_2.pyz' },
+    #{name='myapp1',         destdir='/mysofts/myapp1'},
+
+    # 'tsver' indicates which version of TreeSandbox program code to use, for a specific sandbox
+    {name='ExampleMyapp0', tsver='git:tag:v0.2.0',    destfile='/tmp/tsbxrun_example0_3.pyz' },
+    {name='ExampleMyapp0', tsver='git:commit:9fb0e10', destfile='/tmp/tsbxrun_example0_4.pyz' },
+    {name='ExampleMyapp0', tsver='git:head',        destfile='/tmp/tsbxrun_example0_5.pyz' },
+    {name='ExampleMyapp0', tsver='git:branch:main', destfile='/tmp/tsbxrun_example0_6.pyz' },
+
+]

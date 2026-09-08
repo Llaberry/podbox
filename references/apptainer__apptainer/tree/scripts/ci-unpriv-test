@@ -1,0 +1,44 @@
+#!/bin/bash -ex
+# Copyright (c) Contributors to the Apptainer project, established as
+#   Apptainer a Series of LF Projects LLC.
+#   For website terms of use, trademark policy, privacy policy and other
+#   project policies see https://lfprojects.org/policies
+
+# this script runs as root under docker --privileged
+
+# install required package(s)
+if [ "$OS_TYPE" = debian ] || [ "$OS_TYPE" = ubuntu ]; then
+  apt-get update
+  apt-get install -y curl rpm2cpio cpio e2fsprogs tzdata
+elif [[ "$OS_TYPE" == *suse* ]]; then
+  zypper install -y e2fsprogs curl cpio util-linux timezone
+else
+  dnf install -y e2fsprogs cpio
+fi
+
+# switch to an unprivileged user
+useradd -u 1000 --create-home -s /bin/bash testuser
+rm -f /etc/subuid /etc/subgid
+
+# Be careful not to use unescaped single quotes in these commands
+su testuser -c '
+  export PATH=$PATH:/usr/sbin
+  set -x
+  set -e
+  rm -rf ins image*.sif overlay.img
+  tools/install-unprivileged.sh -e -v apptainer-[1-9]*.$(arch).rpm '"$INS_OPTS"' ins
+  (
+  echo Bootstrap: docker
+  echo From: '"$CONTAINER_VERS"'
+  echo %post
+  echo "  id"
+  ) >image.def
+  ins/bin/apptainer build image.sif image.def
+  truncate -s 1G overlay.img
+  mkfs.ext3 -F -O ^has_journal overlay.img
+  ins/bin/apptainer exec --overlay overlay.img -f image.sif touch /bin/newfile
+  ins/bin/apptainer exec -f image.sif ins/bin/apptainer exec --overlay overlay.img image.sif cat /bin/newfile
+  ins/bin/apptainer exec --unsquash image.sif true
+  echo testphrase|ins/bin/apptainer build --encrypt --passphrase image-e.sif image.sif
+  echo testphrase|ins/bin/apptainer exec --passphrase image-e.sif true
+'

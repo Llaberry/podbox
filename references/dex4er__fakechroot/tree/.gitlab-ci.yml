@@ -1,0 +1,117 @@
+.test_template: &test_template
+  script:
+    - ./autogen.sh
+    - ./configure
+    - make V=1
+    - make test
+
+.test_template_debian: &test_template_debian
+  <<: *test_template
+  before_script:
+    - apt-get update
+    - apt-get dist-upgrade -y
+    - apt-get install --no-install-recommends -y autoconf automake build-essential $CC debootstrap fakeroot libjemalloc-dev libtool $LLD lsb-release $OPENJDK_PACKAGES
+
+test:jessie:
+  <<: *test_template_debian
+  image: debian:jessie
+  variables:
+    EXTRA_CFLAGS: -Wall -Werror -fdiagnostics-color=always
+    GCC_COLORS: error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01
+    OPENJDK_PACKAGES: openjdk-7-jdk
+    TEST_DEBOOTSTRAP: "true"
+
+test:stretch:
+  <<: *test_template_debian
+  image: debian:stretch
+  variables:
+    EXTRA_CFLAGS: -Wall -Werror -fdiagnostics-color=always
+    GCC_COLORS: error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01
+    OPENJDK_PACKAGES: openjdk-8-jdk
+    TEST_DEBOOTSTRAP: "true"
+
+test:buster:
+  <<: *test_template_debian
+  image: debian:buster
+  variables:
+    EXTRA_CFLAGS: -Wall -Werror -fdiagnostics-color=always
+    GCC_COLORS: error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01
+    OPENJDK_PACKAGES: openjdk-11-jdk
+    TEST_DEBOOTSTRAP: "true"
+
+test:sid:gcc:
+  <<: *test_template_debian
+  image: debian:sid
+  variables:
+    EXTRA_CFLAGS: -Wall -Werror -fdiagnostics-color=always
+    GCC_COLORS: error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01
+    OPENJDK_PACKAGES: openjdk-13-jdk
+
+test:sid:gcc:lto:
+  <<: *test_template_debian
+  image: debian:sid
+  variables:
+    AR: gcc-ar
+    EXTRA_CFLAGS: -Wall -Werror -fdiagnostics-color=always -flto
+    GCC_COLORS: error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01
+    NM: gcc-nm
+    OPENJDK_PACKAGES: openjdk-13-jdk
+    RANLIB: gcc-ranlib
+
+test:sid:clang:
+  <<: *test_template_debian
+  image: debian:sid
+  variables:
+    CC: clang-8
+    EXTRA_CFLAGS: -Wall -Werror
+    OPENJDK_PACKAGES: openjdk-13-jdk
+
+test:sid:clang:c11:
+  <<: *test_template_debian
+  image: debian:sid
+  variables:
+    CC: clang-8
+    EXTRA_CFLAGS: -Wall -Werror -std=c11
+    OPENJDK_PACKAGES: openjdk-13-jdk
+
+test:sid:clang:c17:
+  <<: *test_template_debian
+  image: debian:sid
+  variables:
+    CC: clang-8
+    EXTRA_CFLAGS: -Wall -Werror -std=c17
+    OPENJDK_PACKAGES: openjdk-13-jdk
+
+test:sid:clang:lto:
+  <<: *test_template_debian
+  image: debian:sid
+  variables:
+    AR: gcc-ar
+    CC: clang-8
+    EXTRA_CFLAGS: -Wall -Werror -flto -fuse-ld=lld-8 -Wno-unused-command-line-argument
+    LLD: lld-8
+    NM: gcc-nm
+    OPENJDK_PACKAGES: openjdk-13-jdk
+    RANLIB: gcc-ranlib
+
+test:fedora:rawhide:
+  <<: *test_template
+  image: fedora:rawhide
+  before_script:
+    - dnf -y upgrade
+    - dnf -y install @development-tools autoconf automake fakeroot file libtool perl-Test-Harness redhat-rpm-config
+  variables:
+    CFLAGS: -O2 -g -pipe -Wall -Werror=format-security -fdiagnostics-color=always -Wp,-D_FORTIFY_SOURCE=2 -Wp,-D_GLIBCXX_ASSERTIONS -fexceptions -fstack-protector-strong -grecord-gcc-switches -specs=/usr/lib/rpm/redhat/redhat-hardened-cc1 -specs=/usr/lib/rpm/redhat/redhat-annobin-cc1 -m64 -mtune=generic -fasynchronous-unwind-tables -fstack-clash-protection -fcf-protection
+    GCC_COLORS: error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01
+
+test:archlinux:
+  <<: *test_template
+  image: archlinux/base
+  before_script:
+    - pacman -Sy
+    - pacman -S --noconfirm autoconf automake fakeroot file gcc grep libtool make wget
+  variables:
+    EXTRA_CFLAGS: -Wall -Werror -fdiagnostics-color=always -std=c11
+    GCC_COLORS: error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01
+    PROVE: /usr/bin/core_perl/prove
+    # TEST_ARCHLINUX: "true" # release 2020.02.01 is broken

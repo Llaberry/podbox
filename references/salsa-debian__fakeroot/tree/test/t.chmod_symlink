@@ -1,0 +1,12 @@
+#!/bin/sh
+. ./defs || exit 1
+
+skip_if_darwin
+
+mkdir $tmp
+
+echo "touch $tmp/x; ln -s $tmp/x $tmp/y; chmod 644 $tmp/x; chmod -h 444 $tmp/y; stat -c '%n:%a' $tmp/x $tmp/y" >$tmp/sh
+run_fakeroot -- \
+  ${posixshell} $tmp/sh >$tmp/out-fake
+stat -c '%n:%a' $tmp/x $tmp/y >$tmp/out-real
+cmp $tmp/out-fake $tmp/out-real

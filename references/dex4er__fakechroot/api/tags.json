@@ -1,0 +1,542 @@
+[
+ {
+  "name": "master/2.20.1",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.20.1",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.20.1",
+  "commit": {
+   "sha": "e1e5d20f79ca013e4e6548cded5550e439d54f80",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/e1e5d20f79ca013e4e6548cded5550e439d54f80"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi4yMC4x"
+ },
+ {
+  "name": "master/2.20",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.20",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.20",
+  "commit": {
+   "sha": "daf4d5f5501d5290dd436cea3a87a430f4152059",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/daf4d5f5501d5290dd436cea3a87a430f4152059"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi4yMA=="
+ },
+ {
+  "name": "master/2.19",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.19",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.19",
+  "commit": {
+   "sha": "054eb28e02ed7ff48d1d08994be81f5f274566fc",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/054eb28e02ed7ff48d1d08994be81f5f274566fc"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi4xOQ=="
+ },
+ {
+  "name": "master/2.18",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.18",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.18",
+  "commit": {
+   "sha": "c3c0fc311e8b773ce5a1db21553b48a3f8c13b33",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/c3c0fc311e8b773ce5a1db21553b48a3f8c13b33"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi4xOA=="
+ },
+ {
+  "name": "master/2.17.2",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.17.2",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.17.2",
+  "commit": {
+   "sha": "9f3aebc817b7601d0220a10602256f8bcba19bbb",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/9f3aebc817b7601d0220a10602256f8bcba19bbb"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi4xNy4y"
+ },
+ {
+  "name": "master/2.17.1",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.17.1",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.17.1",
+  "commit": {
+   "sha": "4c0aa7547dcefdd689eeafd2d199edfb6a3c3f4f",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/4c0aa7547dcefdd689eeafd2d199edfb6a3c3f4f"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi4xNy4x"
+ },
+ {
+  "name": "master/2.17",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.17",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.17",
+  "commit": {
+   "sha": "e4684661933905924002e452c05c1554a366fb32",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/e4684661933905924002e452c05c1554a366fb32"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi4xNw=="
+ },
+ {
+  "name": "master/2.16",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.16",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.16",
+  "commit": {
+   "sha": "a9f5362324f38e86eb31682a696a15f38e9cfe3f",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/a9f5362324f38e86eb31682a696a15f38e9cfe3f"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi4xNg=="
+ },
+ {
+  "name": "master/2.16rc1",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.16rc1",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.16rc1",
+  "commit": {
+   "sha": "8b8326c501f774594e9f59682563022eb4064141",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/8b8326c501f774594e9f59682563022eb4064141"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi4xNnJjMQ=="
+ },
+ {
+  "name": "master/2.15",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.15",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.15",
+  "commit": {
+   "sha": "4b1b61df21a6ed517231e41be74a3f2927369ff8",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/4b1b61df21a6ed517231e41be74a3f2927369ff8"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi4xNQ=="
+ },
+ {
+  "name": "master/2.14",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.14",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.14",
+  "commit": {
+   "sha": "b29f9366293c4c35fba473f27553f6d6164d35c2",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/b29f9366293c4c35fba473f27553f6d6164d35c2"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi4xNA=="
+ },
+ {
+  "name": "master/2.13.1",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.13.1",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.13.1",
+  "commit": {
+   "sha": "dda51327a623911b3e03b881fc666cc6beb89dfc",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/dda51327a623911b3e03b881fc666cc6beb89dfc"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi4xMy4x"
+ },
+ {
+  "name": "master/2.13",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.13",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.13",
+  "commit": {
+   "sha": "5b6eabacbb1598fc4099c83631c59a93eb5d1bb6",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/5b6eabacbb1598fc4099c83631c59a93eb5d1bb6"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi4xMw=="
+ },
+ {
+  "name": "master/2.12",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.12",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.12",
+  "commit": {
+   "sha": "028e58f499326138cc7b7e1b63c306ac7400f0de",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/028e58f499326138cc7b7e1b63c306ac7400f0de"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi4xMg=="
+ },
+ {
+  "name": "master/2.11",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.11",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.11",
+  "commit": {
+   "sha": "98463d363436216108c4c0a5daf47f67a8bbba62",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/98463d363436216108c4c0a5daf47f67a8bbba62"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi4xMQ=="
+ },
+ {
+  "name": "master/2.10",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.10",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.10",
+  "commit": {
+   "sha": "85828c9be30fcddd1d816ced3d1c23b6805da8e6",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/85828c9be30fcddd1d816ced3d1c23b6805da8e6"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi4xMA=="
+ },
+ {
+  "name": "master/2.9-1",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.9-1",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.9-1",
+  "commit": {
+   "sha": "8327a9c0cc3ceac1e402d16bdf03733c83ba1a7c",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/8327a9c0cc3ceac1e402d16bdf03733c83ba1a7c"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi45LTE="
+ },
+ {
+  "name": "master/2.8-1",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.8-1",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.8-1",
+  "commit": {
+   "sha": "afda72c71ca4139a05c0fbe706933a4091f039cc",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/afda72c71ca4139a05c0fbe706933a4091f039cc"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi44LTE="
+ },
+ {
+  "name": "master/2.7.1-1",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.7.1-1",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.7.1-1",
+  "commit": {
+   "sha": "0d183e4ca228fc5d69babd324533750b019a03c4",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/0d183e4ca228fc5d69babd324533750b019a03c4"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi43LjEtMQ=="
+ },
+ {
+  "name": "master/2.7-1",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.7-1",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.7-1",
+  "commit": {
+   "sha": "9d971739ec4131d182f9ab746950402d07b521ea",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/9d971739ec4131d182f9ab746950402d07b521ea"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi43LTE="
+ },
+ {
+  "name": "master/2.6-1",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.6-1",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.6-1",
+  "commit": {
+   "sha": "374f2010d932072b29043f1ac7dc5fb244409803",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/374f2010d932072b29043f1ac7dc5fb244409803"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi42LTE="
+ },
+ {
+  "name": "master/2.4-1",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.4-1",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.4-1",
+  "commit": {
+   "sha": "2663a426cc741b32d9abe6496ef2cbed10db481a",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/2663a426cc741b32d9abe6496ef2cbed10db481a"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi40LTE="
+ },
+ {
+  "name": "master/2.3",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.3",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.3",
+  "commit": {
+   "sha": "cbb272e40e7178a421d5ab2a07addf99a8185103",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/cbb272e40e7178a421d5ab2a07addf99a8185103"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi4z"
+ },
+ {
+  "name": "master/2.2",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.2",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.2",
+  "commit": {
+   "sha": "6e67bef052674e7e69f0bb2c9baa9515f5e9fe5c",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/6e67bef052674e7e69f0bb2c9baa9515f5e9fe5c"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi4y"
+ },
+ {
+  "name": "master/2.1",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.1",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.1",
+  "commit": {
+   "sha": "fa7d45f95fee30f8d068dbe3afb898a68f609ed3",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/fa7d45f95fee30f8d068dbe3afb898a68f609ed3"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi4x"
+ },
+ {
+  "name": "master/2.0",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/2.0",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/2.0",
+  "commit": {
+   "sha": "46a8248bc1bc5d0ee15095def7fece1e9fd88b21",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/46a8248bc1bc5d0ee15095def7fece1e9fd88b21"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMi4w"
+ },
+ {
+  "name": "master/0.9+1.3",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/0.9+1.3",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/0.9+1.3",
+  "commit": {
+   "sha": "8800f5121f847492f9d90d9d819035e72fbc4e93",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/8800f5121f847492f9d90d9d819035e72fbc4e93"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMC45KzEuMw=="
+ },
+ {
+  "name": "master/0.8+1.3",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/0.8+1.3",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/0.8+1.3",
+  "commit": {
+   "sha": "8d2aa628f8fd2948d0f7c52e4188f28bd580ab79",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/8d2aa628f8fd2948d0f7c52e4188f28bd580ab79"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMC44KzEuMw=="
+ },
+ {
+  "name": "master/0.7+1.2.4",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/0.7+1.2.4",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/0.7+1.2.4",
+  "commit": {
+   "sha": "7486ab50b3ed549ccc4cf5e2a5181b9db42bf443",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/7486ab50b3ed549ccc4cf5e2a5181b9db42bf443"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMC43KzEuMi40"
+ },
+ {
+  "name": "master/0.6+1.2.4",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/0.6+1.2.4",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/0.6+1.2.4",
+  "commit": {
+   "sha": "3a94a38d411d7003c5609173d35c40d1493bd537",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/3a94a38d411d7003c5609173d35c40d1493bd537"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMC42KzEuMi40"
+ },
+ {
+  "name": "master/0.2.6+0.7.8",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/master/0.2.6+0.7.8",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/master/0.2.6+0.7.8",
+  "commit": {
+   "sha": "7ca9c6ec051f501844be9d4c7be93898eff72bce",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/7ca9c6ec051f501844be9d4c7be93898eff72bce"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9tYXN0ZXIvMC4yLjYrMC43Ljg="
+ },
+ {
+  "name": "archive/single-file",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/archive/single-file",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/archive/single-file",
+  "commit": {
+   "sha": "112d6b1c74b39e2959245dbcc7e8fefba16ef1ff",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/112d6b1c74b39e2959245dbcc7e8fefba16ef1ff"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy9hcmNoaXZlL3NpbmdsZS1maWxl"
+ },
+ {
+  "name": "2.20.1",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/2.20.1",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/2.20.1",
+  "commit": {
+   "sha": "8c5fff4db88038407ecf5c49813b9d9a75401a3f",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/8c5fff4db88038407ecf5c49813b9d9a75401a3f"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy8yLjIwLjE="
+ },
+ {
+  "name": "2.20",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/2.20",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/2.20",
+  "commit": {
+   "sha": "3830a60e05f2132dce40f693e4bd2457393db08b",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/3830a60e05f2132dce40f693e4bd2457393db08b"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy8yLjIw"
+ },
+ {
+  "name": "2.19",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/2.19",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/2.19",
+  "commit": {
+   "sha": "3bbca5c7cc6f120994c841ffc762147432932674",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/3bbca5c7cc6f120994c841ffc762147432932674"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy8yLjE5"
+ },
+ {
+  "name": "2.18",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/2.18",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/2.18",
+  "commit": {
+   "sha": "fa0b2012821d70904c23dac2b5fa9746877c727e",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/fa0b2012821d70904c23dac2b5fa9746877c727e"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy8yLjE4"
+ },
+ {
+  "name": "2.17.2",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/2.17.2",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/2.17.2",
+  "commit": {
+   "sha": "005459506bc100caa8d1d3e40764aa2e5f7f4f05",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/005459506bc100caa8d1d3e40764aa2e5f7f4f05"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy8yLjE3LjI="
+ },
+ {
+  "name": "2.17.1",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/2.17.1",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/2.17.1",
+  "commit": {
+   "sha": "ab51e0513d9353de3af048a2e99c508b4fee8443",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/ab51e0513d9353de3af048a2e99c508b4fee8443"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy8yLjE3LjE="
+ },
+ {
+  "name": "2.17",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/2.17",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/2.17",
+  "commit": {
+   "sha": "c996fc4121f2971032b0b8c977b2075fb5ee6934",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/c996fc4121f2971032b0b8c977b2075fb5ee6934"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy8yLjE3"
+ },
+ {
+  "name": "2.16",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/2.16",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/2.16",
+  "commit": {
+   "sha": "30b4eaff901680d11f4aba943452590e33995a1a",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/30b4eaff901680d11f4aba943452590e33995a1a"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy8yLjE2"
+ },
+ {
+  "name": "2.16rc1",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/2.16rc1",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/2.16rc1",
+  "commit": {
+   "sha": "3edef6c4bb9ec9f4e3fc8fe9ace4589514182665",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/3edef6c4bb9ec9f4e3fc8fe9ace4589514182665"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy8yLjE2cmMx"
+ },
+ {
+  "name": "2.15",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/2.15",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/2.15",
+  "commit": {
+   "sha": "aebf8792ba5731f369c21074784f5b8b02fca071",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/aebf8792ba5731f369c21074784f5b8b02fca071"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy8yLjE1"
+ },
+ {
+  "name": "2.14",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/2.14",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/2.14",
+  "commit": {
+   "sha": "21882fa103534bdd4d2016aecd31412ce70af8f0",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/21882fa103534bdd4d2016aecd31412ce70af8f0"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy8yLjE0"
+ },
+ {
+  "name": "2.14@release",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/2.14@release",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/2.14@release",
+  "commit": {
+   "sha": "9f3aebc817b7601d0220a10602256f8bcba19bbb",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/9f3aebc817b7601d0220a10602256f8bcba19bbb"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy8yLjE0QHJlbGVhc2U="
+ },
+ {
+  "name": "2.13.1",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/2.13.1",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/2.13.1",
+  "commit": {
+   "sha": "3d6814e9a2bcbb128dcb4c70260638e4619b12ea",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/3d6814e9a2bcbb128dcb4c70260638e4619b12ea"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy8yLjEzLjE="
+ },
+ {
+  "name": "2.13",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/2.13",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/2.13",
+  "commit": {
+   "sha": "36b26d512ddd438eb4a3dff0894f2c3c97b2e8f6",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/36b26d512ddd438eb4a3dff0894f2c3c97b2e8f6"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy8yLjEz"
+ },
+ {
+  "name": "2.12",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/2.12",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/2.12",
+  "commit": {
+   "sha": "d09d4437fbe4247055d0d35f575285b86643a950",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/d09d4437fbe4247055d0d35f575285b86643a950"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy8yLjEy"
+ },
+ {
+  "name": "2.11",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/2.11",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/2.11",
+  "commit": {
+   "sha": "ec5a6834c548e206dd40e589b1b5f0c081c33240",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/ec5a6834c548e206dd40e589b1b5f0c081c33240"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy8yLjEx"
+ },
+ {
+  "name": "2.10",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/2.10",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/2.10",
+  "commit": {
+   "sha": "fc2e73363735721bb92b43d905279496d4fd2645",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/fc2e73363735721bb92b43d905279496d4fd2645"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy8yLjEw"
+ },
+ {
+  "name": "2.9",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/2.9",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/2.9",
+  "commit": {
+   "sha": "6ae025854d2c9028808f1d1e8eaa467ef53502fa",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/6ae025854d2c9028808f1d1e8eaa467ef53502fa"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy8yLjk="
+ },
+ {
+  "name": "2.8",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/2.8",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/2.8",
+  "commit": {
+   "sha": "807431dbaecaa3bd099f0241e9db5f319f4af427",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/807431dbaecaa3bd099f0241e9db5f319f4af427"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy8yLjg="
+ },
+ {
+  "name": "2.7.1",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/2.7.1",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/2.7.1",
+  "commit": {
+   "sha": "ce69e13f4e180a27a65fadef253d3b5f9bd784b5",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/ce69e13f4e180a27a65fadef253d3b5f9bd784b5"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy8yLjcuMQ=="
+ },
+ {
+  "name": "2.6",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/2.6",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/2.6",
+  "commit": {
+   "sha": "a507fe9dd43d637940ae4290497ee8776e01da41",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/a507fe9dd43d637940ae4290497ee8776e01da41"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy8yLjY="
+ },
+ {
+  "name": "2.5",
+  "zipball_url": "https://api.github.com/repos/dex4er/fakechroot/zipball/refs/tags/2.5",
+  "tarball_url": "https://api.github.com/repos/dex4er/fakechroot/tarball/refs/tags/2.5",
+  "commit": {
+   "sha": "ce295289706d6768786552a24eb6eeb89c8584d8",
+   "url": "https://api.github.com/repos/dex4er/fakechroot/commits/ce295289706d6768786552a24eb6eeb89c8584d8"
+  },
+  "node_id": "MDM6UmVmODIxODA5OnJlZnMvdGFncy8yLjU="
+ }
+]

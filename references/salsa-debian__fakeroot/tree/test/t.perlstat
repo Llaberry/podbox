@@ -1,0 +1,7 @@
+#!/bin/sh
+. ./defs || exit 1
+
+# system perl is immune to fakeroot on macOS
+skip_if_darwin
+
+run_fakeroot -- ${srcdir}/perlstattest

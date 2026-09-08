@@ -1,0 +1,1720 @@
+# Apptainer Changelog
+
+The Singularity Project has been
+[adopted by the Linux Foundation](https://www.linuxfoundation.org/press-release/new-linux-foundation-project-accelerates-collaboration-on-container-systems-between-enterprise-and-high-performance-computing-environments/)
+and re-branded as Apptainer.
+For older changes see the [archived Singularity change log](https://github.com/apptainer/singularity/blob/release-3.8/CHANGELOG.md).
+
+## v1.6.x changes
+
+Changes since 1.5.x
+
+- Add a new `gpu library path` option to `apptainer.conf`, giving a list of
+  directories to search for the GPU driver libraries named in
+  `nvliblist.conf` and `rocmliblist.conf` when binding them with `--nv` or
+  `--rocm`. The directories are searched ahead of the ld.so cache, and make
+  `ldconfig` optional: when it cannot be found or run, the configured
+  directories are used on their own. This allows the host GPU libraries to be
+  found on systems that keep them outside the ld.so cache, or that do not
+  ship `ldconfig` at all, such as NixOS and Guix, where previously no host
+  GPU libraries would be found at all.
+- Add a new `--compat32` flag (action and build) which, alongside `--nv` or
+  `--rocm`, additionally binds the 32-bit GPU driver libraries of the
+  host into `/.singularity.d/libs32` in the container, and adds that
+  directory to `LD_LIBRARY_PATH`. They are kept separate from the 64-bit
+  libraries in `/.singularity.d/libs` because both have the same names
+  and graphical applications, such as Windows programs running under
+  Wine, need both at once. With `--nvccli`, the flag adds the `compat32`
+  driver capability. `--compat32` is also implied by
+  `NVIDIA_DRIVER_CAPABILITIES=compat32`.
+- Fix the selection of GPU libraries on multiarch hosts, where `ldconfig -p`
+  lists several architectures of a library under the same name. Previously
+  only the first listed variant was considered, so a library could be
+  silently skipped if the wrong architecture happened to be listed first.
+- Update minimum go version to 1.26.5.
+- Add support for variant to more architectures, but without verification.
+  The previous arm32v5, arm32v6 and arm32v7 (= "arm") are still verified.
+- Any architecture variant, if used, is also included in the platform.
+  Previously it was silently being ignored on the non-ARM architectures.
+- Change from arm32v7 to "arm", just like arm64v8 is now just "arm64".
+- Remove support for the old obsolete arm32v3 and arm32v4 architectures.
+- Add new the OCI labels: "org.opencontainers.image.created" and
+  "org.opencontainers.image.architecture" (optional ".variant").
+  The old deprecated labels: "org.label-schema.build-date" and
+  "org.label-schema.build-arch" are still set, for compatibility.
+- When `/proc` cannot be mounted in a new PID namespace while using
+  fakeroot to build an image from a definition file, use the host PID
+  namespace instead of a separate PID namespace and print an INFO
+  message.  This can happen inside unprivileged docker which by default
+  blocks mounting `/proc`.
+- Add possibility to add description and annotations for oras,
+  when pushing images to a registry using the `push` command.
+  The --description flag sets "org.opencontainers.image.description",
+  and --annotation flag can be used multiple times with "key=value".
+- Add oras `org.opencontainers.image.created` annotation when pushing images.
+  The `org.opencontainers.image.created` label from the SIF image is used.
+- Allow searching images from oras registries, in addition to library.
+  Only the images and tags are listed, descriptions are not searched.
+- Allow deleting images from oras registries, in addition to library.
+  Not all registries support deleting images and manifests, though.
+- Add new `tag` command for tagging existing images in oras registries,
+  without having to push extra copies (it also works for image indexes).
+- Change the implementation of extended globbing patterns in the %files
+  section to use a safer method.
+- Add a `sync writable extfs` directive to apptainer.conf. When enabled,
+  writable extfs image mounts use the `sync` mount option.
+- Added support for NVIDIA Tegra to `nvliblist.conf`
+- The `APPTAINER_TMPDIR` now defaults to /var/tmp, if /tmp is on tmpfs.
+
+## v1.5.x changes
+
+- Fix the help text for the `--mount` option not wrapping at 80 columns,
+  by using the shorter `src` and `dst` aliases in the example.
+- Fixed a bug that prevented multiple mount entries in the `APPTAINER_MOUNT`
+  env var from having different numbers of options.
+
+## v1.5.3 - \[2026-07-21\]
+
+- If the `ptrace()` system call does not work while building an image as
+  an unprivileged user, skip using PRoot to preserve file ownership and
+  print an INFO message.
+- Bind `getopt` from the host when using fakeroot command mode, to make
+  the fakeroot command work with EL10 and Fedora base containers which
+  no longer contain getopt by default.
+
+## v1.5.2 - \[2026-06-23\]
+
+- Extended the mksquashfs segmentation fault workaround for cases where
+  mksquashfs uses many processor cores.
+- Whe building an rpm using a Red Hat version of golang, set
+  GOEXPERIMENT=strictfipsruntime.  That makes attempting to run non-FIPS
+  compliant containers on a FIPS-enabled system exit with a helpful
+  error message instead of a crash.
+- Skip building PRoot on x86_64 Fedora 45 because of difficult to fix
+  compilation problems.
+
+## v1.5.1 - \[2026-06-04\]
+
+### Security fix
+
+- Fix for [CVE-2026-48785 /
+  GHSA-cr2j-534f-mf3g](https://github.com/apptainer/apptainer/security/advisories/GHSA-cr2j-534f-mf3g)
+  Incorrect path matching for `limit container paths` directive.
+  This is only applicable to suid installations that have paths listed
+  in `limit container paths` that are string prefixes of other paths
+  which are not desired to be included in the list. For example, if
+  `/scratch` is in the list but `/scratch2` also exists and contains
+  container images, previously the latter would match but now only
+  images under the exactly matching `/scratch` are included.
+
+## Other changes
+
+- Work around segmentation fault sometimes seen while mksquashfs under
+  proot is creating a SIF file.
+- Update bundled PRoot to version 5.4.0-rootless.3 in order to fix a
+  problem where SIF files could be corrupted when mksquashfs died with
+  a signal.  The proot command was not passing back an error exit code.
+- Updated bundled squashfuse_ll to version 0.6.2 in order to fix a
+  crash sometimes seen with apptainer in unprivileged docker.
+- Update bundled fuse2fs to version 1.47.4 instead of patching the bugs
+  in 1.47.3.
+- Fix a crash that happened when `/etc/resolv.conf` was a symlink while
+  building from a definition file using the localimage bootstrap.
+- Support hosts that have an `/etc/resolv.conf` symlink pointing to `../run`
+  in addition to `/run".
+- Change the `download-dependencies` script to skip downloading the PRoot
+  source code on architectures that it is known to not support (that is:
+  ppc*, s390*, and riscv*).  In those situations Apptainer will skip
+  trying to compile and run proot. As a result original owners and groups
+  of files will not be preserved in SIF images built by unprivileged
+  users, as was the case for all architectures prior to 1.5.0.
+- Fix panic encountered during progress bar update while pulling image.
+- Fix fakeroot overwriting root's username in `/etc/passwd` with the host
+  user's name, a regression introduced in v1.5.0.
+- Add `nonested` flag for `--mount` specifications to prevent individual
+  bind mounts from being passed to nested containers via `APPTAINER_BIND`.
+  Example: `--mount type=bind,source=/data,destination=/mnt,nonested`.
+
+## v1.5.0 - \[2026-05-06\]
+
+Changes since v1.4.5
+
+### New Features & Functionality
+
+- Add support for a subset of the Container Device Interface (CDI) standard
+  through new `--device` and `--cdi-dirs` run/shell/exec options.  Honors
+  environment variable settings, bind mounts, and device files listed in
+  CDI specification files.
+- Add support for selective mounting of Intel(R) Gaudi accelerators.
+  This feature is only for use in combination with a minimal `/dev` directory,
+  selected either with the `--contain` flag or by configuring `mount dev`
+  with the `minimal` option; otherwise all the devices are available anyway.
+  This feature is enabled via the `--intel-hpu` option and by specifying the
+  `HABANA_VISIBLE_DEVICES` environment variable, which should contain
+  a comma-separated list of device IDs (e.g., `"1,2,3"`) or "all" to
+  import all of them.  The default if `HABANA_VISIBLE_DEVICES` is not
+  set is "all".
+- Add new bootstrap `buildkit:` (and `buildkit:` URL) for building SIF
+  images directly from Dockerfile, without having to use Docker/Podman.
+  Requires BuildKit to be installed.  The full buildkit log file is
+  included in the image, for traceability.  It is also shown on the
+  console, as a progress update while building.
+  If an `APPTAINER_BUILDKIT_HOST` environment variable is set it will
+  select or override what backend to use for the BuildKit bootstrap.
+- Add support for downloading SIF images from an IPFS peer-to-peer
+  cluster using an HTTP gateway (similar to the existing support for IPFS
+  in the `curl` tool).  The address of the gateway can be set in the
+  `IPFS_GATEWAY` environment variable or read from `~/.ipfs/gateway`
+  or `/etc/ipfs/gateway`.
+- Add `--no-env` action and instance option and corresponding
+  `APPTAINER_NOENV` environment variable that can provide a
+  comma-separated list of environment variables to skip importing from
+  the host environment into the container.
+- Add `--data` build option which creates a SIF file with a squashfs
+  data partition instead of a code partition, given an existing squashfs
+  file as the source.
+- If `PREPEND_LD_LIBRARY_PATH` is set in the container environment (through
+  an `--env` option, an `APPTAINERENV_` prefix from the host, or in the
+  container definition) then prepend that string to `:$LD_LIBRARY_PATH`.
+  Likewise if `APPEND_LD_LIBRARY_PATH` is set in the container environment
+  then append that string to `$LD_LIBRARY_PATH:`.  This is only done when
+  `LD_LIBRARY_PATH` is set, although if the container is based on glibc,
+  when `LD_LIBRARY_PATH` is not set it will first be filled with the
+  default library search path as found through `ldconfig`.
+- Create reproducible SIF images, if the environment variable
+  `SOURCE_DATE_EPOCH` has been set (as a Unix timestamp given as seconds
+  since the beginning of 1970, in the UTC timezone).  Also add
+  `--reproducible` flag to build and pull from `oras://` sources.  This
+  sets SOURCE_DATE_EPOCH automatically from the image "created" time.
+- Support hosts that have `/etc/resolv.conf` pointing to a symlink under
+  `/run`, such as those hosts that are running `systemd-resolved`.  In
+  this case, the symlink is copied into the container and the parent
+  directory of the target of the symlink is bind-mounted from the host.
+  The result is that even if the target of the symlink is replaced with
+  a new file, the container sees the update in `/etc/resolv.conf`.
+- Add `/etc/resolv.conf` to the list of host paths that can be prevented
+  from automatic import into the container with the `--no-mount` option.
+- Preserve owner and group information on files in containers downloaded from
+  OCI registries when building SIF files, even for unprivileged users.
+  This takes advantage of the fact that the library (umoci) that downloads
+  containers preserves owner and group information in an extended attribute.
+  Adds bundled tool `proot` which is modified from the upstream tool by the
+  rootless-containers project to make the owner and group appear to be in the
+  ordinary `stat()` information.  That tool is now used when invoking
+  `mksquashfs` to create the filesystem partition in a SIF file.  It can
+  be disabled with the hidden build option `--ignore-proot`.
+- When unsquashing an image while running under a root-mapped user
+  namespace (such as when using fakeroot without subuid mapping), insert
+  another namespace mapping back to the original user so unsquashfs
+  doesn't try (and fail) to change the owner and group information on the
+  unpacked files.
+- Record image digest metadata (sha256 from `RepoDigests`), for OCI
+  registry images.  Also add the image name (ref) of the image from
+  "docker", with registry and tag.  This is useful for traceability,
+  when using `docker.io` or a tag like `latest`.  Unfortunately the
+  feature does not work with "docker-archive" or "docker-daemon".
+- Print resulting digest when doing push to and pull from oras.
+- debugsource rpms are now generated in addition to debuginfo rpms on
+  RHEL-derived and Fedora operating systems.
+- Add additional `.rpm` packages to the release assets that include
+  `el10` in their names.  Those packages are necessary to work on EL10
+  which has a newer libsubid library than older EL releases.
+- Apptainer now supports the `loong64` architecture.
+
+### Changed defaults / behaviours
+
+- If libraries are bound in to `/.singularity.d/libs` (such as with GPU
+  options like `--nv`) and the container is based on glibc and
+  `LD_LIBRARY_PATH` is not already set, it is now set to the default
+  library search path.  Since `/.singularity.d/libs` is appended to
+  `LD_LIBRARY_PATH`, this makes libraries installed in the container
+  take precedence over libraries bound in from the host.  This reduces
+  the chances of mismatched glibc versions.  However, if there are
+  indeed libraries on the host that need to take precedence over
+  libraries in the container, that can be forced with
+  `PREPEND_LD_LIBRARY_PATH=/.singularity.d/libs`.
+- Change the default `arm` variant to `v7`, and stop using the GOARM environment
+  variable. The variables GOOS, GOARCH and GOARM are only used when building.
+- The oras transport now supports architectures beyond `amd64`.
+- Images downloaded from oras without using the cache are now checksummed.
+  A progress bar is shown during the process.
+- Add support for APPTAINER_TMPDIR to the commands
+  `apptainer overlay create` and `apptainer plugin compile`.
+- Update minimum go version to 1.25.7.
+- Update the bundled gocryptfs to version 2.6.1.
+- Update the bundled squashfuse to version 0.6.1.
+- Update the bundled fuse-overlayfs to version 1.16.
+- Update the bundled squashfs-tools to version 4.7.5.
+
+### Bug fixes
+
+- Make the `root default capabilities` configuration option apply only
+  to the real root user as documented and not to a fakeroot user.
+- Fix long-time bug in importing environment variables from oci
+  containers (defined by `ENV` in their definition file) with shell
+  characters in them.  It now escapes them with single backslashes
+  instead of double backslashes so they behave like they do in podman
+  and docker.
+- The username in `/etc/passwd` inside a container now always corresponds
+  to the username of the user on the host even if an entry with the same
+  UID is found in the container.
+- When apptainer reinvokes itself on behalf of the `run-help` command,
+  it passes through LD_LIBRARY_PATH.  This makes it work correctly when it
+  was installed with install-unprivileged.sh on a host operating system
+  that's different than the one the installed binaries were built on.
+
+## v1.4.x changes
+
+Changes since 1.4.5
+
+## v1.4.5 - \[2025-12-02\]
+
+### Security related fixes
+
+- Fix for moderate severity [CVE-2025-65105 /
+  GHSA-j3rw-fx6g-q46j](https://github.com/apptainer/apptainer/security/advisories/GHSA-j3rw-fx6g-q46j):
+  Ineffective application of selinux / apparmor `--security` option.
+- Updates of a few dependent go libraries for related security fixes.
+
+### Other fix
+
+- Run FUSE processes in a separate process group. This detaches them
+  from the main process so they don't receive signals such as interrupts
+  sent to a terminal there.  This was not a problem with interactive
+  shells because they start their own group, but was a problem with some
+  programs with interactive Read/Eval/Print/Loops such as python.  An
+  interrupt there would kill the FUSE processes.
+
+## v1.4.4 - \[2025-10-29\]
+
+- By applying patches to the bundled fuse2fs, allow again the possibility
+  of using a non-writable ext3 image file as an overlay.  Fixes regression
+  introduced in 1.4.3.
+- If an overlay or bound data image is asked to be mounted writable but
+  the user has no write access to the image, show a warning message
+  instead of silently switching to readonly.
+- Avoid a fatal error when starting fakeroot from suid mode while in an
+  NFS directory.
+- Fix 32-bit builds which were accidentally broken by a library upgrade
+  that was done for a minor security issue.
+
+## v1.4.3 - \[2025-09-29\]
+
+- Include the home directory in the `--workdir` option (which is a
+  modifier of the `--contain` option).  This has always been in the
+  `--workdir` usage description but the home directory has not actually
+  been included at least since singularity-2.
+- Update the bundled fuse2fs to version 1.47.3.  This fixes a bug that
+  caused removal of files in the `--overlay` mode to silently fail.
+- Update the bundled fuse-overlayfs to version 1.15.
+- Add support for building and publishing Apptainer for Ubuntu 25.04 PPA.
+- Fix reading images using the oras protocol to store temporary files in
+  `APPTAINER_TMPDIR` instead of `TMPDIR`.
+
+## v1.4.2 - \[2025-07-07\]
+
+- Restore looking for registry mirrors in `/etc/containers/registry.conf`
+  and related files.  This had been inadvertently dropped beginning in 1.4.0.
+- Fix use of the image cache when the home directory contains `@` characters.
+  Previously it would assume that it was the start of a digest in the oci-dir.
+- Fix signature verification failures on unsigned images.
+- Add additional `.deb` packages to the release assets that include the label
+  `trixie+` to indicate that they are for installing on Debian 13 or later.
+  Those packages are necessary to work with the new libfuse3 library in Debian
+  13.  They also support libsubid, unlike the default packages because they are
+  built on Debian 11 which doesn't have that library.
+- Add automatic triggering of Ubuntu PPA builds whenever there's a new
+  apptainer release.
+
+## v1.4.1 - \[2025-05-14\]
+
+- Fix the use of libsubid which had been broken by the revision applied in
+  1.4.0-rc.2.
+- Fix a bug introduced in 1.4.0 that caused arm64 to be misconverted to arm64v8
+  and resulted in a failure when pulling OCI containers.
+- Fix user database lookup in master process preventing instance from starting
+  correctly on systems using winbind.
+- Update minimum go version to 1.23.6 now that it is current in el8 & el9.
+- Check for existence of `/run/systemd/system` when verifying cgroups can be
+  used via systemd manager.
+- Compile gocryptfs with the default `GOAMD64` microarchitecture of the go
+  compiler instead of always using `GOAMD64=v2`.
+  The default value in the upstream go compiler is `GOAMD64=v1`, to work with
+  older CPUs, although it can have a cost in performance on newer CPUs.
+  It is still possible to set `GOAMD64` to a newer microarchitecture (v2+).
+  For instance RHEL 9 uses v2 and RHEL 10 uses v3 as their default values.
+- Add a clear error message if someone tries to use privileged network options
+  while not using setuid mode.
+- Allow multi-arch oci-archive files that have a nested index with the manifest.
+  This is the default format (both for Docker and OCI) when using `nerdctl save`.
+- Test if docker-archive is actually an oci-archive (since Docker version 25),
+  and if it is oci then use the OCI parser to avoid bugs in the Docker parser.
+  Save the docker-daemon references to a temporary docker-archive, to benefit
+  from the same improvements also for those references. Parse as oci-archive.
+
+## v1.4.0 - \[2025-03-18\]
+
+Changes since 1.3.6
+
+### New Features & Functionality
+
+- Add support for libsubid, when available at compile time.  This
+  library enables central management of subuid and subgid mappings and
+  typically comes as part of the shadow-utils package, possibly as
+  a shadow-utils-subid subpackage.
+- Add new build option `--mksquashfs-args` to pass additional arguments
+  to the mksquashfs command when building SIF files.  If a compression
+  method other than gzip is selected, the SIF file might not work with
+  older installations of Apptainer or Singularity, so an INFO message
+  about that is printed.  On the other hand, an INFO message that was
+  printed (twice) when running an image with non-gzip compression has
+  been removed.
+- Expand the build instructions for squashfuse and apptainer packaging to
+  include the libraries needed for maximum support of compression algorithms
+  by squashfuse_ll.
+- If the `mksquashfs` version is new enough (version 4.6 or later),
+  then show a percentage progress bar (with ETA) during SIF creation
+  in the default log level.
+  If the mksquashfs version is older, then in verbose or debug log level
+  show the output of mksquashfs with its own progress bar.
+- Include a bundled copy of squashfs-tools to make the progress bar
+  available and to ensure that all compression types are available.
+  This includes the programs `mksquashfs` and `unsquashfs`.
+- Statistics are now normally available for instances that are
+  started by non-root users on cgroups v2 systems.
+  The instance will be started in the current cgroup.  Information
+  about configuration issues that prevent collection of statistics are
+  displayed as INFO messages by default.
+- Add a `dnf` definition file bootstrap option as an alias to the `yum`
+  bootstrap option.
+- Add a --sandbox option to apptainer pull.
+- Add configuration file binding to the `--nv` option.  Files that are
+  recognized in the NVIDIA Container Toolkit, including files for EGL ICD,
+  were added to the default `nvliblist.conf`.
+- It is now possible to use multiple environment variable files using the
+  --env-file flag. Files can be specified as a comma-separated list or by
+  using the flag multiple times. Variables defined in later files take
+  precedence over earlier files.
+- The `registry login` and `registry logout` commands now support a `--authfile
+  <path>` option, which causes OCI credentials to be written to / removed from
+  a custom file located at `<path>` instead of the default location
+  (`$HOME/.apptainer/docker-config.json`). The commands `pull`, `push`, `run`,
+  `exec`, `shell` and `instance start` can now also be passed a `--authfile
+  <path>` option, to read OCI registry credentials from this custom file.
+- A new `--netns-path` option takes a path to a network namespace to join when
+  starting a container. The `root` user may join any network namespace. An
+  unprivileged user can only join a network namespace specified in the new
+  `allow netns paths` directive in `apptainer.conf`, if they are also listed
+  in `allow net users` / `allow net groups` and apptainer is installed with
+  setuid privileges. Not supported with `--fakeroot`.
+- `apptainer.conf` now accepts setting the following options:
+  - `allow ipc ns` -- Default value is `yes`; when set to `no`, it will disable
+    the use of the `--ipc` flag.
+  - `allow uts ns` --  Default value is `yes`; when set to `no`, it will
+    invalidate the use of the `--uts` and `--hostname` flags.
+  - `allow user ns` --  Default value is `yes`; when set to `no`, it will
+    disable creation of user namespaces.  Note that this will prevent
+    execution of containers with the `--userns` or `--fakeroot` flags and
+    with unprivileged installations of Apptainer.
+- Add automated tests for OpenSUSE Leap and Tumbleweed and Debian Bookworm.
+
+### Changed defaults / behaviours
+
+- Label the starter process seen in `ps` with the image filename,
+  for example: `Apptainer runtime parent: example.sif`.
+- Remove runtime and compute libraries from `rocmliblist.conf`.
+  They should instead be provided by the container image.
+- Allow overriding the build architecture with `--arch` and
+  `--arch-variant`, to build images for another architecture
+  than the current host arch. This requires that the host has
+  been set up to support multiple architectures (binfmt_misc).
+- Complete the previously partial support for the `riscv64` architecture.
+- Show a warning message if changing directory to the cwd fails, instead
+  of silently switching to the home directory or `/`.
+- Write starter messages to stderr when an instance fails to start.
+  Previously they were incorrectly written to stdout.
+- Skip attempting to bind inaccessible mount points when handling the
+  `mount hostfs = yes` configuration option.
+- Make binary builds more reproducible by deriving the GNU build ID
+  from the Go build ID instead of using a randomly generated one.
+- Fix storage of credentials for `docker.io` to behave the same as for
+  `index.docker.io`.
+- Change message log level from warning to debug when environment variables
+  set inside a container or by APPTAINERENV have a different value than the
+  environment variable on the host.
+- Change the default message level from silent to the normal level in
+  the nested apptainer that executes a build's %post section,
+  and suppress an unnecessary warning message.
+- Ignore invalid environment variables when pulling oci/docker containers.
+- Improve documentation for `remote list` command.
+- Removing the little-known `fakerootcallback` functionality.
+- Update the default pacman `confURL` for `Bootstrap: arch` container builds.
+- Update the bundled fuse programs to their latest releases.
+- A go version of at least 1.22 is now required to build from source.
+
+### Bug fixes
+
+- Fix the `mconfig -s` option to build the apptainer and starter
+  binaries statically as documented.
+- Fix the Makefile generated by `mconfig -b` to work when the selected build
+  directory is not a subdirectory of the apptainer source code.
+- `%files from` in a definition file will now correctly copy symlinks that
+  point to a target above the destination directory but inside the destination
+  stage root filesystem.
+- Fixed typo in `nvliblist.conf` (`libnvoptix.so.1` -> `libnvoptix.so`).
+- Avoid timeouts when cleaning up from building gocryptfs-encrypted SIF files.
+- Fix bug that prevented build with `--passphrase` or `--pem-path` but
+  without `--encrypt` from implying fakeroot.
+- Fix hang when copying files between build stages while using suid mode
+  without user namespaces.
+- Fix running and building containers of different architectures
+  than the host via binfmt_misc when using rootless fakeroot.
+- Fix `target: no such file or directory` error when extracting
+  layers from certain OCI images that manipulate hard links across layers.
+- Fix the crash that happened when executing a privilege-encrypted container
+  as root.
+
+### Internal
+
+- Refactor image arch variation using go-containerregistry's platform.
+- A test mksquashfs is no longer done when building SIF files.  That
+  used to be done every build to verify that squashfs tools were new
+  enough to support the `-comp gzip` option.
+
+## v1.3.6 - \[2024-12-02\]
+
+- Avoid using kernel overlayfs when the lower layer is a sandbox on an
+  incompatible filesystem type such as GPFS or Lustre.  For those cases
+  use fuse-overlayfs instead.  This fixes a regression introduced in
+  1.3.0.  The regression didn't much impact Lustre because kernel
+  overlayfs refused to try to use it and Apptainer proceeded to use
+  fuse-overlayfs anyway, but with GPFS the kernel overlayfs allowed
+  mounting but returned stale file handle errors.
+
+## v1.3.5 - \[2024-10-30\]
+
+- Fix a regression introduced in 1.3.4 that overwrote existing standard
+  `/.singularity.d` files such as `runscript` in container images even
+  if they had been modified.
+- Skip attempting to bind inaccessible mount points when handling the
+  `mount hostfs = yes` configuration option.
+- Support parsing nested variables defined inside `%arguments` section of
+  definition files.
+- Ignore invalid environment variables when pulling oci/docker containers.
+
+## v1.3.4 - \[2024-09-04\]
+
+- Fixed sif-embedded overlay partitions for containers that are larger
+  than 2 gigabytes.
+- Fixed the apparmor profile that was added in v1.3.3 but didn't work.
+  An apparmor profile is applied in all Debian-based apptainer packaging,
+  but is only needed to enable user namespaces for apptainer on a
+  default-configured Ubuntu 23.10 or newer.
+- Fixed the failure when starting apptainer with `instance --fakeroot`.
+- `apptainer build -B ...` can now be used to mount custom resolv.conf
+  and hosts files from non-standard outside locations. This can be
+  used to run `apptainer build` in a nix-build sandbox that has no
+  /etc/resolv.conf.
+- Fixed failing builds from local images that have symbolic links for paths
+  that are part of the base container environment (e.g. /var/tmp -> /tmp).
+- Show info messages suggesting to use `enable underlay = preferred` or
+  the `--underlay` flag when overlay is implied for bind mounts but the
+  kernel is too old to support fuse mounts in user namespaces and so
+  tries to use fusermount.
+- When someone uses a `yum` bootstrap to build a container without using
+  subuid-based fakeroot or root, warn that it is unlikely to work.
+- Allow a writable `--overlay` to be used with `--nvccli` instead of
+  `--writable-tmpfs`.
+- If an error "no descriptor found for reference" is seen while getting
+  an oci container, retry the operation up to five times.
+- Make fakeroot Recommended for SUSE rpms instead of Required.
+- Allow bind mounts onto existing files on r/o NFS filesystems.
+- If an error is seen in the %post section when building a container
+  using fakeroot mode 3 (with the fakeroot command) then show a message
+  suggesting using `--ignore-fakeroot-command` and referring to the
+  documentation about how to install and use it inside the container
+  definition file.
+- Show a more helpful error message when using fakeroot in suid mode
+  and there's an /etc/subuid mapping even though user namespaces are
+  not available (user namespaces are required for /etc/subuid mapping).
+
+## v1.3.3 - \[2024-07-03\]
+
+- Updated the minimum golang version to 1.21.
+- Removed support for EL7.
+- Added libcudadebugger.so to nvliblist.conf to support cuda-gdb in CUDA 12+.
+- Ensure opened/kept file descriptors in stage 1 are not closed during the Go
+  garbage collection to avoid "bad file descriptor" errors at startup.
+- Fixed a segmentation violation issue when running Apptainer checkpoint.
+- Added apparmor profiles for ubuntu 24.04 or higher distros.
+- Fixed an issue that Apptainer won't read default docker credentials.
+
+## v1.3.2 - \[2024-05-28\]
+
+### Security fix
+
+- Included a fix for
+  [CVE-2024-3727](https://github.com/advisories/GHSA-6wvf-f2vw-3425)
+  in a dependent library which describes a flaw that can allow attackers
+  to trigger unexpected authenticated registry accesses due to object digest
+  values not being validated in all cases.
+
+### Other Changes
+
+- Fixed the issue when nesting `apptainer instance start` inside a container
+  on cgroups-v2 capable host.
+- Fixed the issue that oras download progress bar gets stuck
+  when downloading large images.
+
+## v1.3.1 - \[2024-04-24\]
+
+- Make 'apptainer build' work with signed Docker containers.
+- Fixed regression introduced in 1.3.0 that prevented closing cryptsetup
+  and the corresponding loop device after running an encrypted sif container
+  file in suid mode.
+- Stopped binding over the default timezone in the container with the host's timezone,
+  which led to unexpected behavior if the application changed timezones.
+- Added progress bars for `oras://` push and pull.
+- Hide `Instance stats will not be available` message under `--sharens` mode.
+- Fix problem where credentials locally stored with `registry login` command
+  were not usable in some execution flows. Run `registry login` again with
+  latest version to ensure credentials are stored correctly.
+- Make runscript timeout configurable.
+- Return invalid bind path mount options during bind path parsing.
+- Make the INFO message more helpful when a running background process
+  at exit time causes a FUSE mount to not shut down cleanly.
+- Fixed the wrong mediaType in the oras push manifest.
+
+## v1.3.0 - \[2024-03-12\]
+
+Changes since v1.2.5
+
+### Changed defaults / behaviours
+
+- FUSE mounts are now supported in setuid mode, enabling full
+  functionality even when kernel filesystem mounts are insecure
+  due to unprivileged users having write access to raw filesystems
+  in containers.
+
+  When `allow setuid-mount extfs = no` (the default) in apptainer.conf,
+  then the fuse2fs image driver will be used to mount ext3 images in setuid
+  mode instead of the kernel driver (ext3 images are primarily used for the
+  `--overlay` feature), restoring functionality that was removed by
+  default in Apptainer 1.1.8 because of the security risk.
+
+  The `allow setuid-mount squashfs` configuration option in
+  apptainer.conf now has a new default called `iflimited` which allows
+  kernel squashfs mounts only if there is at least one `limit container`
+  option set or if Execution Control Lists are activated in ecl.toml.
+  If kernel squashfs mounts are are not allowed, then the squashfuse
+  image driver will be used instead.
+  `iflimited` is the default because if one of those limits are used
+  the system administrator ensures that unprivileged users do not have
+  write access to the containers, but on the other hand using FUSE would
+  enable a user to theoretically bypass the limits via ptrace() because
+  the FUSE process runs as that user.
+
+  The `fuse-overlayfs` image driver will also now be tried in setuid mode
+  if the kernel overlayfs driver does not work (for example if one of
+  the layers is a FUSE filesystem).
+
+  In addition,
+  if `allow setuid-mount encrypted = no` then the unprivileged gocryptfs
+  format will be used for encrypting SIF files instead of the kernel
+  device-mapper.  If a SIF file was encrypted using the gocryptfs
+  format, it can now be mounted in setuid mode in addition to
+  non-setuid mode.
+- The four dependent FUSE programs for various reasons all now need to
+  be compiled from source and included in Apptainer installations and
+  packages.
+  Scripts are provided to make this easy; see the updated instructions
+  in [INSTALL.md](INSTALL.md).
+  The bundled squashfuse_ll is updated to version 0.5.1.
+- Change the default in user namespace mode to use either kernel
+  overlayfs or fuse-overlayfs instead of the underlay feature for the
+  purpose of adding bind mount points.  That was already the default in
+  setuid mode; this change makes it consistent.  The underlay feature can
+  still be used with the `--underlay` option, but it is deprecated because
+  the implementation is complicated and measurements have shown that the
+  performance of underlay is similar to overlayfs and fuse-overlayfs.
+  For now the underlay feature can be made the default again with a new
+  `preferred` value on the `enable underlay` configuration option.
+  Also the `--underlay` option can be used in setuid mode or as the root
+  user, although it was ignored previously.
+- Prefer again to use kernel overlayfs over fuse-overlayfs when a lower
+  layer is FUSE and there's no writable upper layer, undoing the change
+  from 1.2.0.  Another workaround was found for the problem that change
+  addressed.  This applies in both setuid mode and in user namespace
+  mode (except the latter not on CentOS7 where it isn't supported).
+- `--cwd` is now the preferred form of the flag for setting the container's
+  working directory, though `--pwd` is still supported for compatibility.
+- When building RPM, we will now use `/var/lib/apptainer` (rather than
+  `/var/apptainer`) to store local state files.
+- The way --home is handled when running as root (e.g. `sudo apptainer`) or
+  with `--fakeroot` has changed. Previously, we were only modifying the `HOME`
+  environment variable in these cases, while leaving the container's
+  `/etc/passwd` file unchanged (with its homedir field pointing to `/root`,
+  regardless of the value passed to `--home`). With this change, both value of
+  `HOME` and the contents of `/etc/passwd` in the container will reflect the
+  value passed to `--home` if the container is readonly.  If the container
+  is writable, the `/etc/passwd` file is left alone because it can interfere
+  with commands that want to modify it.
+- The `--vm` and related flags to start apptainer inside a VM have been
+  removed. This functionality was related to the retired Singularity Desktop /
+  SyOS projects.
+- The keyserver-related commands that were under `remote` have been moved to
+  their own, dedicated `keyserver` command. Run `apptainer help keyserver` for
+  more information.
+- The commands related to OCI/Docker registries that were under `remote` have
+  been moved to their own, dedicated `registry` command. Run
+  `apptainer help registry` for more information.
+- The the `remote list` subcommand now outputs only remote endpoints (with
+  keyservers and OCI/Docker registries having been moved to separate commands),
+  and the output has been streamlined.
+- Adding a new remote endpoint using the `apptainer remote add` command will
+  now set the new endpoint as default. This behavior can be suppressed by
+  supplying the `--no-default` (or `-n`) flag to `remote add`.
+- Skip parsing build definition file template variables after comments
+  beginning with a hash symbol.
+- Improved the clarity of `apptainer key list` output.
+- The global /tmp directory is no longer used for gocryptfs mountpoints.
+- Updated minimum go version to 1.20
+
+### New Features & Functionality
+
+- The `remote status` command will now print the username, realname, and email
+  of the logged-in user, if available.
+- Add monitoring feature support, which requires the usage of an additional tool
+  named `apptheus`, this tool will put apptainer starter into a newly created
+  cgroup and collect system metrics.
+- A new `--no-pid` flag for `apptainer run/shell/exec` disables the PID namespace
+  inferred by `--containall` and `--compat`.
+- Added `--config` option to`keyserver` commands.
+- Honor an optional remoteName argument to the `keyserver list` command.
+- Added the `APPTAINER_ENCRYPTION_PEM_DATA` env var to allow for encrypting and
+  running encrypted containers without a PEM file.
+- Adding `--sharens` mode for `apptainer exec/run/shell`, which enables to run multiple
+  apptainer instances created by the same parent using the same image in the same
+  user namespace.
+
+### Developer / API
+
+- Changes in pkg/build/types.Definition struct. New `.FullRaw` field introduced,
+  which always contains the raw data for the entire definition file. Behavior of
+  `.Raw` field has changed: for multi-stage builds parsed with
+  pkg/build/types/parser.All(), `.Raw` contains the raw content of a single
+  build stage. Otherwise, it is equal to `.FullRaw`.
+
+### Bug fixes
+
+- Don't bind `/var/tmp` on top of `/tmp` in the container, where `/var/tmp`
+  resolves to same location as `/tmp`.
+- Support parentheses in `test` / `[` commands in container startup scripts,
+  via dependency update of mvdan.cc/sh.
+- Fix regression introduced in v1.2.0 that led to an empty user's shell field
+  in the `/etc/passwd` file.
+- Prevent container builds from failing when `$HOME` points to a non-readable
+  directory.
+- Fix the use of `nvidia-container-cli` on Ubuntu 22.04 where an
+  `ldconfig` wrapper script gets in the way. Instead, we use
+  `ldconfig.real` directly.
+- Run image drivers with CAP_DAC_OVERRIDE in user namespace mode. This
+  fixes --nvccli with NVIDIA_DRIVER_CAPABILITIES=graphics, which
+  previously failed when using fuse-overlayfs.
+
+### Release change
+
+- Releases will generate apptainer Docker images for the Linux amd64 and arm64
+  architectures at `ghcr.io/apptainer/apptainer`.
+
+## v1.2.5 - \[2023-11-21\]
+
+- Added `libnvidia-nvvm` to `nvliblist.conf`. Newer
+  NVIDIA Drivers (known with >= 525.85.05) require this lib to compile
+  OpenCL programs against NVIDIA GPUs, i.e. `libnvidia-opencl` depends on
+  `libnvidia-nvvm.`
+- Disable the usage of cgroup in instance creation when `--fakeroot` is passed.
+- Disable the usage of cgroup in instance creation when `hidepid` mount option
+  on /proc is set.
+
+## v1.2.4 - \[2023-10-10\]
+
+- Fixed a problem with relocating an unprivileged installation of
+  apptainer on el8 and a mounted remote filesystem when using the
+  `--fakeroot` option without `/etc/subuid` mapping.  The fix was to
+  change the switch to an unprivileged root-mapped namespace to be the
+  equivalent of `unshare -r` instead of `unshare -rm` on action commands,
+  to work around a bug in the el8 kernel.
+- Fixed a regression introduced in 1.2.0 where the user's password file
+  information was not copied in to the container when there was a
+  parent root-mapped user namespace (as is the case for example in
+  [cvmfsexec](https://github.com/cvmfs/cvmfsexec)).
+- Added the upcoming NVIDIA driver library `libnvidia-gpucomp.so` to the
+  list of libraries to add to NVIDIA GPU-enabled containers.
+- Fixed missing error handling during the creation of an encrypted
+  image that lead to the generation of corrupted images.
+- Use `APPTAINER_TMPDIR` for temporary files during privileged image
+  encryption.
+- If rootless unified cgroups v2 is available when starting an image but
+  `XDG_RUNTIME_DIR` or `DBUS_SESSION_BUS_ADDRESS` is not set, print an
+  info message that stats will not be available instead of exiting with
+  a fatal error.
+- Allow templated build arguments to definition files to have empty values.
+
+## v1.2.3 - \[2023-09-14\]
+
+- The `apptainer push/pull` commands now show a progress bar for the oras
+  protocol like there was for docker and library protocols.
+- The `--nv` and `--rocm` flags can now be used simultaneously.
+- Fix the use of `APPTAINER_CONFIGDIR` with `apptainer instance start`
+  and action commands that refer to `instance://`.
+- Ignore undefined macros, to fix yum bootstrap agent on el7.
+- Fix the issue that apptainer would not read credentials from the Docker
+  fallback path `~/.docker/config.json` if missing in the apptainer
+  credentials.
+
+## v1.2.2 - \[2023-07-27\]
+
+- Fix `$APPTAINER_MESSAGELEVEL` to correctly set the logging level.
+- Fix build failures when in setuid mode and unprivileged user namespaces
+  are unavailable and the `--fakeroot` option is not selected.
+- Remove `Requires: fuse` from rpm packaging.
+
+## v1.2.1 - \[2023-07-24\]
+
+### Security fix
+
+- Included a fix for
+  [security advisory GHSA-mmx5-32m4-wxvx](https://github.com/apptainer/apptainer/security/advisories/GHSA-mmx5-32m4-wxvx)
+  which describes an ineffective privilege drop when requesting a
+  container network with a setuid installation of Apptainer.
+  The vulnerability allows an attacker to delete any directory on the
+  host filesystems with a crafted starter config.
+  Only affects v1.2.0-rc.2 and v1.2.0.
+
+## v1.2.0 - \[2023-07-18\]
+
+Changes since v1.1.9
+
+### Changed defaults / behaviours
+
+- Create the current working directory in a container when it doesn't exist.
+  This restores behavior as it was before singularity 3.6.0.
+  As a result, using `--no-mount home` won't have any effect when running
+  apptainer from a home directory and will require `--no-mount home,cwd` to
+  avoid mounting that directory.
+- Handle current working directory paths containing symlinks both on the
+  host and in a container but pointing to different destinations.
+  If detected, the current working directory is not mounted when the
+  destination directory in the container exists.
+- Destination mount points are now sorted by shortest path first to ensure that
+  a user bind doesn't override a previous bind path when set in arbitrary order
+  on the CLI.  This is also applied to image binds.
+- When the kernel supports unprivileged overlayfs mounts in a user namespace,
+  the container will be constructed by default using an overlay instead
+  of an underlay layout for bind mounts.
+  A new `--underlay` action option can be used to prefer underlay instead
+  of overlay.
+- Use fuse-overlayfs instead of the kernel overlayfs when a lower dir is
+  a FUSE filesystem, even when the overlay layer is not writable.  That
+  always used to be done when the overlay layer was writable, but this
+  fixes a problem seen when squashfuse (which is read-only) was used for
+  the overlay layer.
+- Fix the `enable overlay = driver` configuration option to always use
+  the overlay image driver (that is, fuse-overlayfs) even when the kernel
+  overlayfs is usable.
+- Overlay is blocked on the `panfs` filesystem, allowing sandbox directories
+  to be run from `panfs` without error.
+- `sessiondir maxsize` in `apptainer.conf` now defaults to 64 MiB for new
+  installations. This is an increase from 16 MiB in prior versions.
+- The apptainer cache is now architecture aware, so the same home directory
+  cache can be shared by machines with different architectures.
+- Show standard output of yum bootstrap if log level is verbose or higher
+  while building a container.
+- Lookup and store user/group information in stage one prior to entering any
+  namespaces, to fix an issue with winbind not correctly looking up user/group
+  information when using user namespaces.
+- A new `--reproducible` flag for `./mconfig` will configure Apptainer so that
+  its binaries do not contain non-reproducible paths. This disables plugin
+  functionality.
+
+### New features / functionalities
+
+- Support for unprivileged encryption of SIF files using gocryptfs.  The
+  gocryptfs command is included in rpm and debian packaging.
+  This is not compatible with privileged encryption, so containers encrypted
+  by root need to be rebuilt by an unprivileged user.
+- Templating support for definition files. Users can now define variables in
+  definition files via a matching pair of double curly brackets.
+  Variables of the form `{{ variable }}` will be replaced by a value defined
+  either by a `variable=value` entry in the `%arguments` section of the
+  definition file or through new build options
+  `--build-arg` or `--build-arg-file`.
+  By default any unused variables given in `--build-arg` or `--build-arg-file`
+  result in a fatal error but the option `--warn-unused-build-args` changes
+  that to a warning rather than a fatal error.
+- Add a new `instance run` command that will execute the runscript when an
+  instance is initiated instead of executing the startscript.
+- The `sign` and `verify` commands now support signing and verification
+  with non-PGP key material by specifying the path to a private key via
+  the `--key` flag.
+- The `verify` command now supports verification with X.509 certificates by
+  specifying the path to a certificate via the `--certificate` flag. By
+  default, the system root certificate pool is used as trust anchors unless
+  overridden via the `--certificate-roots` flag. A pool of intermediate
+  certificates that are not trust anchors, but can be used to form a
+  certificate chain, can also be specified via the `--certificate-intermediates`
+  flag.
+- Support for online verification checks of X.509 certificates using OCSP
+  protocol via the new `verify --ocsp-verify` option.
+- The `instance stats` command displays the resource usage every second. The
+  `--no-stream` option disables this interactive mode and shows the
+  point-in-time usage.
+- Instances are now started in a cgroup by default, when run as root or when
+  unified cgroups v2 with systemd as manager is configured.  This allows
+  `apptainer instance stats` to be supported by default when possible.
+- The `instance start` command now accepts an optional `--app <name>` argument
+  which invokes a start script within the `%appstart <name>` section in the
+  definition file.
+  The `instance stop` command still only requires the instance name.
+- The instance name is now available inside an instance via the new
+  `APPTAINER_INSTANCE` environment variable.
+- Add ability to set a custom config directory via the new
+  `APPTAINER_CONFIGDIR` environment variable.
+- Add ability to change log level through environment variables,
+  `APPTAINER_SILENT`, `APPTAINER_QUIET`, and `APPTAINER_VERBOSE`.
+  Also add `APPTAINER_NOCOLOR` for the `--nocolor` option.
+- Add discussion of using TMPDIR or APPTAINER_TMPDIR in the build help.
+- The `--no-mount` flag now accepts the value `bind-paths` to disable mounting
+  of all `bind path` entries in `apptainer.conf`.
+- Support for `DOCKER_HOST` parsing when using `docker-daemon://`
+- `DOCKER_USERNAME` and `DOCKER_PASSWORD` supported without `APPTAINER_` prefix.
+- Add new Linux capabilities `CAP_PERFMON`, `CAP_BPF`, and
+  `CAP_CHECKPOINT_RESTORE`.
+- Add `setopt` definition file header for the `yum` bootstrap agent. The
+  `setopt` value is passed to `yum / dnf` using the `--setopt` flag. This
+  permits setting e.g. `install_weak_deps=False` to bootstrap recent versions of
+  Fedora, where `systemd` (a weak dependency) cannot install correctly in the
+  container. See `examples/Fedora` for an example definition file.
+- Warn user that a `yum` bootstrap of an older distro may fail if the host rpm
+  `_db_backend` is not `bdb`.
+- The `remote get-login-password` command allows users to retrieve a remote's
+  token. This enables piping the secret directly into docker login while
+  preventing it from showing up in a shell's history.
+- Define EUID in %environment alongside UID.
+- In `--rocm` mode, the whole of `/dev/dri` is now bound into the container when
+  `--contain` is in use. This makes `/dev/dri/render` devices available,
+  required for later ROCm versions.
+
+### Other changes
+
+- Update minimum go version to 1.19.
+- Upgrade squashfuse_ll to version 0.2.0, removing the need for applying
+  patches during compilation.  The new version includes a fix to prevent
+  it from triggering 'No data available errors' on overlays of SIF files that
+  were built on machines with SELinux enabled.
+- Fix non-root instance join with unprivileged systemd-managed cgroups v2,
+  when join is from outside a user-owned cgroup.
+- Fix joining cgroup of instance started as root, with cgroups v1,
+  non-default cgroupfs manager, and no device rules.
+- Avoid UID / GID / EUID readonly var warnings with `--env-file`.
+- Ensure consistent binding of libraries under `--nv/--rocm` when duplicate
+  `<library>.so[.version]` files are listed by `ldconfig -p`.
+- Ensure `DOCKER_HOST` is honored in non-build flows.
+- Corrected `apptainer.conf` comment, to refer to correct file as source
+  of default capabilities when `root default capabilities = file`.
+- Fix memory usage calculation during apptainer compilation on RaspberryPi.
+- Fix misleading error when an overlay is requested by the root user while the
+  overlay kernel module is not loaded.
+- Fix interaction between `--workdir` and `--scratch` options when the
+  former is given a relative path.
+- Remove the warning about a missing signature when building an image based
+  on a local unsigned SIF file.
+- Set real UID to zero when escalating privileges for CNI plugins, to fix
+  issue appeared with RHEL 9.X.
+- Fix seccomp filters to allow mknod/mknodat syscalls to create pipe/socket
+  and character devices with device number 0 for fakeroot builds.
+- Add 32-bit compatibility mode for 64-bit architectures in the fakeroot
+  seccomp filter.
+
+## v1.2.0-rc.2 - \[2023-07-05\]
+
+## Changes since last pre-release
+
+- Upgrade gocryptfs to version 2.4.0, removing the need for fusermount from
+  the fuse package.
+- Upgrade squashfuse_ll to version 0.2.0, removing the need for applying
+  patches during compilation.  The new version includes a fix to prevent
+  it from triggering 'No data available errors' on overlays of SIF files that
+  were built on machines with SELinux enabled.
+- Add ability to set a custom config directory via the new
+  `APPTAINER_CONFIGDIR` environment variable.
+- Add ability to change log level through environment variables,
+  `APPTAINER_SILENT`, `APPTAINER_QUIET`, and `APPTAINER_VERBOSE`.
+  Also add `APPTAINER_NOCOLOR` for the `--nocolor` option.
+- Add discussion of using TMPDIR or APPTAINER_TMPDIR in the build help.
+- Add new option `--warn-unused-build-args` to output warnings rather than
+  fatal errors for any additional variables given in --build-arg or
+  --build-arg-file.
+- Use fuse-overlayfs instead of the kernel overlayfs when a lower dir is
+  a FUSE filesystem, even when the overlay layer is not writable.  That
+  always used to be done when the overlay layer was writable, but this
+  fixes a problem seen when squashfuse (which is read-only) was used for
+  the overlay layer.
+- Fix the `enable overlay = driver` configuration option to always use
+  the overlay image driver (that is, fuse-overlayfs) even when the kernel
+  overlayfs is usable.
+- Fix a minor regression in 1.2.0-rc.1 where starting up under `unshare -r`
+  stopped mapping the user's home directory to the fake root's home directory.
+- Fix interaction between `--workdir` and `--scratch` options when the
+  former is given a relative path.
+- Remove the warning about a missing signature when building an image based
+  on a local unsigned SIF file.
+- Set real UID to zero when escalating privileges for CNI plugins to fix
+  issue appeared with RHEL 9.X.
+- Fix seccomp filters to allow mknod/mknodat syscalls to create pipe/socket
+  and character devices with device number 0 for fakeroot builds.
+- Add 32-bit compatibility mode for 64-bit architectures in the fakeroot
+  seccomp filter.
+
+## v1.2.0-rc.1 - \[2023-06-07\]
+
+### Changed defaults / behaviours
+
+- Create the current working directory in a container when it doesn't exist.
+  This restores behavior as it was before singularity 3.6.0.
+  As a result, using `--no-mount home` won't have any effect when running
+  apptainer from a home directory and will require `--no-mount home,cwd` to
+  avoid mounting that directory.
+- Handle current working directory paths containing symlinks both on the
+  host and in a container but pointing to different destinations.
+  If detected, the current working directory is not mounted when the
+  destination directory in the container exists.
+- Destination mount points are now sorted by shortest path first to ensure that
+  a user bind doesn't override a previous bind path when set in arbitrary order
+  on the CLI.  This is also applied to image binds.
+- When the kernel supports unprivileged overlay mounts in a user namespace,
+  the container will be constructed by default using an overlay instead
+  of an underlay layout for bind mounts.
+  A new `--underlay` action option can be used to prefer underlay instead
+  of overlay.
+- `sessiondir maxsize` in `apptainer.conf` now defaults to 64 MiB for new
+  installations. This is an increase from 16 MiB in prior versions.
+- The apptainer cache is now architecture aware, so the same home directory
+  cache can be shared by machines with different architectures.
+- Overlay is blocked on the `panfs` filesystem, allowing sandbox directories
+  to be run from `panfs` without error.
+- Show standard output of yum bootstrap if log level is verbose or higher
+  while building a container.
+- Lookup and store user/group information in stage one prior to entering any
+  namespaces, to fix an issue with winbind not correctly looking up user/group
+  information when using user namespaces.
+- A new `--reproducible` flag for `./mconfig` will configure Apptainer so that
+  its binaries do not contain non-reproducible paths. This disables plugin
+  functionality.
+
+### New features / functionalities
+
+- Support for unprivileged encryption of SIF files using gocryptfs.  The
+  gocryptfs command is included in rpm and debian packaging.
+  This is not compatible with privileged encryption, so containers encrypted
+  by root need to be rebuilt by an unprivileged user.
+- Templating support for definition files. Users can now define variables in
+  definition files via a matching pair of double curly brackets.
+  Variables of the form `{{ variable }}` will be replaced by a value defined
+  either by a `variable=value` entry in the `%arguments` section of the
+  definition file or through new build options
+  `--build-arg` or `--build-arg-file`.
+- Add a new `instance run` command that will execute the runscript when an
+  instance is initiated instead of executing the startscript.
+- The `sign` and `verify` commands now support signing and verification
+  with non-PGP key material by specifying the path to a private key via
+  the `--key` flag.
+- The `verify` command now supports verification with X.509 certificates by
+  specifying the path to a certificate via the `--certificate` flag. By
+  default, the system root certificate pool is used as trust anchors unless
+  overridden via the `--certificate-roots` flag. A pool of intermediate
+  certificates that are not trust anchors, but can be used to form a
+  certificate chain, can also be specified via the `--certificate-intermediates`
+  flag.
+- Support for online verification checks of X.509 certificates using OCSP
+  protocol via the new `verify --ocsp-verify` option.
+- The `instance stats` command displays the resource usage every second. The
+  `--no-stream` option disables this interactive mode and shows the
+  point-in-time usage.
+- Instances are now started in a cgroup by default, when run as root or when
+  unified cgroups v2 with systemd as manager is configured.  This allows
+  `apptainer instance stats` to be supported by default when possible.
+- The `instance start` command now accepts an optional `--app <name>` argument
+  which invokes a start script within the `%appstart <name>` section in the
+  definition file.
+  The `instance stop` command still only requires the instance name.
+- The instance name is now available inside an instance via the new
+  `APPTAINER_INSTANCE` environment variable.
+- The `--no-mount` flag now accepts the value `bind-paths` to disable mounting
+  of all `bind path` entries in `apptainer.conf`.
+- Support for `DOCKER_HOST` parsing when using `docker-daemon://`
+- `DOCKER_USERNAME` and `DOCKER_PASSWORD` supported without `APPTAINER_` prefix.
+- Add new Linux capabilities `CAP_PERFMON`, `CAP_BPF`, and
+  `CAP_CHECKPOINT_RESTORE`.
+- Add `setopt` definition file header for the `yum` bootstrap agent. The
+  `setopt` value is passed to `yum / dnf` using the `--setopt` flag. This
+  permits setting e.g. `install_weak_deps=False` to bootstrap recent versions of
+  Fedora, where `systemd` (a weak dependency) cannot install correctly in the
+  container. See `examples/Fedora` for an example definition file.
+- Warn user that a `yum` bootstrap of an older distro may fail if the host rpm
+  `_db_backend` is not `bdb`.
+- The `remote get-login-password` command allows users to retrieve a remote's
+  token. This enables piping the secret directly into docker login while
+  preventing it from showing up in a shell's history.
+- Define EUID in %environment alongside UID.
+- In `--rocm` mode, the whole of `/dev/dri` is now bound into the container when
+  `--contain` is in use. This makes `/dev/dri/render` devices available,
+  required for later ROCm versions.
+
+### Other changes
+
+- Update minimum go version to 1.19.
+- Fix non-root instance join with unprivileged systemd-managed cgroups v2,
+  when join is from outside a user-owned cgroup.
+- Fix joining cgroup of instance started as root, with cgroups v1,
+  non-default cgroupfs manager, and no device rules.
+- Avoid UID / GID / EUID readonly var warnings with `--env-file`.
+- Ensure consistent binding of libraries under `--nv/--rocm` when duplicate
+  `<library>.so[.version]` files are listed by `ldconfig -p`.
+- Ensure `DOCKER_HOST` is honored in non-build flows.
+- Corrected `apptainer.conf` comment, to refer to correct file as source
+  of default capabilities when `root default capabilities = file`.
+- Fix memory usage calculation during apptainer compilation on RaspberryPi.
+- Fix misleading error when an overlay is requested by the root user while the
+  overlay kernel module is not loaded.
+- Fix gocryptfs build procedures for deb package.
+
+## v1.1.9 - \[2023-06-07\]
+
+- Remove warning about unknown `xino=on` option from fuse-overlayfs,
+  introduced in 1.1.8.
+- Ignore extraneous warning from fuse-overlayfs about a readonly `/proc`.
+- Fix dropped "n" characters on some platforms in definition file stored as part
+  of SIF metadata.
+- Remove duplicated group ids.
+- Fix not being able to handle multiple entries in `LD_PRELOAD` when
+  binding fakeroot into container during apptainer startup for --fakeroot
+  with fakeroot command.
+
+## v1.1.8 - \[2023-04-25\]
+
+### Security fix
+
+- Included a fix for [CVE-2023-30549](https://github.com/apptainer/apptainer/security/advisories/GHSA-j4rf-7357-f4cg)
+  which is a vulnerability in setuid-root installations of Apptainer
+  and Singularity that causes an elevation in severity of an existing
+  ext4 filesystem driver vulnerability that is unpatched in several
+  older but still actively supported operating systems including RHEL7,
+  Debian 10, Ubuntu 18.04 and Ubuntu 20.04.
+  The fix adds `allow setuid-mount` configuration options `encrypted`,
+  `squashfs`, and `extfs`, and makes the default for `extfs` be "no".
+  That disables the use of extfs mounts including for overlays or
+  binds while in the setuid-root mode, while leaving it enabled for
+  unprivileged user namespace mode.
+  The default for `encrypted` and `squashfs` is "yes".
+
+### Other changes
+
+- Fix loop device 'no such device or address' spurious errors when using shared
+  loop devices.
+- Remove unwanted colors to STDERR.
+- Add `xino=on` mount option for writable kernel overlay mount points to fix
+  inode numbers consistency after kernel cache flush (not applicable to
+  fuse-overlayfs).
+
+## v1.1.7 - \[2023-03-28\]
+
+### Changes since last release
+
+- Allow gpu options such as `--nv` to be nested by always inheriting all
+  libraries bound in to a parent container's `/.singularity.d/libs`.
+- Map the user's home directory to the root home directory by default in the
+  non-subuid fakeroot mode like it was in the subuid fakeroot mode, for both
+  action commands and building containers from definition files.
+- Avoid `unknown option` error when using a bare squashfs image with
+  an unpatched `squashfuse_ll`.
+- Fix `GOCACHE` settings for golang build on PPA build environment.
+- Make the error message more helpful in another place where a remote is found
+  to have no library client.
+- Allow symlinks to the compiled prefix for suid installations.  Fixes a
+  regression introduced in 1.1.4.
+- Build via zypper on SLE systems will use repositories of host via
+  suseconnect-container.
+- Avoid incorrect error when requesting fakeroot network.
+- Pass computed `LD_LIBRARY_PATH` to wrapped unsquashfs. Fixes issues where
+  `unsquashfs` on host uses libraries in non-default paths.
+
+## v1.1.6 - \[2023-02-14\]
+
+### Security fix
+
+- Included a fix for [CVE-2022-23538](https://github.com/sylabs/scs-library-client/security/advisories/GHSA-7p8m-22h4-9pj7)
+  which potentially leaked user credentials to a third-party S3 storage
+  service when using the `library://` protocol.  See the link for details.
+
+### Other changes
+
+- Restored the ability for running instances to be tracked when apptainer
+  is installed with tools/install-unprivileged.sh.  Instance tracking
+  depends on argument 0 of the starter, which was not getting preserved.
+- Fix `GOCACHE` environment variable settings when building debian source
+  package on PPA build environment.
+- Make `PS1` environment variable changeable via `%environment` section on
+  definition file that used to be only changeable via `APPTAINERENV_PS1`
+  outside of container. This makes the container's prompt customizable.
+- Fix the passing of nested bind mounts when there are multiple binds
+  separated by commas and some of them have colons separating sources
+  and destinations.
+- Added `Provides: bundled(golang())` statements to the rpm packaging
+  for each bundled golang module.
+- Hide messages about SINGULARITY variables if corresponding APPTAINER
+  variables are defined. Fixes a regression introduced in 1.1.4.
+- Print a warning if extra arguments are given to a shell action, and
+  show in the run action usage that arguments may be passed.
+- Check for the existence of the runtime executable prefix, to avoid
+  issues when running under Slurm's srun. If it doesn't exist, fall
+  back to the compile-time prefix.
+- Increase the timeout on image driver (that is, FUSE) mounts from 2
+  seconds to 10 seconds.  Instead, print an INFO message if it takes
+  more than 2 seconds.
+- If a `remote` is defined both globally (i.e. system-wide) and
+  individually, change `apptainer remote` commands to print an info message
+  instead of exiting with a fatal error and to give precedence to the
+  individual configuration.
+
+## v1.1.5 - \[2023-01-10\]
+
+- Update the rpm packaging to (a) move the Obsoletes of singularity to
+  the apptainer-suid packaging, (b) remove the Provides of singularity,
+  (c) add a Provides and Conflicts for sif-runtime,
+  (d) add "formerly known as Singularity" to the Summary,
+  and (e) add a Conflicts of singularity to the apptainer package.
+  Also update the debian and nfpm packaging with (d).
+- Change rpm packaging to automatically import any modified configuration
+  files in `/etc/singularity` when updating from singularity to apptainer,
+  including importing `singularity.conf` using a new hidden `confgen`
+  command.
+- Fix the use of `fakeroot`, `faked`, and `libfakeroot.so` if they are not
+  suffixed by `-sysv`, as is for instance the case on Gentoo Linux.
+- Prevent the use of a `--libexecdir` or `--bindir` mconfig option from
+  making apptainer think it was relocated and so preventing use of suid
+  mode.  The bug was introduced in v1.1.4.
+- Add helpful error message for build `--remote` option.
+- Add more helpful error message when no library endpoint found.
+- Avoid cleanup errors on exit when mountpoints are busy by doing a lazy
+  unmount if a regular unmount doesn't work after 10 tries.
+- Make messages about using SINGULARITY variables less scary.
+
+## v1.1.4 - \[2022-12-12\]
+
+- Added tools/install-unprivileged.sh to download and install apptainer
+  binaries and all dependencies into a directory of the user's choice.
+  Works on all currently active el, fedora, debian, and ubuntu versions
+  except ubuntu 18.04, with all architectures supported by epel and fedora.
+  Defaults to the latest version released in epel and fedora.
+  Other apptainer versions can be selected but it only works with apptainer
+  1.1.4 and later.
+- Make the binaries built in the unprivileged `apptainer` package relocatable.
+  When moving the binaries to a new location, the `/usr` at the top of some
+  of the paths needs to be removed.  Relocation is disallowed when the
+  `starter-suid` is present, for security reasons.
+- Change the warning when an overlay image is not writable, introduced
+  in v1.1.3, back into a (more informative) fatal error because it doesn't
+  actually enter the container environment.
+- Set the `--net` flag if `--network` or `--network-args` is set rather
+  than silently ignoring them if `--net` was not set.
+- Do not hang on pull from http(s) source that doesn't provide a content-length.
+- Avoid hang on fakeroot cleanup under high load seen on some
+  distributions / kernels.
+- Remove obsolete pacstrap `-d` in Arch packer.
+- Adjust warning message for deprecated environment variables usage.
+- Enable the `--security uid:N` and `--security gid:N` options to work
+  when run in non-suid mode.  In non-suid mode they work with any user,
+  not just root.  Unlike with root and suid mode, however, only one gid
+  may be set in non-suid mode.
+
+## v1.1.3 - \[2022-10-25\]
+
+- Prefer the `fakeroot-sysv` command over the `fakeroot` command because
+  the latter can be linked to either `fakeroot-sysv` or `fakeroot-tcp`,
+  but `fakeroot-sysv` is much faster.
+- Update the included `squashfuse_ll` to have `-o uid=N` and `-o gid=N`
+  options and changed the corresponding image driver to use them when
+  available.  This makes files inside sif files appear to be owned by the
+  user instead of by the nobody id 65534 when running in non-setuid mode.
+- Fix the locating of shared libraries when running `unsquashfs` from a
+  non-standard location.
+- Properly clean up temporary files if `unsquashfs` fails.
+- Fix the creation of missing bind points when using image binding with
+  underlay.
+- Change the error when an overlay image is not writable into a warning
+  that suggests adding `:ro` to make it read only or using `--fakeroot`.
+- Avoid permission denied errors during unprivileged builds without
+  `/etc/subuid`-based fakeroot when `/var/lib/containers/sigstore` is
+  readable only by root.
+- Avoid failures with `--writable-tmpfs` in non-setuid mode when using
+  fuse-overlayfs versions 1.8 or greater by adding the fuse-overlayfs
+  `noacl` mount option to disable support for POSIX Access Control Lists.
+- Fix the `--rocm` flag in combination with `-c` / `-C` by forwarding all
+  `/dri/render*` devices into the container.
+
+## v1.1.2 - \[2022-10-06\]
+
+- [CVE-2022-39237](https://github.com/sylabs/sif/security/advisories/GHSA-m5m3-46gj-wch8):
+  The sif dependency included in Apptainer before this release does not
+  verify that the hash algorithm(s) used are cryptographically secure
+  when verifying digital signatures. This release updates to sif v2.8.1
+  which corrects this issue. See the linked advisory for references and
+  a workaround.
+
+## v1.1.1 - \[2022-10-06\]
+
+Accidentally included no code changes.
+
+## v1.1.0 - \[2022-09-27\]
+
+### Changed defaults / behaviours
+
+- The most significant change is that Apptainer no longer installs a
+  setuid-root portion by default.
+  This is now reasonable to do because most operations can be done with
+  only unprivileged user namespaces (see additional changes below).
+  If installing from rpm or debian packages, the setuid portion can be
+  included by installing the `apptainer-suid` package, or if installing
+  from source it can be included by compiling with the mconfig
+  `--with-suid` option.
+  For those that are concerned about kernel vulnerabilities with user
+  namespaces, we recommend disabling network namespaces if you can.
+  See the [discussion in the admin guide](https://apptainer.org/docs/admin/main/user_namespace.html#disabling-network-namespaces).
+- Added a squashfuse image driver that enables mounting SIF files without
+  using setuid-root.  Uses either a squashfuse_ll command or a
+  squashfuse command and requires unprivileged user namespaces.
+  For better parallel performance, a patched multithreaded version of
+  `squashfuse_ll` is included in rpm and debian packaging in
+  `${prefix}/libexec/apptainer/bin`.
+- Added an `--unsquash` action flag to temporarily convert a SIF file to a
+  sandbox before running.  In previous versions this was the default when
+  running a SIF file without setuid or with fakeroot, but now the default
+  is to mount with squashfuse_ll or squashfuse.
+- Added a fuse2fs image driver that enables mounting EXT3 files and EXT3
+  SIF overlay partitions without using setuid-root.  Requires the fuse2fs
+  command and unprivileged user namespaces.
+- Added the ability to use persistent overlay (`--overlay`) and
+  `--writable-tmpfs` without using setuid-root.
+  This requires unprivileged user namespaces and either a new enough
+  kernel (>= 5.11) or the fuse-overlayfs command.
+  Persistent overlay works when the overlay path points to a regular
+  filesystem (known as "sandbox" mode, which is not allowed when in
+  setuid mode), or when it points to an EXT3 image.
+- Extended the `--fakeroot` option to be useful when `/etc/subuid` and
+  `/etc/subgid` mappings have not been set up.
+  If they have not been set up, a root-mapped unprivileged user namespace
+  (the equivalent of `unshare -r`) and/or the fakeroot command from the
+  host will be tried.
+  Together they emulate the mappings pretty well but they are simpler to
+  administer.
+  This feature is especially useful with the `--overlay` and
+  `--writable-tmpfs` options and for building containers unprivileged,
+  because they allow installing packages that assume they're running
+  as root.
+  A limitation on using it with `--overlay` and `--writable-tmpfs`
+  however is that when only the fakeroot command can be used (because
+  there are no user namespaces available, in suid mode) then the base
+  image has to be a sandbox.
+  This feature works nested inside of an apptainer container, where
+  another apptainer command will also be in the fakeroot environment
+  without requesting the `--fakeroot` option again, or it can be used
+  inside an apptainer container that was not started with `--fakeroot`.
+  However, the fakeroot command uses LD_PRELOAD and so needs to be bound
+  into the container which requires a compatible libc.
+  For that reason it doesn't work when the host and container operating
+  systems are of very different vintages.
+  If that's a problem and you want to use only an unprivileged
+  root-mapped namespace even when the fakeroot command is installed,
+  just run apptainer with `unshare -r`.
+- Made the `--fakeroot` option be implied when an unprivileged user
+  builds a container from a definition file.
+  When `/etc/subuid` and `/etc/subgid` mappings are not available,
+  all scriptlets are run in a root-mapped unprivileged namespace (when
+  possible) and the %post scriptlet is additionally run with the fakeroot
+  command.
+  When unprivileged user namespaces are not available, such that only
+  the fakeroot command can be used, the `--fix-perms` option is implied
+  to allow writing into directories.
+- Added additional hidden options to action and build commands for testing
+  different fakeroot modes: `--ignore-subuid`, `--ignore-fakeroot-command`,
+  and `--ignore-userns`.
+  Also added `--userns` to the build command to ignore setuid-root mode
+  like action commands do.
+- Added a `--fakeroot` option to the `apptainer overlay create` command
+  to make an overlay EXT3 image file that works with the fakeroot that
+  comes from unprivileged root-mapped namespaces.
+  This is not needed with the fakeroot that comes with `/etc/sub[ug]id`
+  mappings nor with the fakeroot that comes with only the fakeroot
+  command in suid flow.
+- Added a `--sparse` flag to `overlay create` command to allow generation of
+  a sparse EXT3 overlay image.
+- Added a `binary path` configuration variable as the default path to use
+  when searching for helper executables.  May contain `$PATH:` which gets
+  substituted with the user's PATH except when running a program that may
+  be run with elevated privileges in the suid flow.
+  Defaults to `$PATH:` followed by standard system paths.
+  `${prefix}/libexec/apptainer/bin` is also implied as the first component,
+  either as the first directory of `$PATH` if present or simply as the
+  first directory if `$PATH` is not included.
+  Configuration variables for paths to individual programs that were in
+  apptainer.conf (`cryptsetup`, `go`, `ldconfig`, `msquashfs`, `unsquashfs`,
+  and `nvidia-container-cli`) have been removed.
+- The `--nvccli` option now works without `--fakeroot`.  In that case the
+  option can be used with `--writable-tmpfs` instead of `--writable`,
+  and `--writable-tmpfs` is implied if neither option is given.
+  Note that also `/usr/bin` has to be writable by the user, so without
+  `--fakeroot` that probably requires a sandbox image that was built with
+  `--fix-perms`.
+- The `--nvccli` option now implies `--nv`.
+- $HOME is now used to find the user's configuration and cache by default.
+  If that is not set it will fall back to the previous behavior of looking
+  up the home directory in the password file.  The value of $HOME inside
+  the container still defaults to the home directory in the password file
+  and can still be overridden by the ``--home`` option.
+- When starting a container, if the user has specified the cwd by using
+  the `--pwd` flag, if there is a problem an error is returned instead
+  of defaulting to a different directory.
+- Nesting of bind mounts now works even when a `--bind` option specified
+  a different source and destination with a colon between them.  Now the
+  APPTAINER_BIND environment variable makes sure the bind source is
+  from the bind destination so it will be successfully re-bound into a
+  nested apptainer container.
+- The warning about more than 50 bind mounts required for an underlay bind
+  has been changed to an info message.
+- `oci mount` sets `Process.Terminal: true` when creating an OCI `config.json`,
+  so that `oci run` provides expected interactive behavior by default.
+- The default hostname for `oci mount` containers is now `apptainer` instead of
+  `mrsdalloway`.
+- systemd is now supported and used as the default cgroups manager. Set
+  `systemd cgroups = no` in `apptainer.conf` to manage cgroups directly via
+  the cgroupfs.
+- Plugins must be compiled from inside the Apptainer source directory,
+  and will use the main Apptainer `go.mod` file. Required for Go 1.18
+  support.
+- Apptainer now requires squashfs-tools >=4.3, which is satisfied by
+  current EL / Ubuntu / Debian and other distributions.
+- Added a new action flag `--no-eval` which:
+  - Prevents shell evaluation of `APPTAINERENV_ / --env / --env-file`
+    environment variables as they are injected in the container, to match OCI
+    behavior. *Applies to all containers*.
+  - Prevents shell evaluation of the values of `CMD / ENTRYPOINT` and command
+    line arguments for containers run or built directly from an OCI/Docker
+    source. *Applies to newly built containers only, use `apptainer inspect`
+    to check version that container was built with*.
+- Added `--no-eval` to the list of flags set by the OCI/Docker `--compat` mode.
+- `sinit` process has been renamed to `appinit`.
+- Added `--keysdir` to `key` command to provide an alternative way of setting
+  local keyring path. The existing reading of the keyring path from
+  environment variable 'APPTAINER_KEYSDIR' is untouched.
+- `apptainer key push` will output the key server's response if included in
+  order to help guide users through any identity verification the server may
+  require.
+- ECL no longer requires verification for all signatures, but only
+  when signature verification would alter the expected behavior of the
+  list:
+  - At least one matching signature included in a whitelist must be
+    validated, but other unvalidated signatures do not cause ECL to
+    fail.
+  - All matching signatures included in a whitestrict must be
+    validated, but unvalidated signatures not in the whitestrict do
+    not cause ECL to fail.
+  - Signature verification is not checked for a blacklist; unvalidated
+    signatures can still block execution via ECL, and unvalidated
+    signatures not in the blacklist do not cause ECL to fail.
+- Improved wildcard matching in the %files directive of build definition
+  files by replacing usage of sh with the mvdan.cc library.
+
+### New features / functionalities
+
+- Non-root users can now use `--apply-cgroups` with `run/shell/exec` to limit
+  container resource usage on a system using cgroups v2 and the systemd cgroups
+  manager.
+- Native cgroups v2 resource limits can be specified using the `[unified]` key
+  in a cgroups toml file applied via `--apply-cgroups`.
+- Added `--cpu*`, `--blkio*`, `--memory*`, `--pids-limit` flags to apply cgroups
+  resource limits to a container directly.
+- Added instance stats command.
+- Added support for a custom hashbang in the `%test` section of an Apptainer
+  recipe (akin to the runscript and start sections).
+- The `--no-mount` flag & `APPTAINER_NO_MOUNT` env var can now be used to
+  disable a `bind path` entry from `apptainer.conf` by specifying the
+  absolute path to the destination of the bind.
+- Apptainer now supports the `riscv64` architecture.
+- `remote add --insecure` may now be used to configure endpoints that are only
+  accessible via http. Alternatively the environment variable
+  `APPTAINER_ADD_INSECURE` can be set to true to allow http remotes to be
+  added without the `--insecure` flag. Specifying https in the remote URI
+  overrules both `--insecure` and `APPTAINER_ADD_INSECURE`.
+- Gpu flags `--nv` and `--rocm` can now be used from an apptainer nested
+  inside another apptainer container.
+- Added `--public`, `--secret`, and `--both` flags to the `key remove` command
+  to support removing secret keys from the apptainer keyring.
+- Debug output can now be enabled by setting the `APPTAINER_DEBUG` env var.
+- Debug output is now shown for nested `apptainer` calls, in wrapped
+  `unsquashfs` image extraction, and build stages.
+- Added EL9 package builds to CI for GitHub releases.
+- Added confURL & Include parameters to the Arch packer for alternate
+  `pacman.conf` URL and alternate installed (meta)package.
+
+### Bug fixes
+
+- Remove warning message about SINGULARITY and APPTAINER variables having
+  different values when the SINGULARITY variable is not set.
+- Fixed longstanding bug in the underlay logic when there are nested bind
+  points separated by more than one path level, for example `/var` and
+  `/var/lib/yum`, and the path didn't exist in the container image.
+  The bug only caused an error when there was a directory in the container
+  image that didn't exist on the host.
+- Add specific error for unreadable image / overlay file.
+- Pass through a literal `\n` in host environment variables to the container.
+- Allow `newgidmap / newuidmap` that use capabilities instead of setuid root.
+- Fix compilation on `mipsel`.
+- Fix test code that implied `%test -c <shell>` was supported - it is not.
+- Fix loop device creation with loop-control when running inside docker
+  containers.
+- Fix the issue that the oras protocol would ignore the `--no-https/--nohttps`
+  flag.
+- Fix oras image push to registries with authorization servers not supporting
+  multiple scope query parameter.
+- Improved error handling of unsupported password protected PEM files with
+  encrypted containers.
+- Ensure bootstrap_history directory is populated with previous definition
+  files, present in source containers used in a build.
+
+## v1.0.3 - \[2022-07-06\]
+
+### Bug fixes
+
+- Process redirects that can come from sregistry with a `library://` URL.
+- Fix `inspect --deffile` and `inspect --all` to correctly show definition
+  files in sandbox container images instead of empty output.
+  This has a side effect of also fixing the storing of definition files in
+  the metadata of sif files built by Apptainer, because that metadata is
+  constructed by doing `inspect --all`.
+
+## v1.0.2 - \[2022-05-09\]
+
+### Bug fixes
+
+- Fixed `FATAL` error thrown by user configuration migration code that caused
+  users with inaccessible home directories to be unable to use `apptainer`
+  commands.
+- The Debian package now conflicts with the singularity-container package.
+- Do not truncate environment variables with commas.
+- Use HEAD request when checking digest of remote OCI image sources, with GET as
+  a fall-back. Greatly reduces Apptainer's impact on Docker Hub API limits.
+
+## v1.0.1 - \[2022-03-15\]
+
+### Bug fixes
+
+- Don't prompt for y/n to overwrite an existing file when build is
+  called from a non-interactive environment. Fail with an error.
+- Preload NSS libraries prior to mountspace name creation to avoid
+  circumstances that can cause loading those libraries from the
+  container image instead of the host, for example in the startup
+  environment.
+- Fix race condition where newly created loop devices can sometimes not
+  be opened.
+- Support nvidia-container-cli v1.8.0 and above, via fix to capability set.
+
+## v1.0.0 - \[2022-03-02\]
+
+### Comparison to SingularityCE
+
+This release has most of the new features, bug fixes, and
+changes that went into SingularityCE up through their version 3.9.5,
+except where the maintainers of Apptainer disagreed with what went into
+SingularityCE since the project fork.  The biggest difference is that
+Apptainer does not support the --nvccli option in privileged mode.  This
+release also has the additional major feature of instance checkpointing
+which isn't in SingularityCE.  Other differences due to re-branding are
+in the next section.
+
+### Changes due to the project re-branding
+
+- The primary executable has been changed from `singularity` to `apptainer`.
+  However, a `singularity` command symlink alias has been created pointing
+  to the `apptainer` command.  The contents of containers are unchanged
+  and continue to use the singularity name for startup scripts, etc.
+- The configuration directory has changed from `/etc/singularity` to
+  `/etc/apptainer` within packages, and the primary configuration
+  file name has changed from `singularity.conf` to `apptainer.conf`.
+  As long as a `singularity` directory still exists next to an
+  `apptainer` directory, running the `apptainer` command will print
+  a warning saying that migration is not complete.  If no changes had
+  been made to the configuration then an rpm package upgrade should
+  automatically remove the old directory, otherwise the system
+  administrator needs to take care of migrating the configuration
+  and removing the old directory.  Old configuration can be removed
+  for a Debian package with `apt-get purge singularity` or
+  `dpkg -P singularity`.
+- The per-user configuration directory has changed from `~/.singularity`
+  to `~/.apptainer`.  The first time the `apptainer` command accesses the
+  user configuration directory, relevant configuration is automatically
+  imported from the old directory to the new one.
+- Environment variables have all been changed to have an `APPTAINER`
+  prefix instead of a `SINGULARITY` prefix.  However, `SINGULARITY`
+  prefix variables are still recognized.  If only a `SINGULARITY`
+  prefix variable exists, a warning will be printed about deprecated
+  usage and then the value will be used.  If both prefixes exist and
+  the value is the same, no warning is printed; this is the recommended
+  method to set environment variables for those who need to support both
+  `apptainer` and `singularity`.  If both prefixes exist for the same
+  variable and the value is different then a warning is also printed.
+- The default SylabsCloud remote endpoint has been removed and replaced
+  by one called DefaultRemote which has no defined server for the
+  `library://` URI.  The previous default can be restored by following
+  the directions in the
+  [documentation](https://apptainer.org/docs/user/1.0/endpoint.html#restoring-pre-apptainer-library-behavior).
+- The DefaultRemote's key server is `https://keys.openpgp.org`
+  instead of the Sylabs key server.
+- The `apptainer build --remote` option has been removed because there
+  is no standard protocol or non-commercial service that supports it.
+
+### Other changed defaults / behaviours since Singularity 3.8.x
+
+- Auto-generate release assets including the distribution tarball and
+  rpm (built on CentOS 7) and deb (built on Debian 11) x86_64 packages.
+- LABELs from Docker/OCI images are now inherited. This fixes a longstanding
+  regression from Singularity 2.x. Note that you will now need to use `--force`
+  in a build to override a label that already exists in the source Docker/OCI
+  container.
+- Removed `--nonet` flag, which was intended to disable networking for in-VM
+  execution, but has no effect.
+- `--nohttps` flag has been deprecated in favour of `--no-https`. The old flag
+  is still accepted, but will display a deprecation warning.
+- Paths for `cryptsetup`, `go`, `ldconfig`, `mksquashfs`, `nvidia-container-cli`,
+  `unsquashfs` are now found at build time by `mconfig` and written into
+  `apptainer.conf`. The path to these executables can be overridden by
+  changing the value in `apptainer.conf`.
+- When calling `ldconfig` to find GPU libraries, apptainer will *not* fall back
+  to `/sbin/ldconfig` if the configured `ldconfig` errors. If installing in a
+  Guix/Nix on environment on top of a standard host distribution you *must* set
+  `ldconfig path = /sbin/ldconfig` to use the host distribution `ldconfig` to
+  find GPU libraries.
+- `--nv` will not call `nvidia-container-cli` to find host libraries, unless
+  the new experimental GPU setup flow that employs `nvidia-container-cli`
+  for all GPU related operations is enabled (see more below).
+- If a container is run with `--nvccli` and `--contain`, only GPU devices
+  specified via the `NVIDIA_VISIBLE_DEVICES` environment variable will be
+  exposed within the container. Use `NVIDIA_VISIBLE_DEVICES=all` to access all
+  GPUs inside a container run with `--nvccli`.  See more on `--nvccli` under
+  New features below.
+- Example log-plugin rewritten as a CLI callback that can log all commands
+  executed, instead of only container execution, and has access to command
+  arguments.
+- The bundled reference CNI plugins are updated to v1.0.1. The `flannel` plugin
+  is no longer included, as it is maintained as a separate plugin at:
+  <https://github.com/flannel-io/cni-plugin>. If you use the flannel CNI plugin
+  you should install it from this repository.
+- Instances are no longer created with an IPC namespace by default. An IPC
+  namespace can be specified with the `-i|--ipc` flag.
+- The behaviour of the `allow container` directives in `apptainer.conf` has
+  been modified, to support more intuitive limitations on the usage of SIF and non-SIF
+  container images. If you use these directives, *you may need to make changes
+  to apptainer.conf to preserve behaviour*.
+  - A new `allow container sif` directive permits or denies usage of
+    *unencrypted* SIF images, irrespective of the filesystem(s) inside the SIF.
+  - The `allow container encrypted` directive permits or denies usage of SIF
+    images with an encrypted root filesystem.
+  - The `allow container squashfs/extfs` directives in `apptainer.conf`
+    permit or deny usage of bare SquashFS and EXT image files only.
+  - The effect of the `allow container dir` directive is unchanged.
+- `--bind`, `--nv` and `--rocm` options for `build` command can't be set through
+  environment variables `APPTAINER_BIND`, `APPTAINER_BINDPATH`, `APPTAINER_NV`,
+  `APPTAINER_ROCM` anymore due to side effects reported by users in this
+  [issue](https://github.com/apptainer/singularity/pull/6211),
+  they must be explicitly requested via command line.
+- Build `--bind` option allows to set multiple bind mounts without specifying
+  the `--bind` option for each bindings.
+- Honor image binds and user binds in the order they're given instead of
+  always doing image binds first.
+- Remove subshell overhead when processing large environments on container
+  startup.
+- `make install` now installs man pages. A separate `make man` is not
+  required.  As a consequence, man pages are now included in deb packages.
+
+### New features / functionalities
+
+- Experimental support for checkpointing of instances using DMTCP has been
+  added.  Additional flags `--dmtcp-launch` and `--dmtcp-restart` has
+  been added to the `apptainer instance start` command, and a `checkpoint`
+  command group has been added to manage the checkpoint state.  A new
+  `/etc/apptainer/dmtcp-conf.yaml` configuration file is also added.
+  Limitations are that it can only work with dynamically linked
+  applications and the container has to be based on `glibc`.
+- `--writable-tmpfs` can be used with `apptainer build` to run the `%test`
+  section of the build with a ephemeral tmpfs overlay, permitting tests that
+  write to the container filesystem.
+- The `--compat` flag for actions is a new short-hand to enable a number of
+  options that increase OCI/Docker compatibility. Infers `--containall,
+  --no-init, --no-umask, --writable-tmpfs`. Does not use user, uts, or
+  network namespaces as these may not be supported on many installations.
+- The experimental `--nvccli` flag will use `nvidia-container-cli` to setup the
+  container for Nvidia GPU operation. Apptainer will not bind GPU libraries
+  itself. Environment variables that are used with Nvidia's `docker-nvidia`
+  runtime to configure GPU visibility / driver capabilities & requirements are
+  parsed by the `--nvccli` flag from the environment of the calling user. By
+  default, the `compute` and `utility` GPU capabilities are configured. The `use
+  nvidia-container-cli` option in `apptainer.conf` can be set to `yes` to
+  always use `nvidia-container-cli` when supported.
+  `--nvccli` is not supported in the setuid workflow,
+  and it requires being used in combination with `--writable` in user
+  namespace mode.
+  Please see documentation for more details.
+- The `--apply-cgroups` flag can be used to apply cgroups resource and device
+  restrictions on a system using the v2 unified cgroups hierarchy. The resource
+  restrictions must still be specified in the v1 / OCI format, which will be
+  translated into v2 cgroups resource restrictions, and eBPF device
+  restrictions.
+- A new `--mount` flag and `APPTAINER_MOUNT` environment variable can be used
+  to specify bind mounts in
+  `type=bind,source=<src>,destination=<dst>[,options...]` format. This improves
+  CLI compatibility with other runtimes, and allows binding paths containing
+  `:` and `,` characters (using CSV style escaping).
+- Perform concurrent multi-part downloads for `library://` URIs. Uses 3
+  concurrent downloads by default, and is configurable in `apptainer.conf` or
+  via environment variables.
+
+### Bug fixes
+
+- The `oci` commands will operate on systems that use the v2 unified cgroups
+  hierarchy.
+- Ensure invalid values passed to `config global --set` cannot lead to an empty
+  configuration file being written.
+- `--no-https` now applies to connections made to library services specified
+  in `library://<hostname>/...` URIs.
+- Ensure `gengodep` in build uses vendor dir when present.
+- Correct documentation for sign command r.e. source of key index.
+- Restructure loop device discovery to address `EAGAIN` issue.
+- Ensure a local build does not fail unnecessarily if a keyserver
+  config cannot be retrieved from the remote endpoint.
+- Update dependency to correctly unset variables in container startup
+  environment processing. Fixes regression introduced in singularity-3.8.5.
+- Correct library bindings for `unsquashfs` containment. Fixes errors where
+  resolved library filename does not match library filename in binary
+  (e.g. EL8, POWER9 with glibc-hwcaps).
+- Remove python as a dependency of the debian package.
+- Increase the TLS Handshake Timeout for the busybox bootstrap agent in
+  build definition files to 60 seconds.
+- Add binutils-gold to the build requirements on SUSE rpm builds.
+
+### Changes for Testing / Development
+
+- `E2E_DOCKER_MIRROR` and `E2E_DOCKER_MIRROR_INSECURE` were added to allow
+  to use a registry mirror (or a pull through cache).
+- A `tools` source directory was added with a Dockerfile for doing local
+  e2e testing.

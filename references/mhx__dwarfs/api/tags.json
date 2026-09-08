@@ -1,0 +1,722 @@
+[
+ {
+  "name": "v0.15.7",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.15.7",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.15.7",
+  "commit": {
+   "sha": "3945d234619504bc149da18cfb208218779c477d",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/3945d234619504bc149da18cfb208218779c477d"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4xNS43"
+ },
+ {
+  "name": "v0.15.6",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.15.6",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.15.6",
+  "commit": {
+   "sha": "a566e54d37c323d725fa16574f74218eccf7fa4d",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/a566e54d37c323d725fa16574f74218eccf7fa4d"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4xNS42"
+ },
+ {
+  "name": "v0.15.5",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.15.5",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.15.5",
+  "commit": {
+   "sha": "dcee9f41a2fc5fa9ce994e16681e2eb0081bbf64",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/dcee9f41a2fc5fa9ce994e16681e2eb0081bbf64"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4xNS41"
+ },
+ {
+  "name": "v0.15.4",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.15.4",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.15.4",
+  "commit": {
+   "sha": "1d55427e95fb150cabc827089dd77882b207e3e7",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/1d55427e95fb150cabc827089dd77882b207e3e7"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4xNS40"
+ },
+ {
+  "name": "v0.15.3",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.15.3",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.15.3",
+  "commit": {
+   "sha": "59e391fcda79dab49c26b7453b6671839a24025e",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/59e391fcda79dab49c26b7453b6671839a24025e"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4xNS4z"
+ },
+ {
+  "name": "v0.15.2",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.15.2",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.15.2",
+  "commit": {
+   "sha": "8196622a6a77fa2f466c1b8d42dc260ace5ae293",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/8196622a6a77fa2f466c1b8d42dc260ace5ae293"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4xNS4y"
+ },
+ {
+  "name": "v0.15.1",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.15.1",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.15.1",
+  "commit": {
+   "sha": "5f70e816828435c0df02f4debb9b6226e3a5bb63",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/5f70e816828435c0df02f4debb9b6226e3a5bb63"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4xNS4x"
+ },
+ {
+  "name": "v0.15.0",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.15.0",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.15.0",
+  "commit": {
+   "sha": "95330ba2c2849247c3b387740a752a5cf57fd5ed",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/95330ba2c2849247c3b387740a752a5cf57fd5ed"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4xNS4w"
+ },
+ {
+  "name": "v0.14.1",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.14.1",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.14.1",
+  "commit": {
+   "sha": "9e1a9155b6d33a9c4d2884e39c7dba28c0c905e5",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/9e1a9155b6d33a9c4d2884e39c7dba28c0c905e5"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4xNC4x"
+ },
+ {
+  "name": "v0.14.0",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.14.0",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.14.0",
+  "commit": {
+   "sha": "35dc3e11a03f764314407aa30fcd63f31a8eab60",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/35dc3e11a03f764314407aa30fcd63f31a8eab60"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4xNC4w"
+ },
+ {
+  "name": "v0.13.0",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.13.0",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.13.0",
+  "commit": {
+   "sha": "ba427d5c82e1dd4efafeee7d9775916f358195ca",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/ba427d5c82e1dd4efafeee7d9775916f358195ca"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4xMy4w"
+ },
+ {
+  "name": "v0.12.4",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.12.4",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.12.4",
+  "commit": {
+   "sha": "3af8c59347defa607967bb958c39373f7cbe6a5e",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/3af8c59347defa607967bb958c39373f7cbe6a5e"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4xMi40"
+ },
+ {
+  "name": "v0.12.3",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.12.3",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.12.3",
+  "commit": {
+   "sha": "9a6855630c65d843a97c12b141166b0d8fa914e2",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/9a6855630c65d843a97c12b141166b0d8fa914e2"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4xMi4z"
+ },
+ {
+  "name": "v0.12.2",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.12.2",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.12.2",
+  "commit": {
+   "sha": "84157a1c9ee4c8111f083231d57bbae3633e337c",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/84157a1c9ee4c8111f083231d57bbae3633e337c"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4xMi4y"
+ },
+ {
+  "name": "v0.12.1",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.12.1",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.12.1",
+  "commit": {
+   "sha": "00f4d640365a52baa2ac40e9a5b62e720a7bacc2",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/00f4d640365a52baa2ac40e9a5b62e720a7bacc2"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4xMi4x"
+ },
+ {
+  "name": "v0.12.0",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.12.0",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.12.0",
+  "commit": {
+   "sha": "d6dd0406df3f587786d9917c2375a6c6f52c8918",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/d6dd0406df3f587786d9917c2375a6c6f52c8918"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4xMi4w"
+ },
+ {
+  "name": "v0.11.3",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.11.3",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.11.3",
+  "commit": {
+   "sha": "cbcac8c1a7994e7acd325e0e55dae4d14eb26c85",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/cbcac8c1a7994e7acd325e0e55dae4d14eb26c85"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4xMS4z"
+ },
+ {
+  "name": "v0.11.2",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.11.2",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.11.2",
+  "commit": {
+   "sha": "3028224b63b19cce52b990068f873d32b8b31eeb",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/3028224b63b19cce52b990068f873d32b8b31eeb"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4xMS4y"
+ },
+ {
+  "name": "v0.11.1",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.11.1",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.11.1",
+  "commit": {
+   "sha": "a32c4d8246eae5302786c20c2b54db0a7b676c84",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/a32c4d8246eae5302786c20c2b54db0a7b676c84"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4xMS4x"
+ },
+ {
+  "name": "v0.11.0",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.11.0",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.11.0",
+  "commit": {
+   "sha": "1b1e5fc3c53687fabcd9fd22d0e992d86ce6b8da",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/1b1e5fc3c53687fabcd9fd22d0e992d86ce6b8da"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4xMS4w"
+ },
+ {
+  "name": "v0.10.2",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.10.2",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.10.2",
+  "commit": {
+   "sha": "4d2af1726ce20f4fc452ffcd8e218e499132ff32",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/4d2af1726ce20f4fc452ffcd8e218e499132ff32"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4xMC4y"
+ },
+ {
+  "name": "v0.10.1",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.10.1",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.10.1",
+  "commit": {
+   "sha": "3d490e541deff7a884f6b0e6e982c7fee84363d5",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/3d490e541deff7a884f6b0e6e982c7fee84363d5"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4xMC4x"
+ },
+ {
+  "name": "v0.10.0",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.10.0",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.10.0",
+  "commit": {
+   "sha": "b642c18a860d57183913234737e34e5d807b1cb2",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/b642c18a860d57183913234737e34e5d807b1cb2"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4xMC4w"
+ },
+ {
+  "name": "v0.9.10",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.9.10",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.9.10",
+  "commit": {
+   "sha": "276f11bc34a806745932e95039d56ac09be55d9d",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/276f11bc34a806745932e95039d56ac09be55d9d"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC45LjEw"
+ },
+ {
+  "name": "v0.9.9",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.9.9",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.9.9",
+  "commit": {
+   "sha": "8e9fe84a72ab047a96254fec120029cc2cbf1205",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/8e9fe84a72ab047a96254fec120029cc2cbf1205"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC45Ljk="
+ },
+ {
+  "name": "v0.9.8",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.9.8",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.9.8",
+  "commit": {
+   "sha": "36bcc0d2837db35ef53a1ba10c46f196c495dc60",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/36bcc0d2837db35ef53a1ba10c46f196c495dc60"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC45Ljg="
+ },
+ {
+  "name": "v0.9.7",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.9.7",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.9.7",
+  "commit": {
+   "sha": "1f6cbc4dfbdeef7cc27abeccb4c8e3526fbea00b",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/1f6cbc4dfbdeef7cc27abeccb4c8e3526fbea00b"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC45Ljc="
+ },
+ {
+  "name": "v0.9.6",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.9.6",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.9.6",
+  "commit": {
+   "sha": "e21b1578ebd0c763ca4be0f6dd6e5a775e9702da",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/e21b1578ebd0c763ca4be0f6dd6e5a775e9702da"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC45LjY="
+ },
+ {
+  "name": "v0.9.5",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.9.5",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.9.5",
+  "commit": {
+   "sha": "8e32947bdc5940a864fdaaf7bf953f36bafcdf34",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/8e32947bdc5940a864fdaaf7bf953f36bafcdf34"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC45LjU="
+ },
+ {
+  "name": "v0.9.4",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.9.4",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.9.4",
+  "commit": {
+   "sha": "3d17b2c75aca9e1d4067f5ac608dfe5289b50c1a",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/3d17b2c75aca9e1d4067f5ac608dfe5289b50c1a"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC45LjQ="
+ },
+ {
+  "name": "v0.9.3",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.9.3",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.9.3",
+  "commit": {
+   "sha": "f3c85c858807491c11502736221f8b879c08568c",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/f3c85c858807491c11502736221f8b879c08568c"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC45LjM="
+ },
+ {
+  "name": "v0.9.2",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.9.2",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.9.2",
+  "commit": {
+   "sha": "e16cce2a154d25cbed606a7d65383087db66d531",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/e16cce2a154d25cbed606a7d65383087db66d531"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC45LjI="
+ },
+ {
+  "name": "v0.9.1",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.9.1",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.9.1",
+  "commit": {
+   "sha": "ba7379dc184e0140b940d878c7f32caf80e56dc3",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/ba7379dc184e0140b940d878c7f32caf80e56dc3"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC45LjE="
+ },
+ {
+  "name": "v0.9.0",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.9.0",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.9.0",
+  "commit": {
+   "sha": "570fb368f077150cd7d8a606d8378f325a9dc824",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/570fb368f077150cd7d8a606d8378f325a9dc824"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC45LjA="
+ },
+ {
+  "name": "v0.8.0",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.8.0",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.8.0",
+  "commit": {
+   "sha": "c4211ab4d8f7ee2f23c0f05b444f13401b3dc7a2",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/c4211ab4d8f7ee2f23c0f05b444f13401b3dc7a2"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC44LjA="
+ },
+ {
+  "name": "v0.7.5",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.7.5",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.7.5",
+  "commit": {
+   "sha": "3ba034cdb4dfc3b0230fc337ffcc28538090153f",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/3ba034cdb4dfc3b0230fc337ffcc28538090153f"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC43LjU="
+ },
+ {
+  "name": "v0.7.4",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.7.4",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.7.4",
+  "commit": {
+   "sha": "aeb4cc4d9f7c7b87f10ffff6a5050e1707a372db",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/aeb4cc4d9f7c7b87f10ffff6a5050e1707a372db"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC43LjQ="
+ },
+ {
+  "name": "v0.7.3",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.7.3",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.7.3",
+  "commit": {
+   "sha": "29a50116d7602465491f819da18ddeb40230de91",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/29a50116d7602465491f819da18ddeb40230de91"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC43LjM="
+ },
+ {
+  "name": "v0.7.2",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.7.2",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.7.2",
+  "commit": {
+   "sha": "a8117781b7834b32381f479e926b02f13c39840a",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/a8117781b7834b32381f479e926b02f13c39840a"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC43LjI="
+ },
+ {
+  "name": "v0.7.1",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.7.1",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.7.1",
+  "commit": {
+   "sha": "d8c78fbdb6a8f35efda000029ff979cc330d5b34",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/d8c78fbdb6a8f35efda000029ff979cc330d5b34"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC43LjE="
+ },
+ {
+  "name": "v0.7.0",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.7.0",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.7.0",
+  "commit": {
+   "sha": "3ea7c9eb9b4bc77a2cc09c3b548d10031ad01c0c",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/3ea7c9eb9b4bc77a2cc09c3b548d10031ad01c0c"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC43LjA="
+ },
+ {
+  "name": "v0.7.0-win-prerelease1",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.7.0-win-prerelease1",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.7.0-win-prerelease1",
+  "commit": {
+   "sha": "5ae78b9315547029fef445561e57811a259e3d74",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/5ae78b9315547029fef445561e57811a259e3d74"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC43LjAtd2luLXByZXJlbGVhc2Ux"
+ },
+ {
+  "name": "v0.7.0-test1",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.7.0-test1",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.7.0-test1",
+  "commit": {
+   "sha": "e47b7b1ae649aac8fb99610b1241b9a4224f271a",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/e47b7b1ae649aac8fb99610b1241b9a4224f271a"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC43LjAtdGVzdDE="
+ },
+ {
+  "name": "v0.7.0-RC6",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.7.0-RC6",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.7.0-RC6",
+  "commit": {
+   "sha": "a43629dcafde610b4d83890c092d9888b6e810f4",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/a43629dcafde610b4d83890c092d9888b6e810f4"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC43LjAtUkM2"
+ },
+ {
+  "name": "v0.7.0-RC5",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.7.0-RC5",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.7.0-RC5",
+  "commit": {
+   "sha": "78648e93990359cb9c9e3dbcc0cc9a8ad5cc2723",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/78648e93990359cb9c9e3dbcc0cc9a8ad5cc2723"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC43LjAtUkM1"
+ },
+ {
+  "name": "v0.7.0-RC4",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.7.0-RC4",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.7.0-RC4",
+  "commit": {
+   "sha": "3dfad5ab0293336e08ab7aacef1847e8328a588e",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/3dfad5ab0293336e08ab7aacef1847e8328a588e"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC43LjAtUkM0"
+ },
+ {
+  "name": "v0.7.0-RC3",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.7.0-RC3",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.7.0-RC3",
+  "commit": {
+   "sha": "411468872e75dd8efdd999eb86e36001cf24c966",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/411468872e75dd8efdd999eb86e36001cf24c966"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC43LjAtUkMz"
+ },
+ {
+  "name": "v0.7.0-RC2",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.7.0-RC2",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.7.0-RC2",
+  "commit": {
+   "sha": "bd09004889bf58dc981f84d488caa30db05430af",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/bd09004889bf58dc981f84d488caa30db05430af"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC43LjAtUkMy"
+ },
+ {
+  "name": "v0.7.0-RC1",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.7.0-RC1",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.7.0-RC1",
+  "commit": {
+   "sha": "c743feb3cd0529aeae379a00332da0da4b7cdaec",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/c743feb3cd0529aeae379a00332da0da4b7cdaec"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC43LjAtUkMx"
+ },
+ {
+  "name": "v0.6.2",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.6.2",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.6.2",
+  "commit": {
+   "sha": "0b060a57f31975c09b8c83212aa6aa4d445a4ee5",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/0b060a57f31975c09b8c83212aa6aa4d445a4ee5"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC42LjI="
+ },
+ {
+  "name": "v0.6.1",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.6.1",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.6.1",
+  "commit": {
+   "sha": "b1e4667aa3c3cb4822c2ac47ab35d8bef32bf432",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/b1e4667aa3c3cb4822c2ac47ab35d8bef32bf432"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC42LjE="
+ },
+ {
+  "name": "v0.6.0",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.6.0",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.6.0",
+  "commit": {
+   "sha": "76b6ffd81836460f6ee34fd83e12190ae4da6592",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/76b6ffd81836460f6ee34fd83e12190ae4da6592"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC42LjA="
+ },
+ {
+  "name": "v0.5.6",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.5.6",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.5.6",
+  "commit": {
+   "sha": "2a51edb67b7683be6c175f65558fab36fe20ec24",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/2a51edb67b7683be6c175f65558fab36fe20ec24"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC41LjY="
+ },
+ {
+  "name": "v0.5.5",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.5.5",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.5.5",
+  "commit": {
+   "sha": "49061e96af6d81cfcc1bb3e6f09400f2cdf2188b",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/49061e96af6d81cfcc1bb3e6f09400f2cdf2188b"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC41LjU="
+ },
+ {
+  "name": "v0.5.4",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.5.4",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.5.4",
+  "commit": {
+   "sha": "b2fc36e95d3cae42d8f72b61be6cfdc94558b72f",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/b2fc36e95d3cae42d8f72b61be6cfdc94558b72f"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC41LjQ="
+ },
+ {
+  "name": "v0.5.3",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.5.3",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.5.3",
+  "commit": {
+   "sha": "6d8bc7134877802ab366805714afed149a08eb2a",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/6d8bc7134877802ab366805714afed149a08eb2a"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC41LjM="
+ },
+ {
+  "name": "v0.5.2",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.5.2",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.5.2",
+  "commit": {
+   "sha": "4f8c470c59e0b9218012e98639d9ea2ebe7e28eb",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/4f8c470c59e0b9218012e98639d9ea2ebe7e28eb"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC41LjI="
+ },
+ {
+  "name": "v0.5.1",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.5.1",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.5.1",
+  "commit": {
+   "sha": "cb508c83e6e23b26fd74b8a099743d63d4684726",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/cb508c83e6e23b26fd74b8a099743d63d4684726"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC41LjE="
+ },
+ {
+  "name": "v0.5.0",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.5.0",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.5.0",
+  "commit": {
+   "sha": "362eb6086976faf61f0a692a704ae49f6e0d6293",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/362eb6086976faf61f0a692a704ae49f6e0d6293"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC41LjA="
+ },
+ {
+  "name": "v0.4.1",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.4.1",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.4.1",
+  "commit": {
+   "sha": "bc2007a240a3d891fcee504e4c086b7ba85833d7",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/bc2007a240a3d891fcee504e4c086b7ba85833d7"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC40LjE="
+ },
+ {
+  "name": "v0.4.0",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.4.0",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.4.0",
+  "commit": {
+   "sha": "9d5719138652e131209d3a5871e4209e068ef0e9",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/9d5719138652e131209d3a5871e4209e068ef0e9"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC40LjA="
+ },
+ {
+  "name": "v0.3.1",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.3.1",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.3.1",
+  "commit": {
+   "sha": "90ada861685e5b3fa62d8235d7771b6cea479507",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/90ada861685e5b3fa62d8235d7771b6cea479507"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4zLjE="
+ },
+ {
+  "name": "v0.3.0",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.3.0",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.3.0",
+  "commit": {
+   "sha": "ae1e5c8423ae29f037dc11b7af3ee16005914bdd",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/ae1e5c8423ae29f037dc11b7af3ee16005914bdd"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4zLjA="
+ },
+ {
+  "name": "v0.3.0-RC1",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.3.0-RC1",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.3.0-RC1",
+  "commit": {
+   "sha": "212409067ca82a213c7f4e8794d3ae2c2b890f83",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/212409067ca82a213c7f4e8794d3ae2c2b890f83"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4zLjAtUkMx"
+ },
+ {
+  "name": "v0.2.4",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.2.4",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.2.4",
+  "commit": {
+   "sha": "0cdd2706d28c590b0dfa3cf52156fbd0ac1ba9ba",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/0cdd2706d28c590b0dfa3cf52156fbd0ac1ba9ba"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4yLjQ="
+ },
+ {
+  "name": "v0.2.3",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.2.3",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.2.3",
+  "commit": {
+   "sha": "d73994231dce3a2bfcb391324d1aa76a0f15cfd2",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/d73994231dce3a2bfcb391324d1aa76a0f15cfd2"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4yLjM="
+ },
+ {
+  "name": "v0.2.2",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.2.2",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.2.2",
+  "commit": {
+   "sha": "fc2882c8c608607416c54b6d5564ed3677d7afe2",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/fc2882c8c608607416c54b6d5564ed3677d7afe2"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4yLjI="
+ },
+ {
+  "name": "v0.2.1",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/v0.2.1",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/v0.2.1",
+  "commit": {
+   "sha": "a94c4e6bda0a290fa81a552126dc7fb675260f55",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/a94c4e6bda0a290fa81a552126dc7fb675260f55"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy92MC4yLjE="
+ },
+ {
+  "name": "release-0.2.0",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/release-0.2.0",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/release-0.2.0",
+  "commit": {
+   "sha": "21caae54b3e417230a540559e807c48f6b8edd00",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/21caae54b3e417230a540559e807c48f6b8edd00"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy9yZWxlYXNlLTAuMi4w"
+ },
+ {
+  "name": "release-0.1.1",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/release-0.1.1",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/release-0.1.1",
+  "commit": {
+   "sha": "9a6a815918835ee9b64e24ceeb4dbb19e106f248",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/9a6a815918835ee9b64e24ceeb4dbb19e106f248"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy9yZWxlYXNlLTAuMS4x"
+ },
+ {
+  "name": "release-0.1.0",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/release-0.1.0",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/release-0.1.0",
+  "commit": {
+   "sha": "277cb94894c663a64285fced320a4863b4d738a5",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/277cb94894c663a64285fced320a4863b4d738a5"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy9yZWxlYXNlLTAuMS4w"
+ },
+ {
+  "name": "metadata-v2-feature-complete",
+  "zipball_url": "https://api.github.com/repos/mhx/dwarfs/zipball/refs/tags/metadata-v2-feature-complete",
+  "tarball_url": "https://api.github.com/repos/mhx/dwarfs/tarball/refs/tags/metadata-v2-feature-complete",
+  "commit": {
+   "sha": "c09fb580b4cb7cf25da07aa704e6fd75d34f0333",
+   "url": "https://api.github.com/repos/mhx/dwarfs/commits/c09fb580b4cb7cf25da07aa704e6fd75d34f0333"
+  },
+  "node_id": "MDM6UmVmMzE0ODY4MTYzOnJlZnMvdGFncy9tZXRhZGF0YS12Mi1mZWF0dXJlLWNvbXBsZXRl"
+ }
+]

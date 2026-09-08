@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# dockless bin/dockless-compose — docker compose 子集路由骨架。
+#
+# 子集（README 承诺支持；shim 核心实现前一律 fail-fast 提示未实现）：
+#   config pull up down ps logs rm exec stop start restart
+# 子集外（build push run create scale …）→ fail-fast。
+#
+# 下一步（shim 核心）：子集命令接到 dockless 包：
+#   config → compose_parser（YAML → 四层语义模型）
+#   up/down/ps/logs/stop/start/restart → lifecycle（depends_on 排序 + 生命周期编排）
+#   pull/rm/exec → runtime（镜像层/容器层 udocker 调用）
+set -euo pipefail
+
+DOCKLESS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+SUBSET=(config pull up down ps logs rm exec stop start restart)
+UNSUPPORTED=(build push run create scale start attach top events images)
+
+usage() {
+  cat <<EOF
+dockless docker-compose 子集 (skeleton)。
+
+用法:
+  docker compose <sub> [args]
+
+子集（将支持）: ${SUBSET[*]}
+子集外 (fail-fast): ${UNSUPPORTED[*]}
+
+shim 核心（dockless/compose_parser.py, runtime.py, lifecycle.py）为下一步实现；
+当前所有子集命令统一报"未实现"并退出非零。
+EOF
+}
+
+if [ "$#" -eq 0 ]; then
+  usage
+  exit 0
+fi
+
+case "$1" in
+  --help|-h|help|version)
+    usage
+    exit 0
+    ;;
+esac
+
+sub="$1"
+shift
+
+for s in "${SUBSET[@]}"; do
+  if [ "$sub" = "$s" ]; then
+    echo "dockless: docker compose $sub —— 已列入子集，但 shim 核心尚未实现（下一步）。" >&2
+    echo "dockless: 骨架已就位：compose_parser/runtime/lifecycle 见 dockless/ 包。" >&2
+    exit 1
+  fi
+done
+
+for s in "${UNSUPPORTED[@]}"; do
+  if [ "$sub" = "$s" ]; then
+    echo "dockless: docker compose $sub 不在子集内，fail-fast（见 README 能力边界）。" >&2
+    exit 2
+  fi
+done
+
+echo "dockless: 未知 compose 子命令 '$sub'，fail-fast。" >&2
+exit 2

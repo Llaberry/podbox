@@ -1,0 +1,442 @@
+[
+ {
+  "name": "v3.9.5",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.9.5",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.9.5",
+  "commit": {
+   "sha": "c4e442de42674965f768b67df92d0c3d7aa91663",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/c4e442de42674965f768b67df92d0c3d7aa91663"
+  },
+  "node_id": "REF_kwDOIhy5kLByZWZzL3RhZ3MvdjMuOS41"
+ },
+ {
+  "name": "v3.9.5-rc1",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.9.5-rc1",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.9.5-rc1",
+  "commit": {
+   "sha": "ea3194f04d57e7e0192dc6a4e51b27fb76392e6c",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/ea3194f04d57e7e0192dc6a4e51b27fb76392e6c"
+  },
+  "node_id": "REF_kwDOIhy5kLRyZWZzL3RhZ3MvdjMuOS41LXJjMQ"
+ },
+ {
+  "name": "v3.9.4-rc2",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.9.4-rc2",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.9.4-rc2",
+  "commit": {
+   "sha": "c3b9065026ff3732daca1c680579d985b7df28e1",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/c3b9065026ff3732daca1c680579d985b7df28e1"
+  },
+  "node_id": "REF_kwDOIhy5kLRyZWZzL3RhZ3MvdjMuOS40LXJjMg"
+ },
+ {
+  "name": "v3.9.4-rc1",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.9.4-rc1",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.9.4-rc1",
+  "commit": {
+   "sha": "00b179b0c0df1825e05b2235a18cb2260c458b9e",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/00b179b0c0df1825e05b2235a18cb2260c458b9e"
+  },
+  "node_id": "REF_kwDOIhy5kLRyZWZzL3RhZ3MvdjMuOS40LXJjMQ"
+ },
+ {
+  "name": "v3.9.3",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.9.3",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.9.3",
+  "commit": {
+   "sha": "9c61a363794e14bf67f0e6c3d47fd2940b89c6f7",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/9c61a363794e14bf67f0e6c3d47fd2940b89c6f7"
+  },
+  "node_id": "REF_kwDOIhy5kLByZWZzL3RhZ3MvdjMuOS4z"
+ },
+ {
+  "name": "v3.9.2",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.9.2",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.9.2",
+  "commit": {
+   "sha": "0072384da640cd4ab23238fdd284ea92b62749cd",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/0072384da640cd4ab23238fdd284ea92b62749cd"
+  },
+  "node_id": "REF_kwDOIhy5kLByZWZzL3RhZ3MvdjMuOS4y"
+ },
+ {
+  "name": "v3.9.1",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.9.1",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.9.1",
+  "commit": {
+   "sha": "436b90f6641bbe06aff158050bc923f8624bee6f",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/436b90f6641bbe06aff158050bc923f8624bee6f"
+  },
+  "node_id": "REF_kwDOIhy5kLByZWZzL3RhZ3MvdjMuOS4x"
+ },
+ {
+  "name": "v3.9.0",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.9.0",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.9.0",
+  "commit": {
+   "sha": "33874e007589dd3e71603ee9a386898b8d88588a",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/33874e007589dd3e71603ee9a386898b8d88588a"
+  },
+  "node_id": "REF_kwDOIhy5kLByZWZzL3RhZ3MvdjMuOS4w"
+ },
+ {
+  "name": "v3.9-beta1",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.9-beta1",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.9-beta1",
+  "commit": {
+   "sha": "607fc641fd855e4376fd369fd483b8d8df30a798",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/607fc641fd855e4376fd369fd483b8d8df30a798"
+  },
+  "node_id": "REF_kwDOIhy5kLRyZWZzL3RhZ3MvdjMuOS1iZXRhMQ"
+ },
+ {
+  "name": "v3.8",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.8",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.8",
+  "commit": {
+   "sha": "cee13ce6a6b5ec7294c5f1f4c58e4032790a4ab9",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/cee13ce6a6b5ec7294c5f1f4c58e4032790a4ab9"
+  },
+  "node_id": "REF_kwDOIhy5kK5yZWZzL3RhZ3MvdjMuOA"
+ },
+ {
+  "name": "v3.8-rc1",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.8-rc1",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.8-rc1",
+  "commit": {
+   "sha": "392384c9f16632b2e9e1a47b65ddd08238785646",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/392384c9f16632b2e9e1a47b65ddd08238785646"
+  },
+  "node_id": "REF_kwDOIhy5kLJyZWZzL3RhZ3MvdjMuOC1yYzE"
+ },
+ {
+  "name": "v3.7",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.7",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.7",
+  "commit": {
+   "sha": "eba5a144168e152ec0724cd8d0cc58cf2f422acd",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/eba5a144168e152ec0724cd8d0cc58cf2f422acd"
+  },
+  "node_id": "REF_kwDOIhy5kK5yZWZzL3RhZ3MvdjMuNw"
+ },
+ {
+  "name": "v3.7-rc1",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.7-rc1",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.7-rc1",
+  "commit": {
+   "sha": "5e524bfe397180901509b3ec369e44cb651cc1fd",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/5e524bfe397180901509b3ec369e44cb651cc1fd"
+  },
+  "node_id": "REF_kwDOIhy5kLJyZWZzL3RhZ3MvdjMuNy1yYzE"
+ },
+ {
+  "name": "v3.6",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.6",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.6",
+  "commit": {
+   "sha": "a47701421a06e50372318824a0f472ca1c231614",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/a47701421a06e50372318824a0f472ca1c231614"
+  },
+  "node_id": "REF_kwDOIhy5kK5yZWZzL3RhZ3MvdjMuNg"
+ },
+ {
+  "name": "v3.5",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.5",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.5",
+  "commit": {
+   "sha": "0b8c8e07c2cb41960eae9cc6edad9965d46d4bc5",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/0b8c8e07c2cb41960eae9cc6edad9965d46d4bc5"
+  },
+  "node_id": "REF_kwDOIhy5kK5yZWZzL3RhZ3MvdjMuNQ"
+ },
+ {
+  "name": "v3.4",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.4",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.4",
+  "commit": {
+   "sha": "9713491f00e484ed09b5be47005953a287612030",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/9713491f00e484ed09b5be47005953a287612030"
+  },
+  "node_id": "REF_kwDOIhy5kK5yZWZzL3RhZ3MvdjMuNA"
+ },
+ {
+  "name": "v3.3",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.3",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.3",
+  "commit": {
+   "sha": "323f5d711c9a839be727d6bdf39ea0e91cbfd415",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/323f5d711c9a839be727d6bdf39ea0e91cbfd415"
+  },
+  "node_id": "REF_kwDOIhy5kK5yZWZzL3RhZ3MvdjMuMw"
+ },
+ {
+  "name": "v3.2",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.2",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.2",
+  "commit": {
+   "sha": "9b0e72e4a32853d722ac6521fb05bad9d36d8ecc",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/9b0e72e4a32853d722ac6521fb05bad9d36d8ecc"
+  },
+  "node_id": "REF_kwDOIhy5kK5yZWZzL3RhZ3MvdjMuMg"
+ },
+ {
+  "name": "v3.1",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.1",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.1",
+  "commit": {
+   "sha": "6392eff91cd1170a06e75950914ed2213a51e344",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/6392eff91cd1170a06e75950914ed2213a51e344"
+  },
+  "node_id": "REF_kwDOIhy5kK5yZWZzL3RhZ3MvdjMuMQ"
+ },
+ {
+  "name": "v3.1-rc1",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.1-rc1",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.1-rc1",
+  "commit": {
+   "sha": "c6b7bff383ebbee398a9ea870c31ae6fe1483886",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/c6b7bff383ebbee398a9ea870c31ae6fe1483886"
+  },
+  "node_id": "REF_kwDOIhy5kLJyZWZzL3RhZ3MvdjMuMS1yYzE"
+ },
+ {
+  "name": "v3.1-pre",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.1-pre",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.1-pre",
+  "commit": {
+   "sha": "e09736e4abf18cea8f529001256ea6ea7b045aff",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/e09736e4abf18cea8f529001256ea6ea7b045aff"
+  },
+  "node_id": "REF_kwDOIhy5kLJyZWZzL3RhZ3MvdjMuMS1wcmU"
+ },
+ {
+  "name": "v3.0",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.0",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.0",
+  "commit": {
+   "sha": "7084b8ee1888e4260a824d09676f037ffcc4c269",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/7084b8ee1888e4260a824d09676f037ffcc4c269"
+  },
+  "node_id": "REF_kwDOIhy5kK5yZWZzL3RhZ3MvdjMuMA"
+ },
+ {
+  "name": "v3.0-rc1",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.0-rc1",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.0-rc1",
+  "commit": {
+   "sha": "a4531eaa8b2db3b97f87897613694f153598efca",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/a4531eaa8b2db3b97f87897613694f153598efca"
+  },
+  "node_id": "REF_kwDOIhy5kLJyZWZzL3RhZ3MvdjMuMC1yYzE"
+ },
+ {
+  "name": "v3.0-pre",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v3.0-pre",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v3.0-pre",
+  "commit": {
+   "sha": "35805165287c99e9fa69b09646901682fb5091da",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/35805165287c99e9fa69b09646901682fb5091da"
+  },
+  "node_id": "REF_kwDOIhy5kLJyZWZzL3RhZ3MvdjMuMC1wcmU"
+ },
+ {
+  "name": "v2.7",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v2.7",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v2.7",
+  "commit": {
+   "sha": "19e5e144484fc4b4c27d1077f4aaecec4b9e354a",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/19e5e144484fc4b4c27d1077f4aaecec4b9e354a"
+  },
+  "node_id": "REF_kwDOIhy5kK5yZWZzL3RhZ3MvdjIuNw"
+ },
+ {
+  "name": "v2.6",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v2.6",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v2.6",
+  "commit": {
+   "sha": "3dccae1d99dcd341a87cf6f296dda58a750f0a41",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/3dccae1d99dcd341a87cf6f296dda58a750f0a41"
+  },
+  "node_id": "REF_kwDOIhy5kK5yZWZzL3RhZ3MvdjIuNg"
+ },
+ {
+  "name": "v2.5-hotfix2",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v2.5-hotfix2",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v2.5-hotfix2",
+  "commit": {
+   "sha": "c279fdc9c6afd7cae8c846bd7a93e0faf9d2cfc1",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/c279fdc9c6afd7cae8c846bd7a93e0faf9d2cfc1"
+  },
+  "node_id": "REF_kwDOIhy5kLZyZWZzL3RhZ3MvdjIuNS1ob3RmaXgy"
+ },
+ {
+  "name": "v2.5-hotfix",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v2.5-hotfix",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v2.5-hotfix",
+  "commit": {
+   "sha": "73d133bf132a853c280d82c998af76317400e881",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/73d133bf132a853c280d82c998af76317400e881"
+  },
+  "node_id": "REF_kwDOIhy5kLVyZWZzL3RhZ3MvdjIuNS1ob3RmaXg"
+ },
+ {
+  "name": "v2.4",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v2.4",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v2.4",
+  "commit": {
+   "sha": "4b45ff64333e3eb9147e1c3eb123c66e4786fd55",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/4b45ff64333e3eb9147e1c3eb123c66e4786fd55"
+  },
+  "node_id": "REF_kwDOIhy5kK5yZWZzL3RhZ3MvdjIuNA"
+ },
+ {
+  "name": "v2.3",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v2.3",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v2.3",
+  "commit": {
+   "sha": "33e945948cb53deb5cc1df7f8159923b18f5198f",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/33e945948cb53deb5cc1df7f8159923b18f5198f"
+  },
+  "node_id": "REF_kwDOIhy5kK5yZWZzL3RhZ3MvdjIuMw"
+ },
+ {
+  "name": "v2.2",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v2.2",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v2.2",
+  "commit": {
+   "sha": "45f8c67d556c14f1febfcfa5f7c3d60bcdbc74a1",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/45f8c67d556c14f1febfcfa5f7c3d60bcdbc74a1"
+  },
+  "node_id": "REF_kwDOIhy5kK5yZWZzL3RhZ3MvdjIuMg"
+ },
+ {
+  "name": "v2.1",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v2.1",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v2.1",
+  "commit": {
+   "sha": "6438dd59c17e11314ebfcf4f2a292a89db66994d",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/6438dd59c17e11314ebfcf4f2a292a89db66994d"
+  },
+  "node_id": "REF_kwDOIhy5kK5yZWZzL3RhZ3MvdjIuMQ"
+ },
+ {
+  "name": "v2.0",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v2.0",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v2.0",
+  "commit": {
+   "sha": "c90c03d3e1d891a2b07c874e6169e7e98d05ecb9",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/c90c03d3e1d891a2b07c874e6169e7e98d05ecb9"
+  },
+  "node_id": "REF_kwDOIhy5kK5yZWZzL3RhZ3MvdjIuMA"
+ },
+ {
+  "name": "v2.0-rc2",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v2.0-rc2",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v2.0-rc2",
+  "commit": {
+   "sha": "a1537ace97b5e9ba72ea1e34080d47a2d4b3116d",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/a1537ace97b5e9ba72ea1e34080d47a2d4b3116d"
+  },
+  "node_id": "REF_kwDOIhy5kLJyZWZzL3RhZ3MvdjIuMC1yYzI"
+ },
+ {
+  "name": "v2.0-rc1",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v2.0-rc1",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v2.0-rc1",
+  "commit": {
+   "sha": "3f147798f82514b1318c9b1e5aff93a13dc45f24",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/3f147798f82514b1318c9b1e5aff93a13dc45f24"
+  },
+  "node_id": "REF_kwDOIhy5kLJyZWZzL3RhZ3MvdjIuMC1yYzE"
+ },
+ {
+  "name": "v2.0-pre",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v2.0-pre",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v2.0-pre",
+  "commit": {
+   "sha": "8b0563ee9977d0bdf6b5c3a6aff66bed167a6d22",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/8b0563ee9977d0bdf6b5c3a6aff66bed167a6d22"
+  },
+  "node_id": "REF_kwDOIhy5kLJyZWZzL3RhZ3MvdjIuMC1wcmU"
+ },
+ {
+  "name": "v2.0-beta4",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v2.0-beta4",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v2.0-beta4",
+  "commit": {
+   "sha": "18d0657691e95674dbfcbcb0de73b097caed0ddb",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/18d0657691e95674dbfcbcb0de73b097caed0ddb"
+  },
+  "node_id": "REF_kwDOIhy5kLRyZWZzL3RhZ3MvdjIuMC1iZXRhNA"
+ },
+ {
+  "name": "v2.0-beta3",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v2.0-beta3",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v2.0-beta3",
+  "commit": {
+   "sha": "9619b9c85b6c9b6f60b6e503bb66a6689cafbf68",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/9619b9c85b6c9b6f60b6e503bb66a6689cafbf68"
+  },
+  "node_id": "REF_kwDOIhy5kLRyZWZzL3RhZ3MvdjIuMC1iZXRhMw"
+ },
+ {
+  "name": "v2.0-beta2",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v2.0-beta2",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v2.0-beta2",
+  "commit": {
+   "sha": "0ed4f0786ee139ad886d79e4621673fa3a78f0b0",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/0ed4f0786ee139ad886d79e4621673fa3a78f0b0"
+  },
+  "node_id": "REF_kwDOIhy5kLRyZWZzL3RhZ3MvdjIuMC1iZXRhMg"
+ },
+ {
+  "name": "v2.0-beta",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v2.0-beta",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v2.0-beta",
+  "commit": {
+   "sha": "2f79c585d512bcb32e411ac73ea5cfc25c0f39ed",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/2f79c585d512bcb32e411ac73ea5cfc25c0f39ed"
+  },
+  "node_id": "REF_kwDOIhy5kLNyZWZzL3RhZ3MvdjIuMC1iZXRh"
+ },
+ {
+  "name": "v1.2",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v1.2",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v1.2",
+  "commit": {
+   "sha": "b45ff0d541245f66ff27bd3ee51f549935c123ff",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/b45ff0d541245f66ff27bd3ee51f549935c123ff"
+  },
+  "node_id": "REF_kwDOIhy5kK5yZWZzL3RhZ3MvdjEuMg"
+ },
+ {
+  "name": "v1.1",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v1.1",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v1.1",
+  "commit": {
+   "sha": "3d9c2f27a591df295a8941d38e6e48b3c373f16c",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/3d9c2f27a591df295a8941d38e6e48b3c373f16c"
+  },
+  "node_id": "REF_kwDOIhy5kK5yZWZzL3RhZ3MvdjEuMQ"
+ },
+ {
+  "name": "v1",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/v1",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/v1",
+  "commit": {
+   "sha": "13549a7351adbb679655f7a357f1b953952a2ffd",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/13549a7351adbb679655f7a357f1b953952a2ffd"
+  },
+  "node_id": "REF_kwDOIhy5kKxyZWZzL3RhZ3MvdjE"
+ },
+ {
+  "name": "null",
+  "zipball_url": "https://api.github.com/repos/RuriOSS/ruri/zipball/refs/tags/null",
+  "tarball_url": "https://api.github.com/repos/RuriOSS/ruri/tarball/refs/tags/null",
+  "commit": {
+   "sha": "2babac537d21b2736f30ea80352eb2d8fbd931f3",
+   "url": "https://api.github.com/repos/RuriOSS/ruri/commits/2babac537d21b2736f30ea80352eb2d8fbd931f3"
+  },
+  "node_id": "REF_kwDOIhy5kK5yZWZzL3RhZ3MvbnVsbA"
+ }
+]

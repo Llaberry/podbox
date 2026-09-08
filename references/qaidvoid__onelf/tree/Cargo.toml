@@ -1,0 +1,41 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/onelf",
+  "crates/onelf-format",
+  "crates/onelf-rt",
+  "crates/onelf-sysroot"
+]
+default-members = ["crates/onelf"]
+# Freestanding no_std/no_main payloads, built per-target by onelf's build.rs.
+exclude = [
+  "crates/onelf-payloads"
+]
+
+[workspace.package]
+version = "0.3.3"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/QaidVoid/onelf"
+
+[profile.release]
+opt-level = "z"
+strip = true
+lto = true
+panic = "abort"
+codegen-units = 1
+
+[workspace.dependencies]
+blake3 = "1.8"
+clap = { version = "4.5", features = ["derive"] }
+goblin = { version = "0.9", default-features = false, features = ["elf64", "elf32", "endian_fd"] }
+indicatif = "0.18"
+jwalk = "0.8"
+onelf-format = { version = "0.3.3", path = "crates/onelf-format" }
+onelf-sysroot = { version = "0.3.3", path = "crates/onelf-sysroot" }
+rayon = "1.11"
+rustix = { version = "1", features = ["fs", "mm", "event", "process", "pipe", "runtime", "net", "mount", "thread"] }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+xxhash-rust = { version = "0.8", features = ["xxh32"] }
+zstd = { version = "0.13", default-features = false }

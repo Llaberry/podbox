@@ -1,0 +1,25 @@
+[package]
+name = "podbox-interpose"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+license = "0BSD"
+repository = "https://github.com/Llaberry/podbox"
+
+# ⛔ Not a workspace member (see the root Cargo.toml). This object is loaded
+# into other people's processes: it takes no dependency on the rest of the tree
+# and none on anything that allocates on an interposed path (TOOL.md §6.7).
+
+[lib]
+name = "podbox_interpose"
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+
+[profile.release]
+lto = true
+opt-level = "z"
+codegen-units = 1
+strip = "symbols"
+panic = "abort"

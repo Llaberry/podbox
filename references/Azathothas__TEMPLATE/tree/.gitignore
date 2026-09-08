@@ -1,0 +1,90 @@
+# This repository's own ignores.
+#
+# ⛔ It is PUBLIC. Everything below is either machine-local noise or material
+# that must never be published. docs/public/README.md is the wider rule.
+
+# -- source material this template was distilled from -----------------------
+# ⛔ NEVER COMMITTED. Material of this shape holds live hostnames, account
+# identifiers, credential filenames, private project names and email addresses.
+# `scripts/common/check-no-secrets.sh --public` finds all of it, which is how
+# it was confirmed rather than assumed.
+#
+# The template is a DISTILLATION. The methodology travels; the material does
+# not. The directories themselves were removed once the distillation was done;
+# these rules stay so the next batch cannot be staged by accident.
+MEMOIRS/
+Project*/
+reference/
+references/
+reference_attachments/
+
+# -- scratch ----------------------------------------------------------------
+.tmp/
+tmp/
+scratch/
+.scratch/
+*.bak
+*.orig
+
+# -- logs -------------------------------------------------------------------
+*.log
+logs/
+
+# -- secrets. Listed before any exist, so one can never be staged by accident -
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# -- agent and assistant local files ----------------------------------------
+.claude/settings.local.json
+CLAUDE.local.md
+
+# -- OS and editor noise ----------------------------------------------------
+.DS_Store
+Thumbs.db
+Desktop.ini
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ⛔ WINDOWS RESERVED DEVICE NAMES. Two different things create one as a real
+# file, and neither of them is a file you meant to write:
+#   1. your own redirect: 2>/dev/null under a shell that does not map it makes
+#      a real file called nul, which git tracks, which breaks git stash
+#      outright, and which cannot be deleted by rm or by Python;
+#   2. a tool's own argument list: podman machine ssh passes
+#      -o UserKnownHostsFile=NUL to its ssh, and under Git Bash that is a
+#      filename, so a 99-byte NUL holding an ssh host key lands in whatever
+#      directory the command ran in. Usually a repository.
+# ⚠ MSYS_NO_PATHCONV does not prevent the second one: the argument never looked
+# like a path. docs/conventions/shell.md section 7 carries the measurement.
+nul
+CON
+PRN
+AUX
+NUL
+COM[1-9]
+LPT[1-9]
+CON.*
+PRN.*
+AUX.*
+NUL.*
+COM[1-9].*
+LPT[1-9].*
+
+# -- DELIBERATELY COMMITTED. Do not add these. ------------------------------
+# dotfiles/*/gitignore     they ship WITHOUT the leading dot on purpose:
+#                          a real .gitignore there would apply to itself.
+#                          dotfiles/README.md says why.
+# LICENSES/*.txt           canonical SPDX texts, fetched not typed
+# scripts/doctor/*         every project inherits the probe

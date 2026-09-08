@@ -1,0 +1,1467 @@
+[
+ {
+  "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923710737",
+  "pull_request_review_id": 2564597846,
+  "id": 1923710737,
+  "node_id": "PRRC_kwDOM2ZEx85yqX8R",
+  "diff_hunk": "@@ -628,6 +628,27 @@ for binary in \"${BINARY_LIST[@]}\"\n                                                                                         try_cp -T \"$sys_vk_icd_dir\" \"$dst_vk_icd_dir\"\n                                                                                         sed -i 's|/usr/lib||g;s|/.*-linux-gnu||g;s|\"/|\"|g' \"$dst_vk_icd_dir\"/*\n                                                                                 fi ;;\n+                                                                            */libwebkit2gtk*.so*)\n+                                                                                sys_webkit_lib_dir=\"$(find /usr/lib -type d -name 'webkit2gtk*')\"",
+  "path": "lib4bin",
+  "commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "original_commit_id": "06f44df0c51293ab0572211a4aeba2f5a2cf3244",
+  "user": {
+   "login": "VHSgunzo",
+   "id": 57139938,
+   "node_id": "MDQ6VXNlcjU3MTM5OTM4",
+   "avatar_url": "https://avatars.githubusercontent.com/u/57139938?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/VHSgunzo",
+   "html_url": "https://github.com/VHSgunzo",
+   "followers_url": "https://api.github.com/users/VHSgunzo/followers",
+   "following_url": "https://api.github.com/users/VHSgunzo/following{/other_user}",
+   "gists_url": "https://api.github.com/users/VHSgunzo/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/VHSgunzo/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/VHSgunzo/subscriptions",
+   "organizations_url": "https://api.github.com/users/VHSgunzo/orgs",
+   "repos_url": "https://api.github.com/users/VHSgunzo/repos",
+   "events_url": "https://api.github.com/users/VHSgunzo/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/VHSgunzo/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "try use `$lib_src_pth` instead of find",
+  "created_at": "2025-01-21T13:14:24Z",
+  "updated_at": "2025-01-21T13:14:24Z",
+  "html_url": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923710737",
+  "pull_request_url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923710737"
+   },
+   "html": {
+    "href": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923710737"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923710737/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": null,
+  "original_line": 632,
+  "side": "RIGHT",
+  "author_association": "OWNER",
+  "original_position": 5,
+  "position": 1,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923731142",
+  "pull_request_review_id": 2564633749,
+  "id": 1923731142,
+  "node_id": "PRRC_kwDOM2ZEx85yqc7G",
+  "diff_hunk": "@@ -628,6 +628,27 @@ for binary in \"${BINARY_LIST[@]}\"\n                                                                                         try_cp -T \"$sys_vk_icd_dir\" \"$dst_vk_icd_dir\"\n                                                                                         sed -i 's|/usr/lib||g;s|/.*-linux-gnu||g;s|\"/|\"|g' \"$dst_vk_icd_dir\"/*\n                                                                                 fi ;;\n+                                                                            */libwebkit2gtk*.so*)\n+                                                                                sys_webkit_lib_dir=\"$(find /usr/lib -type d -name 'webkit2gtk*')\"\n+                                                                                dst_webkit_lib_dir=\"$(dirname \"$lib_dst_pth\")/$(basename \"$sys_webkit_lib_dir\")\"\n+                                                                                if [[ -d \"$sys_webkit_lib_dir\" && ! -d \"$dst_webkit_lib_dir\" ]]\n+                                                                                    then\n+                                                                                        info_msg \"$YELLOW[ HOOK ]:$GREEN hack webkit2gtk to be portable...\"\n+                                                                                        try_cp -T \"$sys_webkit_lib_dir\" \"$dst_webkit_lib_dir\"\n+                                                                                        find \"$dst_dir_pth/$lib_dir\" -type f -name 'libwebkit2gtk*.so*' -exec sed -i 's|/usr|././|g' {} \\;",
+  "path": "lib4bin",
+  "commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "original_commit_id": "06f44df0c51293ab0572211a4aeba2f5a2cf3244",
+  "user": {
+   "login": "VHSgunzo",
+   "id": 57139938,
+   "node_id": "MDQ6VXNlcjU3MTM5OTM4",
+   "avatar_url": "https://avatars.githubusercontent.com/u/57139938?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/VHSgunzo",
+   "html_url": "https://github.com/VHSgunzo",
+   "followers_url": "https://api.github.com/users/VHSgunzo/followers",
+   "following_url": "https://api.github.com/users/VHSgunzo/following{/other_user}",
+   "gists_url": "https://api.github.com/users/VHSgunzo/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/VHSgunzo/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/VHSgunzo/subscriptions",
+   "organizations_url": "https://api.github.com/users/VHSgunzo/orgs",
+   "repos_url": "https://api.github.com/users/VHSgunzo/repos",
+   "events_url": "https://api.github.com/users/VHSgunzo/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/VHSgunzo/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "try use $lib_dst_pth instead of find",
+  "created_at": "2025-01-21T13:28:20Z",
+  "updated_at": "2025-01-21T13:28:21Z",
+  "html_url": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923731142",
+  "pull_request_url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923731142"
+   },
+   "html": {
+    "href": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923731142"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923731142/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": null,
+  "original_line": 638,
+  "side": "RIGHT",
+  "author_association": "OWNER",
+  "original_position": 11,
+  "position": 1,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923735627",
+  "pull_request_review_id": 2564642013,
+  "id": 1923735627,
+  "node_id": "PRRC_kwDOM2ZEx85yqeBL",
+  "diff_hunk": "@@ -628,6 +628,27 @@ for binary in \"${BINARY_LIST[@]}\"\n                                                                                         try_cp -T \"$sys_vk_icd_dir\" \"$dst_vk_icd_dir\"\n                                                                                         sed -i 's|/usr/lib||g;s|/.*-linux-gnu||g;s|\"/|\"|g' \"$dst_vk_icd_dir\"/*\n                                                                                 fi ;;\n+                                                                            */libwebkit2gtk*.so*)\n+                                                                                sys_webkit_lib_dir=\"$(find /usr/lib -type d -name 'webkit2gtk*')\"\n+                                                                                dst_webkit_lib_dir=\"$(dirname \"$lib_dst_pth\")/$(basename \"$sys_webkit_lib_dir\")\"\n+                                                                                if [[ -d \"$sys_webkit_lib_dir\" && ! -d \"$dst_webkit_lib_dir\" ]]\n+                                                                                    then\n+                                                                                        info_msg \"$YELLOW[ HOOK ]:$GREEN hack webkit2gtk to be portable...\"\n+                                                                                        try_cp -T \"$sys_webkit_lib_dir\" \"$dst_webkit_lib_dir\"\n+                                                                                        find \"$dst_dir_pth/$lib_dir\" -type f -name 'libwebkit2gtk*.so*' -exec sed -i 's|/usr|././|g' {} \\;\n+                                                                                        try_ln ./ \"$dst_dir_pth/$lib_dir/$(uname -m)-linux-gnu\"\n+                                                                                        for bin_to_wrap in \"$dst_webkit_lib_dir\"/*; do\n+                                                                                            if file \"$bin_to_wrap\" | grep -qi 'elf.*executable'",
+  "path": "lib4bin",
+  "commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "original_commit_id": "06f44df0c51293ab0572211a4aeba2f5a2cf3244",
+  "user": {
+   "login": "VHSgunzo",
+   "id": 57139938,
+   "node_id": "MDQ6VXNlcjU3MTM5OTM4",
+   "avatar_url": "https://avatars.githubusercontent.com/u/57139938?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/VHSgunzo",
+   "html_url": "https://github.com/VHSgunzo",
+   "followers_url": "https://api.github.com/users/VHSgunzo/followers",
+   "following_url": "https://api.github.com/users/VHSgunzo/following{/other_user}",
+   "gists_url": "https://api.github.com/users/VHSgunzo/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/VHSgunzo/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/VHSgunzo/subscriptions",
+   "organizations_url": "https://api.github.com/users/VHSgunzo/orgs",
+   "repos_url": "https://api.github.com/users/VHSgunzo/repos",
+   "events_url": "https://api.github.com/users/VHSgunzo/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/VHSgunzo/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "whai if its old ubuntu 20.04 ? there ELF executable is shared object",
+  "created_at": "2025-01-21T13:31:04Z",
+  "updated_at": "2025-01-21T13:31:04Z",
+  "html_url": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923735627",
+  "pull_request_url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923735627"
+   },
+   "html": {
+    "href": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923735627"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923735627/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": null,
+  "original_line": 641,
+  "side": "RIGHT",
+  "author_association": "OWNER",
+  "original_position": 14,
+  "position": 1,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923739258",
+  "pull_request_review_id": 2564648365,
+  "id": 1923739258,
+  "node_id": "PRRC_kwDOM2ZEx85yqe56",
+  "diff_hunk": "@@ -628,6 +628,27 @@ for binary in \"${BINARY_LIST[@]}\"\n                                                                                         try_cp -T \"$sys_vk_icd_dir\" \"$dst_vk_icd_dir\"\n                                                                                         sed -i 's|/usr/lib||g;s|/.*-linux-gnu||g;s|\"/|\"|g' \"$dst_vk_icd_dir\"/*\n                                                                                 fi ;;\n+                                                                            */libwebkit2gtk*.so*)\n+                                                                                sys_webkit_lib_dir=\"$(find /usr/lib -type d -name 'webkit2gtk*')\"\n+                                                                                dst_webkit_lib_dir=\"$(dirname \"$lib_dst_pth\")/$(basename \"$sys_webkit_lib_dir\")\"\n+                                                                                if [[ -d \"$sys_webkit_lib_dir\" && ! -d \"$dst_webkit_lib_dir\" ]]\n+                                                                                    then\n+                                                                                        info_msg \"$YELLOW[ HOOK ]:$GREEN hack webkit2gtk to be portable...\"\n+                                                                                        try_cp -T \"$sys_webkit_lib_dir\" \"$dst_webkit_lib_dir\"\n+                                                                                        find \"$dst_dir_pth/$lib_dir\" -type f -name 'libwebkit2gtk*.so*' -exec sed -i 's|/usr|././|g' {} \\;\n+                                                                                        try_ln ./ \"$dst_dir_pth/$lib_dir/$(uname -m)-linux-gnu\"",
+  "path": "lib4bin",
+  "commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "original_commit_id": "06f44df0c51293ab0572211a4aeba2f5a2cf3244",
+  "user": {
+   "login": "VHSgunzo",
+   "id": 57139938,
+   "node_id": "MDQ6VXNlcjU3MTM5OTM4",
+   "avatar_url": "https://avatars.githubusercontent.com/u/57139938?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/VHSgunzo",
+   "html_url": "https://github.com/VHSgunzo",
+   "followers_url": "https://api.github.com/users/VHSgunzo/followers",
+   "following_url": "https://api.github.com/users/VHSgunzo/following{/other_user}",
+   "gists_url": "https://api.github.com/users/VHSgunzo/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/VHSgunzo/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/VHSgunzo/subscriptions",
+   "organizations_url": "https://api.github.com/users/VHSgunzo/orgs",
+   "repos_url": "https://api.github.com/users/VHSgunzo/repos",
+   "events_url": "https://api.github.com/users/VHSgunzo/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/VHSgunzo/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "won't this cause endless recursion when trying to generate a lib.path file?\r\nand what if we package in a distribution where there is no $(uname -m)-linux-gnu and this no needed",
+  "created_at": "2025-01-21T13:33:39Z",
+  "updated_at": "2025-01-21T13:33:39Z",
+  "html_url": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923739258",
+  "pull_request_url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923739258"
+   },
+   "html": {
+    "href": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923739258"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923739258/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": null,
+  "original_line": 639,
+  "side": "RIGHT",
+  "author_association": "OWNER",
+  "original_position": 12,
+  "position": 1,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923743253",
+  "pull_request_review_id": 2564655372,
+  "id": 1923743253,
+  "node_id": "PRRC_kwDOM2ZEx85yqf4V",
+  "diff_hunk": "@@ -628,6 +628,27 @@ for binary in \"${BINARY_LIST[@]}\"\n                                                                                         try_cp -T \"$sys_vk_icd_dir\" \"$dst_vk_icd_dir\"\n                                                                                         sed -i 's|/usr/lib||g;s|/.*-linux-gnu||g;s|\"/|\"|g' \"$dst_vk_icd_dir\"/*\n                                                                                 fi ;;\n+                                                                            */libwebkit2gtk*.so*)\n+                                                                                sys_webkit_lib_dir=\"$(find /usr/lib -type d -name 'webkit2gtk*')\"\n+                                                                                dst_webkit_lib_dir=\"$(dirname \"$lib_dst_pth\")/$(basename \"$sys_webkit_lib_dir\")\"\n+                                                                                if [[ -d \"$sys_webkit_lib_dir\" && ! -d \"$dst_webkit_lib_dir\" ]]\n+                                                                                    then\n+                                                                                        info_msg \"$YELLOW[ HOOK ]:$GREEN hack webkit2gtk to be portable...\"\n+                                                                                        try_cp -T \"$sys_webkit_lib_dir\" \"$dst_webkit_lib_dir\"\n+                                                                                        find \"$dst_dir_pth/$lib_dir\" -type f -name 'libwebkit2gtk*.so*' -exec sed -i 's|/usr|././|g' {} \\;\n+                                                                                        try_ln ./ \"$dst_dir_pth/$lib_dir/$(uname -m)-linux-gnu\"",
+  "path": "lib4bin",
+  "commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "original_commit_id": "06f44df0c51293ab0572211a4aeba2f5a2cf3244",
+  "user": {
+   "login": "Samueru-sama",
+   "id": 36420837,
+   "node_id": "MDQ6VXNlcjM2NDIwODM3",
+   "avatar_url": "https://avatars.githubusercontent.com/u/36420837?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/Samueru-sama",
+   "html_url": "https://github.com/Samueru-sama",
+   "followers_url": "https://api.github.com/users/Samueru-sama/followers",
+   "following_url": "https://api.github.com/users/Samueru-sama/following{/other_user}",
+   "gists_url": "https://api.github.com/users/Samueru-sama/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/Samueru-sama/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/Samueru-sama/subscriptions",
+   "organizations_url": "https://api.github.com/users/Samueru-sama/orgs",
+   "repos_url": "https://api.github.com/users/Samueru-sama/repos",
+   "events_url": "https://api.github.com/users/Samueru-sama/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/Samueru-sama/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "> won't this cause endless recursion when trying to generate a lib.path file? and what if we package in a distribution where there is no $(uname -m)-linux-gnu and this no needed\r\n\r\nI already tested it with the above script and that didn't happen. \r\n\r\nAlso that symlink is needed. And you are already using `uname -m` in other parts of `lib4bin`.",
+  "created_at": "2025-01-21T13:36:12Z",
+  "updated_at": "2025-01-21T13:36:12Z",
+  "html_url": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923743253",
+  "pull_request_url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923743253"
+   },
+   "html": {
+    "href": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923743253"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923743253/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": null,
+  "original_line": 639,
+  "side": "RIGHT",
+  "in_reply_to_id": 1923739258,
+  "author_association": "CONTRIBUTOR",
+  "original_position": 12,
+  "position": 1,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923788869",
+  "pull_request_review_id": 2564733446,
+  "id": 1923788869,
+  "node_id": "PRRC_kwDOM2ZEx85yqrBF",
+  "diff_hunk": "@@ -628,6 +628,27 @@ for binary in \"${BINARY_LIST[@]}\"\n                                                                                         try_cp -T \"$sys_vk_icd_dir\" \"$dst_vk_icd_dir\"\n                                                                                         sed -i 's|/usr/lib||g;s|/.*-linux-gnu||g;s|\"/|\"|g' \"$dst_vk_icd_dir\"/*\n                                                                                 fi ;;\n+                                                                            */libwebkit2gtk*.so*)\n+                                                                                sys_webkit_lib_dir=\"$(find /usr/lib -type d -name 'webkit2gtk*')\"\n+                                                                                dst_webkit_lib_dir=\"$(dirname \"$lib_dst_pth\")/$(basename \"$sys_webkit_lib_dir\")\"\n+                                                                                if [[ -d \"$sys_webkit_lib_dir\" && ! -d \"$dst_webkit_lib_dir\" ]]\n+                                                                                    then\n+                                                                                        info_msg \"$YELLOW[ HOOK ]:$GREEN hack webkit2gtk to be portable...\"\n+                                                                                        try_cp -T \"$sys_webkit_lib_dir\" \"$dst_webkit_lib_dir\"\n+                                                                                        find \"$dst_dir_pth/$lib_dir\" -type f -name 'libwebkit2gtk*.so*' -exec sed -i 's|/usr|././|g' {} \\;\n+                                                                                        try_ln ./ \"$dst_dir_pth/$lib_dir/$(uname -m)-linux-gnu\"",
+  "path": "lib4bin",
+  "commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "original_commit_id": "06f44df0c51293ab0572211a4aeba2f5a2cf3244",
+  "user": {
+   "login": "VHSgunzo",
+   "id": 57139938,
+   "node_id": "MDQ6VXNlcjU3MTM5OTM4",
+   "avatar_url": "https://avatars.githubusercontent.com/u/57139938?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/VHSgunzo",
+   "html_url": "https://github.com/VHSgunzo",
+   "followers_url": "https://api.github.com/users/VHSgunzo/followers",
+   "following_url": "https://api.github.com/users/VHSgunzo/following{/other_user}",
+   "gists_url": "https://api.github.com/users/VHSgunzo/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/VHSgunzo/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/VHSgunzo/subscriptions",
+   "organizations_url": "https://api.github.com/users/VHSgunzo/orgs",
+   "repos_url": "https://api.github.com/users/VHSgunzo/repos",
+   "events_url": "https://api.github.com/users/VHSgunzo/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/VHSgunzo/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "> Also that symlink is needed. And you are already using uname -m in other parts of lib4bin.\r\n\r\nI meant where there is no directory with libraries $(uname -m)-linux-gnu",
+  "created_at": "2025-01-21T14:05:25Z",
+  "updated_at": "2025-01-21T14:05:26Z",
+  "html_url": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923788869",
+  "pull_request_url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923788869"
+   },
+   "html": {
+    "href": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923788869"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923788869/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": null,
+  "original_line": 639,
+  "side": "RIGHT",
+  "in_reply_to_id": 1923739258,
+  "author_association": "OWNER",
+  "original_position": 12,
+  "position": 1,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923822814",
+  "pull_request_review_id": 2564792271,
+  "id": 1923822814,
+  "node_id": "PRRC_kwDOM2ZEx85yqzTe",
+  "diff_hunk": "@@ -628,6 +628,27 @@ for binary in \"${BINARY_LIST[@]}\"\n                                                                                         try_cp -T \"$sys_vk_icd_dir\" \"$dst_vk_icd_dir\"\n                                                                                         sed -i 's|/usr/lib||g;s|/.*-linux-gnu||g;s|\"/|\"|g' \"$dst_vk_icd_dir\"/*\n                                                                                 fi ;;\n+                                                                            */libwebkit2gtk*.so*)\n+                                                                                sys_webkit_lib_dir=\"$(find /usr/lib -type d -name 'webkit2gtk*')\"\n+                                                                                dst_webkit_lib_dir=\"$(dirname \"$lib_dst_pth\")/$(basename \"$sys_webkit_lib_dir\")\"\n+                                                                                if [[ -d \"$sys_webkit_lib_dir\" && ! -d \"$dst_webkit_lib_dir\" ]]\n+                                                                                    then\n+                                                                                        info_msg \"$YELLOW[ HOOK ]:$GREEN hack webkit2gtk to be portable...\"\n+                                                                                        try_cp -T \"$sys_webkit_lib_dir\" \"$dst_webkit_lib_dir\"\n+                                                                                        find \"$dst_dir_pth/$lib_dir\" -type f -name 'libwebkit2gtk*.so*' -exec sed -i 's|/usr|././|g' {} \\;\n+                                                                                        try_ln ./ \"$dst_dir_pth/$lib_dir/$(uname -m)-linux-gnu\"",
+  "path": "lib4bin",
+  "commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "original_commit_id": "06f44df0c51293ab0572211a4aeba2f5a2cf3244",
+  "user": {
+   "login": "Samueru-sama",
+   "id": 36420837,
+   "node_id": "MDQ6VXNlcjM2NDIwODM3",
+   "avatar_url": "https://avatars.githubusercontent.com/u/36420837?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/Samueru-sama",
+   "html_url": "https://github.com/Samueru-sama",
+   "followers_url": "https://api.github.com/users/Samueru-sama/followers",
+   "following_url": "https://api.github.com/users/Samueru-sama/following{/other_user}",
+   "gists_url": "https://api.github.com/users/Samueru-sama/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/Samueru-sama/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/Samueru-sama/subscriptions",
+   "organizations_url": "https://api.github.com/users/Samueru-sama/orgs",
+   "repos_url": "https://api.github.com/users/Samueru-sama/repos",
+   "events_url": "https://api.github.com/users/Samueru-sama/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/Samueru-sama/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "> > Also that symlink is needed. And you are already using uname -m in other parts of lib4bin.\r\n> \r\n> I meant where there is no directory with libraries $(uname -m)-linux-gnu\r\n\r\nOh, in that case nothing happens, you want to add the logic to determine if we need to add the symlink? ",
+  "created_at": "2025-01-21T14:23:48Z",
+  "updated_at": "2025-01-21T14:23:48Z",
+  "html_url": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923822814",
+  "pull_request_url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923822814"
+   },
+   "html": {
+    "href": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923822814"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923822814/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": null,
+  "original_line": 639,
+  "side": "RIGHT",
+  "in_reply_to_id": 1923739258,
+  "author_association": "CONTRIBUTOR",
+  "original_position": 12,
+  "position": 1,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923828856",
+  "pull_request_review_id": 2564802566,
+  "id": 1923828856,
+  "node_id": "PRRC_kwDOM2ZEx85yq0x4",
+  "diff_hunk": "@@ -628,6 +628,27 @@ for binary in \"${BINARY_LIST[@]}\"\n                                                                                         try_cp -T \"$sys_vk_icd_dir\" \"$dst_vk_icd_dir\"\n                                                                                         sed -i 's|/usr/lib||g;s|/.*-linux-gnu||g;s|\"/|\"|g' \"$dst_vk_icd_dir\"/*\n                                                                                 fi ;;\n+                                                                            */libwebkit2gtk*.so*)\n+                                                                                sys_webkit_lib_dir=\"$(find /usr/lib -type d -name 'webkit2gtk*')\"\n+                                                                                dst_webkit_lib_dir=\"$(dirname \"$lib_dst_pth\")/$(basename \"$sys_webkit_lib_dir\")\"\n+                                                                                if [[ -d \"$sys_webkit_lib_dir\" && ! -d \"$dst_webkit_lib_dir\" ]]\n+                                                                                    then\n+                                                                                        info_msg \"$YELLOW[ HOOK ]:$GREEN hack webkit2gtk to be portable...\"\n+                                                                                        try_cp -T \"$sys_webkit_lib_dir\" \"$dst_webkit_lib_dir\"\n+                                                                                        find \"$dst_dir_pth/$lib_dir\" -type f -name 'libwebkit2gtk*.so*' -exec sed -i 's|/usr|././|g' {} \\;",
+  "path": "lib4bin",
+  "commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "original_commit_id": "06f44df0c51293ab0572211a4aeba2f5a2cf3244",
+  "user": {
+   "login": "Samueru-sama",
+   "id": 36420837,
+   "node_id": "MDQ6VXNlcjM2NDIwODM3",
+   "avatar_url": "https://avatars.githubusercontent.com/u/36420837?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/Samueru-sama",
+   "html_url": "https://github.com/Samueru-sama",
+   "followers_url": "https://api.github.com/users/Samueru-sama/followers",
+   "following_url": "https://api.github.com/users/Samueru-sama/following{/other_user}",
+   "gists_url": "https://api.github.com/users/Samueru-sama/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/Samueru-sama/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/Samueru-sama/subscriptions",
+   "organizations_url": "https://api.github.com/users/Samueru-sama/orgs",
+   "repos_url": "https://api.github.com/users/Samueru-sama/repos",
+   "events_url": "https://api.github.com/users/Samueru-sama/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/Samueru-sama/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "find is still needed here because there is another libweb2gtk lib in the webkit2gtk directory, that is it is not in the top level of `$lib_dst_pth`.",
+  "created_at": "2025-01-21T14:27:24Z",
+  "updated_at": "2025-01-21T14:27:24Z",
+  "html_url": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923828856",
+  "pull_request_url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923828856"
+   },
+   "html": {
+    "href": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923828856"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923828856/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": null,
+  "original_line": 638,
+  "side": "RIGHT",
+  "in_reply_to_id": 1923731142,
+  "author_association": "CONTRIBUTOR",
+  "original_position": 11,
+  "position": 1,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923864746",
+  "pull_request_review_id": 2564862404,
+  "id": 1923864746,
+  "node_id": "PRRC_kwDOM2ZEx85yq9iq",
+  "diff_hunk": "@@ -628,6 +628,27 @@ for binary in \"${BINARY_LIST[@]}\"\n                                                                                         try_cp -T \"$sys_vk_icd_dir\" \"$dst_vk_icd_dir\"\n                                                                                         sed -i 's|/usr/lib||g;s|/.*-linux-gnu||g;s|\"/|\"|g' \"$dst_vk_icd_dir\"/*\n                                                                                 fi ;;\n+                                                                            */libwebkit2gtk*.so*)\n+                                                                                sys_webkit_lib_dir=\"$(find /usr/lib -type d -name 'webkit2gtk*')\"\n+                                                                                dst_webkit_lib_dir=\"$(dirname \"$lib_dst_pth\")/$(basename \"$sys_webkit_lib_dir\")\"\n+                                                                                if [[ -d \"$sys_webkit_lib_dir\" && ! -d \"$dst_webkit_lib_dir\" ]]\n+                                                                                    then\n+                                                                                        info_msg \"$YELLOW[ HOOK ]:$GREEN hack webkit2gtk to be portable...\"\n+                                                                                        try_cp -T \"$sys_webkit_lib_dir\" \"$dst_webkit_lib_dir\"\n+                                                                                        find \"$dst_dir_pth/$lib_dir\" -type f -name 'libwebkit2gtk*.so*' -exec sed -i 's|/usr|././|g' {} \\;\n+                                                                                        try_ln ./ \"$dst_dir_pth/$lib_dir/$(uname -m)-linux-gnu\"",
+  "path": "lib4bin",
+  "commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "original_commit_id": "06f44df0c51293ab0572211a4aeba2f5a2cf3244",
+  "user": {
+   "login": "VHSgunzo",
+   "id": 57139938,
+   "node_id": "MDQ6VXNlcjU3MTM5OTM4",
+   "avatar_url": "https://avatars.githubusercontent.com/u/57139938?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/VHSgunzo",
+   "html_url": "https://github.com/VHSgunzo",
+   "followers_url": "https://api.github.com/users/VHSgunzo/followers",
+   "following_url": "https://api.github.com/users/VHSgunzo/following{/other_user}",
+   "gists_url": "https://api.github.com/users/VHSgunzo/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/VHSgunzo/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/VHSgunzo/subscriptions",
+   "organizations_url": "https://api.github.com/users/VHSgunzo/orgs",
+   "repos_url": "https://api.github.com/users/VHSgunzo/repos",
+   "events_url": "https://api.github.com/users/VHSgunzo/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/VHSgunzo/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "> Oh, in that case nothing happens, you want to add the logic to determine if we need to add the symlink?\r\n\r\nyeah\r\n\r\nfor example, if the $lib_src_pth contains this directory",
+  "created_at": "2025-01-21T14:48:15Z",
+  "updated_at": "2025-01-21T14:48:16Z",
+  "html_url": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923864746",
+  "pull_request_url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923864746"
+   },
+   "html": {
+    "href": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923864746"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923864746/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": null,
+  "original_line": 639,
+  "side": "RIGHT",
+  "in_reply_to_id": 1923739258,
+  "author_association": "OWNER",
+  "original_position": 12,
+  "position": 1,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923868949",
+  "pull_request_review_id": 2564869430,
+  "id": 1923868949,
+  "node_id": "PRRC_kwDOM2ZEx85yq-kV",
+  "diff_hunk": "@@ -628,6 +628,27 @@ for binary in \"${BINARY_LIST[@]}\"\n                                                                                         try_cp -T \"$sys_vk_icd_dir\" \"$dst_vk_icd_dir\"\n                                                                                         sed -i 's|/usr/lib||g;s|/.*-linux-gnu||g;s|\"/|\"|g' \"$dst_vk_icd_dir\"/*\n                                                                                 fi ;;\n+                                                                            */libwebkit2gtk*.so*)\n+                                                                                sys_webkit_lib_dir=\"$(find /usr/lib -type d -name 'webkit2gtk*')\"\n+                                                                                dst_webkit_lib_dir=\"$(dirname \"$lib_dst_pth\")/$(basename \"$sys_webkit_lib_dir\")\"\n+                                                                                if [[ -d \"$sys_webkit_lib_dir\" && ! -d \"$dst_webkit_lib_dir\" ]]\n+                                                                                    then\n+                                                                                        info_msg \"$YELLOW[ HOOK ]:$GREEN hack webkit2gtk to be portable...\"\n+                                                                                        try_cp -T \"$sys_webkit_lib_dir\" \"$dst_webkit_lib_dir\"\n+                                                                                        find \"$dst_dir_pth/$lib_dir\" -type f -name 'libwebkit2gtk*.so*' -exec sed -i 's|/usr|././|g' {} \\;",
+  "path": "lib4bin",
+  "commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "original_commit_id": "06f44df0c51293ab0572211a4aeba2f5a2cf3244",
+  "user": {
+   "login": "VHSgunzo",
+   "id": 57139938,
+   "node_id": "MDQ6VXNlcjU3MTM5OTM4",
+   "avatar_url": "https://avatars.githubusercontent.com/u/57139938?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/VHSgunzo",
+   "html_url": "https://github.com/VHSgunzo",
+   "followers_url": "https://api.github.com/users/VHSgunzo/followers",
+   "following_url": "https://api.github.com/users/VHSgunzo/following{/other_user}",
+   "gists_url": "https://api.github.com/users/VHSgunzo/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/VHSgunzo/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/VHSgunzo/subscriptions",
+   "organizations_url": "https://api.github.com/users/VHSgunzo/orgs",
+   "repos_url": "https://api.github.com/users/VHSgunzo/repos",
+   "events_url": "https://api.github.com/users/VHSgunzo/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/VHSgunzo/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "what is the full path of this library?",
+  "created_at": "2025-01-21T14:50:46Z",
+  "updated_at": "2025-01-21T14:50:46Z",
+  "html_url": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923868949",
+  "pull_request_url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923868949"
+   },
+   "html": {
+    "href": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923868949"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923868949/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": null,
+  "original_line": 638,
+  "side": "RIGHT",
+  "in_reply_to_id": 1923731142,
+  "author_association": "OWNER",
+  "original_position": 11,
+  "position": 1,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923888349",
+  "pull_request_review_id": 2564903220,
+  "id": 1923888349,
+  "node_id": "PRRC_kwDOM2ZEx85yrDTd",
+  "diff_hunk": "@@ -628,6 +628,27 @@ for binary in \"${BINARY_LIST[@]}\"\n                                                                                         try_cp -T \"$sys_vk_icd_dir\" \"$dst_vk_icd_dir\"\n                                                                                         sed -i 's|/usr/lib||g;s|/.*-linux-gnu||g;s|\"/|\"|g' \"$dst_vk_icd_dir\"/*\n                                                                                 fi ;;\n+                                                                            */libwebkit2gtk*.so*)\n+                                                                                sys_webkit_lib_dir=\"$(find /usr/lib -type d -name 'webkit2gtk*')\"\n+                                                                                dst_webkit_lib_dir=\"$(dirname \"$lib_dst_pth\")/$(basename \"$sys_webkit_lib_dir\")\"\n+                                                                                if [[ -d \"$sys_webkit_lib_dir\" && ! -d \"$dst_webkit_lib_dir\" ]]\n+                                                                                    then\n+                                                                                        info_msg \"$YELLOW[ HOOK ]:$GREEN hack webkit2gtk to be portable...\"\n+                                                                                        try_cp -T \"$sys_webkit_lib_dir\" \"$dst_webkit_lib_dir\"\n+                                                                                        find \"$dst_dir_pth/$lib_dir\" -type f -name 'libwebkit2gtk*.so*' -exec sed -i 's|/usr|././|g' {} \\;",
+  "path": "lib4bin",
+  "commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "original_commit_id": "06f44df0c51293ab0572211a4aeba2f5a2cf3244",
+  "user": {
+   "login": "Samueru-sama",
+   "id": 36420837,
+   "node_id": "MDQ6VXNlcjM2NDIwODM3",
+   "avatar_url": "https://avatars.githubusercontent.com/u/36420837?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/Samueru-sama",
+   "html_url": "https://github.com/Samueru-sama",
+   "followers_url": "https://api.github.com/users/Samueru-sama/followers",
+   "following_url": "https://api.github.com/users/Samueru-sama/following{/other_user}",
+   "gists_url": "https://api.github.com/users/Samueru-sama/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/Samueru-sama/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/Samueru-sama/subscriptions",
+   "organizations_url": "https://api.github.com/users/Samueru-sama/orgs",
+   "repos_url": "https://api.github.com/users/Samueru-sama/repos",
+   "events_url": "https://api.github.com/users/Samueru-sama/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/Samueru-sama/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "> what is the full path of this library?\r\n\r\n`/usr/lib/x86_64-linux-gnu/webkit2gtk-4.0/injected-bundle/libwebkit2gtkinjectedbundle.so`\r\n\r\n",
+  "created_at": "2025-01-21T15:02:23Z",
+  "updated_at": "2025-01-21T15:02:23Z",
+  "html_url": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923888349",
+  "pull_request_url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923888349"
+   },
+   "html": {
+    "href": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923888349"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923888349/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": null,
+  "original_line": 638,
+  "side": "RIGHT",
+  "in_reply_to_id": 1923731142,
+  "author_association": "CONTRIBUTOR",
+  "original_position": 11,
+  "position": 1,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923900083",
+  "pull_request_review_id": 2564923393,
+  "id": 1923900083,
+  "node_id": "PRRC_kwDOM2ZEx85yrGKz",
+  "diff_hunk": "@@ -628,6 +628,27 @@ for binary in \"${BINARY_LIST[@]}\"\n                                                                                         try_cp -T \"$sys_vk_icd_dir\" \"$dst_vk_icd_dir\"\n                                                                                         sed -i 's|/usr/lib||g;s|/.*-linux-gnu||g;s|\"/|\"|g' \"$dst_vk_icd_dir\"/*\n                                                                                 fi ;;\n+                                                                            */libwebkit2gtk*.so*)\n+                                                                                sys_webkit_lib_dir=\"$(find /usr/lib -type d -name 'webkit2gtk*')\"\n+                                                                                dst_webkit_lib_dir=\"$(dirname \"$lib_dst_pth\")/$(basename \"$sys_webkit_lib_dir\")\"\n+                                                                                if [[ -d \"$sys_webkit_lib_dir\" && ! -d \"$dst_webkit_lib_dir\" ]]\n+                                                                                    then\n+                                                                                        info_msg \"$YELLOW[ HOOK ]:$GREEN hack webkit2gtk to be portable...\"\n+                                                                                        try_cp -T \"$sys_webkit_lib_dir\" \"$dst_webkit_lib_dir\"\n+                                                                                        find \"$dst_dir_pth/$lib_dir\" -type f -name 'libwebkit2gtk*.so*' -exec sed -i 's|/usr|././|g' {} \\;",
+  "path": "lib4bin",
+  "commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "original_commit_id": "06f44df0c51293ab0572211a4aeba2f5a2cf3244",
+  "user": {
+   "login": "VHSgunzo",
+   "id": 57139938,
+   "node_id": "MDQ6VXNlcjU3MTM5OTM4",
+   "avatar_url": "https://avatars.githubusercontent.com/u/57139938?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/VHSgunzo",
+   "html_url": "https://github.com/VHSgunzo",
+   "followers_url": "https://api.github.com/users/VHSgunzo/followers",
+   "following_url": "https://api.github.com/users/VHSgunzo/following{/other_user}",
+   "gists_url": "https://api.github.com/users/VHSgunzo/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/VHSgunzo/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/VHSgunzo/subscriptions",
+   "organizations_url": "https://api.github.com/users/VHSgunzo/orgs",
+   "repos_url": "https://api.github.com/users/VHSgunzo/repos",
+   "events_url": "https://api.github.com/users/VHSgunzo/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/VHSgunzo/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "so why you can't use $lib_dst_pth?",
+  "created_at": "2025-01-21T15:09:46Z",
+  "updated_at": "2025-01-21T15:09:46Z",
+  "html_url": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923900083",
+  "pull_request_url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923900083"
+   },
+   "html": {
+    "href": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1923900083"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1923900083/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": null,
+  "original_line": 638,
+  "side": "RIGHT",
+  "in_reply_to_id": 1923731142,
+  "author_association": "OWNER",
+  "original_position": 11,
+  "position": 1,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1924202155",
+  "pull_request_review_id": 2565420985,
+  "id": 1924202155,
+  "node_id": "PRRC_kwDOM2ZEx85ysP6r",
+  "diff_hunk": "@@ -628,6 +628,27 @@ for binary in \"${BINARY_LIST[@]}\"\n                                                                                         try_cp -T \"$sys_vk_icd_dir\" \"$dst_vk_icd_dir\"\n                                                                                         sed -i 's|/usr/lib||g;s|/.*-linux-gnu||g;s|\"/|\"|g' \"$dst_vk_icd_dir\"/*\n                                                                                 fi ;;\n+                                                                            */libwebkit2gtk*.so*)\n+                                                                                sys_webkit_lib_dir=\"$(find /usr/lib -type d -name 'webkit2gtk*')\"",
+  "path": "lib4bin",
+  "commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "original_commit_id": "06f44df0c51293ab0572211a4aeba2f5a2cf3244",
+  "user": {
+   "login": "Samueru-sama",
+   "id": 36420837,
+   "node_id": "MDQ6VXNlcjM2NDIwODM3",
+   "avatar_url": "https://avatars.githubusercontent.com/u/36420837?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/Samueru-sama",
+   "html_url": "https://github.com/Samueru-sama",
+   "followers_url": "https://api.github.com/users/Samueru-sama/followers",
+   "following_url": "https://api.github.com/users/Samueru-sama/following{/other_user}",
+   "gists_url": "https://api.github.com/users/Samueru-sama/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/Samueru-sama/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/Samueru-sama/subscriptions",
+   "organizations_url": "https://api.github.com/users/Samueru-sama/orgs",
+   "repos_url": "https://api.github.com/users/Samueru-sama/repos",
+   "events_url": "https://api.github.com/users/Samueru-sama/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/Samueru-sama/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "I tried `sys_webkit_lib_dir=\"$(dirname \"$lib_src_pth\")\"/webkit2gtk*`\r\n\r\nbut it is not working: \r\n\r\n![image](https://github.com/user-attachments/assets/9bdc91fc-f90c-401e-9df1-a7c9bb4e896f)\r\n\r\n",
+  "created_at": "2025-01-21T18:34:16Z",
+  "updated_at": "2025-01-21T18:34:16Z",
+  "html_url": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1924202155",
+  "pull_request_url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1924202155"
+   },
+   "html": {
+    "href": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1924202155"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1924202155/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": null,
+  "original_line": 632,
+  "side": "RIGHT",
+  "in_reply_to_id": 1923710737,
+  "author_association": "CONTRIBUTOR",
+  "original_position": 5,
+  "position": 1,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1924226289",
+  "pull_request_review_id": 2565461616,
+  "id": 1924226289,
+  "node_id": "PRRC_kwDOM2ZEx85ysVzx",
+  "diff_hunk": "@@ -628,6 +628,27 @@ for binary in \"${BINARY_LIST[@]}\"\n                                                                                         try_cp -T \"$sys_vk_icd_dir\" \"$dst_vk_icd_dir\"\n                                                                                         sed -i 's|/usr/lib||g;s|/.*-linux-gnu||g;s|\"/|\"|g' \"$dst_vk_icd_dir\"/*\n                                                                                 fi ;;\n+                                                                            */libwebkit2gtk*.so*)\n+                                                                                sys_webkit_lib_dir=\"$(find /usr/lib -type d -name 'webkit2gtk*')\"",
+  "path": "lib4bin",
+  "commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "original_commit_id": "06f44df0c51293ab0572211a4aeba2f5a2cf3244",
+  "user": {
+   "login": "VHSgunzo",
+   "id": 57139938,
+   "node_id": "MDQ6VXNlcjU3MTM5OTM4",
+   "avatar_url": "https://avatars.githubusercontent.com/u/57139938?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/VHSgunzo",
+   "html_url": "https://github.com/VHSgunzo",
+   "followers_url": "https://api.github.com/users/VHSgunzo/followers",
+   "following_url": "https://api.github.com/users/VHSgunzo/following{/other_user}",
+   "gists_url": "https://api.github.com/users/VHSgunzo/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/VHSgunzo/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/VHSgunzo/subscriptions",
+   "organizations_url": "https://api.github.com/users/VHSgunzo/orgs",
+   "repos_url": "https://api.github.com/users/VHSgunzo/repos",
+   "events_url": "https://api.github.com/users/VHSgunzo/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/VHSgunzo/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "is your shell bash?",
+  "created_at": "2025-01-21T18:56:06Z",
+  "updated_at": "2025-01-21T18:56:06Z",
+  "html_url": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1924226289",
+  "pull_request_url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1924226289"
+   },
+   "html": {
+    "href": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1924226289"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1924226289/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": null,
+  "original_line": 632,
+  "side": "RIGHT",
+  "in_reply_to_id": 1923710737,
+  "author_association": "OWNER",
+  "original_position": 5,
+  "position": 1,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1924262472",
+  "pull_request_review_id": 2565522718,
+  "id": 1924262472,
+  "node_id": "PRRC_kwDOM2ZEx85ysepI",
+  "diff_hunk": "@@ -628,6 +628,27 @@ for binary in \"${BINARY_LIST[@]}\"\n                                                                                         try_cp -T \"$sys_vk_icd_dir\" \"$dst_vk_icd_dir\"\n                                                                                         sed -i 's|/usr/lib||g;s|/.*-linux-gnu||g;s|\"/|\"|g' \"$dst_vk_icd_dir\"/*\n                                                                                 fi ;;\n+                                                                            */libwebkit2gtk*.so*)\n+                                                                                sys_webkit_lib_dir=\"$(find /usr/lib -type d -name 'webkit2gtk*')\"",
+  "path": "lib4bin",
+  "commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "original_commit_id": "06f44df0c51293ab0572211a4aeba2f5a2cf3244",
+  "user": {
+   "login": "Samueru-sama",
+   "id": 36420837,
+   "node_id": "MDQ6VXNlcjM2NDIwODM3",
+   "avatar_url": "https://avatars.githubusercontent.com/u/36420837?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/Samueru-sama",
+   "html_url": "https://github.com/Samueru-sama",
+   "followers_url": "https://api.github.com/users/Samueru-sama/followers",
+   "following_url": "https://api.github.com/users/Samueru-sama/following{/other_user}",
+   "gists_url": "https://api.github.com/users/Samueru-sama/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/Samueru-sama/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/Samueru-sama/subscriptions",
+   "organizations_url": "https://api.github.com/users/Samueru-sama/orgs",
+   "repos_url": "https://api.github.com/users/Samueru-sama/repos",
+   "events_url": "https://api.github.com/users/Samueru-sama/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/Samueru-sama/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "I tried on the actual script at first and didn't work. \r\n\r\nbut you are right, when I run those commands on `bash` it does work, but still not on the actual script though. \ud83e\udd14",
+  "created_at": "2025-01-21T19:29:18Z",
+  "updated_at": "2025-01-21T19:29:18Z",
+  "html_url": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1924262472",
+  "pull_request_url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1924262472"
+   },
+   "html": {
+    "href": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1924262472"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1924262472/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": null,
+  "original_line": 632,
+  "side": "RIGHT",
+  "in_reply_to_id": 1923710737,
+  "author_association": "CONTRIBUTOR",
+  "original_position": 5,
+  "position": 1,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1924279688",
+  "pull_request_review_id": 2565551122,
+  "id": 1924279688,
+  "node_id": "PRRC_kwDOM2ZEx85ysi2I",
+  "diff_hunk": "@@ -628,6 +628,27 @@ for binary in \"${BINARY_LIST[@]}\"\n                                                                                         try_cp -T \"$sys_vk_icd_dir\" \"$dst_vk_icd_dir\"\n                                                                                         sed -i 's|/usr/lib||g;s|/.*-linux-gnu||g;s|\"/|\"|g' \"$dst_vk_icd_dir\"/*\n                                                                                 fi ;;\n+                                                                            */libwebkit2gtk*.so*)\n+                                                                                sys_webkit_lib_dir=\"$(find /usr/lib -type d -name 'webkit2gtk*')\"",
+  "path": "lib4bin",
+  "commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "original_commit_id": "06f44df0c51293ab0572211a4aeba2f5a2cf3244",
+  "user": {
+   "login": "Samueru-sama",
+   "id": 36420837,
+   "node_id": "MDQ6VXNlcjM2NDIwODM3",
+   "avatar_url": "https://avatars.githubusercontent.com/u/36420837?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/Samueru-sama",
+   "html_url": "https://github.com/Samueru-sama",
+   "followers_url": "https://api.github.com/users/Samueru-sama/followers",
+   "following_url": "https://api.github.com/users/Samueru-sama/following{/other_user}",
+   "gists_url": "https://api.github.com/users/Samueru-sama/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/Samueru-sama/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/Samueru-sama/subscriptions",
+   "organizations_url": "https://api.github.com/users/Samueru-sama/orgs",
+   "repos_url": "https://api.github.com/users/Samueru-sama/repos",
+   "events_url": "https://api.github.com/users/Samueru-sama/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/Samueru-sama/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "nvm found the problem. ",
+  "created_at": "2025-01-21T19:45:03Z",
+  "updated_at": "2025-01-21T19:45:03Z",
+  "html_url": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1924279688",
+  "pull_request_url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1924279688"
+   },
+   "html": {
+    "href": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1924279688"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1924279688/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": null,
+  "original_line": 632,
+  "side": "RIGHT",
+  "in_reply_to_id": 1923710737,
+  "author_association": "CONTRIBUTOR",
+  "original_position": 5,
+  "position": 1,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1924287660",
+  "pull_request_review_id": 2565564071,
+  "id": 1924287660,
+  "node_id": "PRRC_kwDOM2ZEx85yskys",
+  "diff_hunk": "@@ -628,6 +628,27 @@ for binary in \"${BINARY_LIST[@]}\"\n                                                                                         try_cp -T \"$sys_vk_icd_dir\" \"$dst_vk_icd_dir\"\n                                                                                         sed -i 's|/usr/lib||g;s|/.*-linux-gnu||g;s|\"/|\"|g' \"$dst_vk_icd_dir\"/*\n                                                                                 fi ;;\n+                                                                            */libwebkit2gtk*.so*)\n+                                                                                sys_webkit_lib_dir=\"$(find /usr/lib -type d -name 'webkit2gtk*')\"",
+  "path": "lib4bin",
+  "commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "original_commit_id": "06f44df0c51293ab0572211a4aeba2f5a2cf3244",
+  "user": {
+   "login": "Samueru-sama",
+   "id": 36420837,
+   "node_id": "MDQ6VXNlcjM2NDIwODM3",
+   "avatar_url": "https://avatars.githubusercontent.com/u/36420837?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/Samueru-sama",
+   "html_url": "https://github.com/Samueru-sama",
+   "followers_url": "https://api.github.com/users/Samueru-sama/followers",
+   "following_url": "https://api.github.com/users/Samueru-sama/following{/other_user}",
+   "gists_url": "https://api.github.com/users/Samueru-sama/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/Samueru-sama/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/Samueru-sama/subscriptions",
+   "organizations_url": "https://api.github.com/users/Samueru-sama/orgs",
+   "repos_url": "https://api.github.com/users/Samueru-sama/repos",
+   "events_url": "https://api.github.com/users/Samueru-sama/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/Samueru-sama/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "The issue was my fancy `if [[ -d $sys_webkit_lib_dir && ! -d \"$dst_webkit_lib_dir\" ]]` trying to use bashism which turns out `[[` doesn't work with globs! \ud83d\ude2d",
+  "created_at": "2025-01-21T19:52:18Z",
+  "updated_at": "2025-01-21T20:04:19Z",
+  "html_url": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1924287660",
+  "pull_request_url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1924287660"
+   },
+   "html": {
+    "href": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1924287660"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1924287660/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": null,
+  "original_line": 632,
+  "side": "RIGHT",
+  "in_reply_to_id": 1923710737,
+  "author_association": "CONTRIBUTOR",
+  "original_position": 5,
+  "position": 1,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1925183135",
+  "pull_request_review_id": 2566978522,
+  "id": 1925183135,
+  "node_id": "PRRC_kwDOM2ZEx85yv_af",
+  "diff_hunk": "@@ -628,6 +628,33 @@ for binary in \"${BINARY_LIST[@]}\"\n                                                                                         try_cp -T \"$sys_vk_icd_dir\" \"$dst_vk_icd_dir\"\n                                                                                         sed -i 's|/usr/lib||g;s|/.*-linux-gnu||g;s|\"/|\"|g' \"$dst_vk_icd_dir\"/*\n                                                                                 fi ;;\n+                                                                            */libwebkit2gtk-*.so*)\n+                                                                                sys_webkit_lib_dir=\"$(dirname \"$lib_src_pth\")\"/webkit2gtk*\n+                                                                                dst_webkit_lib_dir=\"$(dirname \"$lib_dst_pth\")/$(basename $sys_webkit_lib_dir)\"\n+                                                                                info_msg \"$YELLOW[ HOOK ]:$GREEN hack webkit2gtk to be portable...\"\n+                                                                                sed -i 's|/usr|././|g' \"$lib_dst_pth\"\n+                                                                                if [ -d $sys_webkit_lib_dir ] && [ ! -d \"$dst_webkit_lib_dir\" ]\n+                                                                                    then\n+                                                                                        try_cp -T $sys_webkit_lib_dir \"$dst_webkit_lib_dir\"\n+                                                                                fi\n+                                                                                for bin_to_wrap in \"$dst_webkit_lib_dir\"/*\n+                                                                                    do\n+                                                                                        if [[ -f \"$bin_to_wrap\" && ! -L \"$bin_to_wrap\" ]] && ! echo \"$bin_to_wrap\" | grep -q '.*\\.so.*'\n+                                                                                            then\n+                                                                                                mv \"$bin_to_wrap\" \"$bin_dir_pth\"\n+                                                                                                ln -sr \"$dst_dir\"/sharun \"$dst_webkit_lib_dir\"/\"$(basename \"$bin_to_wrap\")\"\n+                                                                                        fi\n+                                                                                done\n+                                                                                if [ \"$(basename \"$(dirname \"$lib_src_pth\")\")\" != \"$lib_dir\" ]",
+  "path": "lib4bin",
+  "commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "original_commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "user": {
+   "login": "VHSgunzo",
+   "id": 57139938,
+   "node_id": "MDQ6VXNlcjU3MTM5OTM4",
+   "avatar_url": "https://avatars.githubusercontent.com/u/57139938?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/VHSgunzo",
+   "html_url": "https://github.com/VHSgunzo",
+   "followers_url": "https://api.github.com/users/VHSgunzo/followers",
+   "following_url": "https://api.github.com/users/VHSgunzo/following{/other_user}",
+   "gists_url": "https://api.github.com/users/VHSgunzo/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/VHSgunzo/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/VHSgunzo/subscriptions",
+   "organizations_url": "https://api.github.com/users/VHSgunzo/orgs",
+   "repos_url": "https://api.github.com/users/VHSgunzo/repos",
+   "events_url": "https://api.github.com/users/VHSgunzo/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/VHSgunzo/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "It's not entirely obvious. it's better to just check that `$lib_src_pth` has `$(uname -m)-linux-gnu`\r\n```\r\n[[ \"$lib_src_pth\" =~ $(uname -m)-linux-gnu ]]\r\n```\r\nand then just do the same name symlink",
+  "created_at": "2025-01-22T11:45:36Z",
+  "updated_at": "2025-01-22T11:45:36Z",
+  "html_url": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1925183135",
+  "pull_request_url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1925183135"
+   },
+   "html": {
+    "href": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1925183135"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1925183135/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": 648,
+  "original_line": 648,
+  "side": "RIGHT",
+  "author_association": "OWNER",
+  "original_position": 21,
+  "position": 21,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1925199166",
+  "pull_request_review_id": 2567005143,
+  "id": 1925199166,
+  "node_id": "PRRC_kwDOM2ZEx85ywDU-",
+  "diff_hunk": "@@ -628,6 +628,33 @@ for binary in \"${BINARY_LIST[@]}\"\n                                                                                         try_cp -T \"$sys_vk_icd_dir\" \"$dst_vk_icd_dir\"\n                                                                                         sed -i 's|/usr/lib||g;s|/.*-linux-gnu||g;s|\"/|\"|g' \"$dst_vk_icd_dir\"/*\n                                                                                 fi ;;\n+                                                                            */libwebkit2gtk-*.so*)\n+                                                                                sys_webkit_lib_dir=\"$(dirname \"$lib_src_pth\")\"/webkit2gtk*\n+                                                                                dst_webkit_lib_dir=\"$(dirname \"$lib_dst_pth\")/$(basename $sys_webkit_lib_dir)\"\n+                                                                                info_msg \"$YELLOW[ HOOK ]:$GREEN hack webkit2gtk to be portable...\"\n+                                                                                sed -i 's|/usr|././|g' \"$lib_dst_pth\"\n+                                                                                if [ -d $sys_webkit_lib_dir ] && [ ! -d \"$dst_webkit_lib_dir\" ]\n+                                                                                    then\n+                                                                                        try_cp -T $sys_webkit_lib_dir \"$dst_webkit_lib_dir\"\n+                                                                                fi\n+                                                                                for bin_to_wrap in \"$dst_webkit_lib_dir\"/*\n+                                                                                    do\n+                                                                                        if [[ -f \"$bin_to_wrap\" && ! -L \"$bin_to_wrap\" ]] && ! echo \"$bin_to_wrap\" | grep -q '.*\\.so.*'\n+                                                                                            then\n+                                                                                                mv \"$bin_to_wrap\" \"$bin_dir_pth\"\n+                                                                                                ln -sr \"$dst_dir\"/sharun \"$dst_webkit_lib_dir\"/\"$(basename \"$bin_to_wrap\")\"\n+                                                                                        fi\n+                                                                                done\n+                                                                                if [ \"$(basename \"$(dirname \"$lib_src_pth\")\")\" != \"$lib_dir\" ]",
+  "path": "lib4bin",
+  "commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "original_commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "user": {
+   "login": "VHSgunzo",
+   "id": 57139938,
+   "node_id": "MDQ6VXNlcjU3MTM5OTM4",
+   "avatar_url": "https://avatars.githubusercontent.com/u/57139938?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/VHSgunzo",
+   "html_url": "https://github.com/VHSgunzo",
+   "followers_url": "https://api.github.com/users/VHSgunzo/followers",
+   "following_url": "https://api.github.com/users/VHSgunzo/following{/other_user}",
+   "gists_url": "https://api.github.com/users/VHSgunzo/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/VHSgunzo/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/VHSgunzo/subscriptions",
+   "organizations_url": "https://api.github.com/users/VHSgunzo/orgs",
+   "repos_url": "https://api.github.com/users/VHSgunzo/repos",
+   "events_url": "https://api.github.com/users/VHSgunzo/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/VHSgunzo/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "though it is better not to use $(uname -m) here, because on x86_64 it can be i386-linux-gnu as well\r\n```\r\n[[ \"$lib_src_pth\" =~ /.*-linux-gnu/ ]]\r\n```\r\n",
+  "created_at": "2025-01-22T11:58:19Z",
+  "updated_at": "2025-01-22T12:00:01Z",
+  "html_url": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1925199166",
+  "pull_request_url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1925199166"
+   },
+   "html": {
+    "href": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1925199166"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1925199166/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": 648,
+  "original_line": 648,
+  "side": "RIGHT",
+  "in_reply_to_id": 1925183135,
+  "author_association": "OWNER",
+  "original_position": 21,
+  "position": 21,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1925208631",
+  "pull_request_review_id": 2567021272,
+  "id": 1925208631,
+  "node_id": "PRRC_kwDOM2ZEx85ywFo3",
+  "diff_hunk": "@@ -628,6 +628,33 @@ for binary in \"${BINARY_LIST[@]}\"\n                                                                                         try_cp -T \"$sys_vk_icd_dir\" \"$dst_vk_icd_dir\"\n                                                                                         sed -i 's|/usr/lib||g;s|/.*-linux-gnu||g;s|\"/|\"|g' \"$dst_vk_icd_dir\"/*\n                                                                                 fi ;;\n+                                                                            */libwebkit2gtk-*.so*)\n+                                                                                sys_webkit_lib_dir=\"$(dirname \"$lib_src_pth\")\"/webkit2gtk*\n+                                                                                dst_webkit_lib_dir=\"$(dirname \"$lib_dst_pth\")/$(basename $sys_webkit_lib_dir)\"\n+                                                                                info_msg \"$YELLOW[ HOOK ]:$GREEN hack webkit2gtk to be portable...\"\n+                                                                                sed -i 's|/usr|././|g' \"$lib_dst_pth\"\n+                                                                                if [ -d $sys_webkit_lib_dir ] && [ ! -d \"$dst_webkit_lib_dir\" ]\n+                                                                                    then\n+                                                                                        try_cp -T $sys_webkit_lib_dir \"$dst_webkit_lib_dir\"\n+                                                                                fi\n+                                                                                for bin_to_wrap in \"$dst_webkit_lib_dir\"/*\n+                                                                                    do\n+                                                                                        if [[ -f \"$bin_to_wrap\" && ! -L \"$bin_to_wrap\" ]] && ! echo \"$bin_to_wrap\" | grep -q '.*\\.so.*'\n+                                                                                            then\n+                                                                                                mv \"$bin_to_wrap\" \"$bin_dir_pth\"\n+                                                                                                ln -sr \"$dst_dir\"/sharun \"$dst_webkit_lib_dir\"/\"$(basename \"$bin_to_wrap\")\"\n+                                                                                        fi\n+                                                                                done\n+                                                                                if [ \"$(basename \"$(dirname \"$lib_src_pth\")\")\" != \"$lib_dir\" ]",
+  "path": "lib4bin",
+  "commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "original_commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "user": {
+   "login": "Samueru-sama",
+   "id": 36420837,
+   "node_id": "MDQ6VXNlcjM2NDIwODM3",
+   "avatar_url": "https://avatars.githubusercontent.com/u/36420837?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/Samueru-sama",
+   "html_url": "https://github.com/Samueru-sama",
+   "followers_url": "https://api.github.com/users/Samueru-sama/followers",
+   "following_url": "https://api.github.com/users/Samueru-sama/following{/other_user}",
+   "gists_url": "https://api.github.com/users/Samueru-sama/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/Samueru-sama/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/Samueru-sama/subscriptions",
+   "organizations_url": "https://api.github.com/users/Samueru-sama/orgs",
+   "repos_url": "https://api.github.com/users/Samueru-sama/repos",
+   "events_url": "https://api.github.com/users/Samueru-sama/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/Samueru-sama/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "I think it is better to just use the name of the directory the lib came from. This way it is more likely to work if this gets deployed on a weird distro that puts libs in an extra directory like debian/ubuntu but doesn't have `-linux-gnu`. \r\n\r\nI originally was going to always add the `$(uname -m)-linux-gnu` symlink regardless if it was needed or not, if it wasn't needed it wasn't going to hurt anything. \r\n\r\nBut now that I added some logic, better use the name of the parent directory to make the symlink, if it doesn't match `lib` then it gets symlinked. We avoid using `uname -m` as well. ",
+  "created_at": "2025-01-22T12:06:09Z",
+  "updated_at": "2025-01-22T12:07:58Z",
+  "html_url": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1925208631",
+  "pull_request_url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1925208631"
+   },
+   "html": {
+    "href": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1925208631"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1925208631/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": 648,
+  "original_line": 648,
+  "side": "RIGHT",
+  "in_reply_to_id": 1925183135,
+  "author_association": "CONTRIBUTOR",
+  "original_position": 21,
+  "position": 21,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1925215021",
+  "pull_request_review_id": 2567032255,
+  "id": 1925215021,
+  "node_id": "PRRC_kwDOM2ZEx85ywHMt",
+  "diff_hunk": "@@ -628,6 +628,33 @@ for binary in \"${BINARY_LIST[@]}\"\n                                                                                         try_cp -T \"$sys_vk_icd_dir\" \"$dst_vk_icd_dir\"\n                                                                                         sed -i 's|/usr/lib||g;s|/.*-linux-gnu||g;s|\"/|\"|g' \"$dst_vk_icd_dir\"/*\n                                                                                 fi ;;\n+                                                                            */libwebkit2gtk-*.so*)\n+                                                                                sys_webkit_lib_dir=\"$(dirname \"$lib_src_pth\")\"/webkit2gtk*\n+                                                                                dst_webkit_lib_dir=\"$(dirname \"$lib_dst_pth\")/$(basename $sys_webkit_lib_dir)\"\n+                                                                                info_msg \"$YELLOW[ HOOK ]:$GREEN hack webkit2gtk to be portable...\"\n+                                                                                sed -i 's|/usr|././|g' \"$lib_dst_pth\"\n+                                                                                if [ -d $sys_webkit_lib_dir ] && [ ! -d \"$dst_webkit_lib_dir\" ]\n+                                                                                    then\n+                                                                                        try_cp -T $sys_webkit_lib_dir \"$dst_webkit_lib_dir\"\n+                                                                                fi\n+                                                                                for bin_to_wrap in \"$dst_webkit_lib_dir\"/*\n+                                                                                    do\n+                                                                                        if [[ -f \"$bin_to_wrap\" && ! -L \"$bin_to_wrap\" ]] && ! echo \"$bin_to_wrap\" | grep -q '.*\\.so.*'\n+                                                                                            then\n+                                                                                                mv \"$bin_to_wrap\" \"$bin_dir_pth\"\n+                                                                                                ln -sr \"$dst_dir\"/sharun \"$dst_webkit_lib_dir\"/\"$(basename \"$bin_to_wrap\")\"\n+                                                                                        fi\n+                                                                                done\n+                                                                                if [ \"$(basename \"$(dirname \"$lib_src_pth\")\")\" != \"$lib_dir\" ]",
+  "path": "lib4bin",
+  "commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "original_commit_id": "5e172155fea4640027469cf0b14c80aea1fa77db",
+  "user": {
+   "login": "VHSgunzo",
+   "id": 57139938,
+   "node_id": "MDQ6VXNlcjU3MTM5OTM4",
+   "avatar_url": "https://avatars.githubusercontent.com/u/57139938?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/VHSgunzo",
+   "html_url": "https://github.com/VHSgunzo",
+   "followers_url": "https://api.github.com/users/VHSgunzo/followers",
+   "following_url": "https://api.github.com/users/VHSgunzo/following{/other_user}",
+   "gists_url": "https://api.github.com/users/VHSgunzo/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/VHSgunzo/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/VHSgunzo/subscriptions",
+   "organizations_url": "https://api.github.com/users/VHSgunzo/orgs",
+   "repos_url": "https://api.github.com/users/VHSgunzo/repos",
+   "events_url": "https://api.github.com/users/VHSgunzo/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/VHSgunzo/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "Okay, well, I guess we can keep it that way.",
+  "created_at": "2025-01-22T12:11:17Z",
+  "updated_at": "2025-01-22T12:11:17Z",
+  "html_url": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1925215021",
+  "pull_request_url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1925215021"
+   },
+   "html": {
+    "href": "https://github.com/VHSgunzo/sharun/pull/5#discussion_r1925215021"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/VHSgunzo/sharun/pulls/5"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/VHSgunzo/sharun/pulls/comments/1925215021/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": 648,
+  "original_line": 648,
+  "side": "RIGHT",
+  "in_reply_to_id": 1925183135,
+  "author_association": "OWNER",
+  "original_position": 21,
+  "position": 21,
+  "subject_type": "line"
+ }
+]

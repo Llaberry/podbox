@@ -1,0 +1,302 @@
+[
+ {
+  "name": "v0.12.0",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.12.0",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.12.0",
+  "commit": {
+   "sha": "2a76602a8c71f36c1527cf9fc3417d9149822e0c",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/2a76602a8c71f36c1527cf9fc3417d9149822e0c"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjEyLjA="
+ },
+ {
+  "name": "v0.11.2",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.11.2",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.11.2",
+  "commit": {
+   "sha": "1b80120ef26a28e065e67f89bfef873f13bdd317",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/1b80120ef26a28e065e67f89bfef873f13bdd317"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjExLjI="
+ },
+ {
+  "name": "v0.11.1",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.11.1",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.11.1",
+  "commit": {
+   "sha": "124c4cdf4321f63ef17a1cb0ce8f9dd45bd7adbe",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/124c4cdf4321f63ef17a1cb0ce8f9dd45bd7adbe"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjExLjE="
+ },
+ {
+  "name": "v0.11.0",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.11.0",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.11.0",
+  "commit": {
+   "sha": "9ca3b05ec787acfb4b17bed37db5719fa777834f",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/9ca3b05ec787acfb4b17bed37db5719fa777834f"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjExLjA="
+ },
+ {
+  "name": "v0.10.0",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.10.0",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.10.0",
+  "commit": {
+   "sha": "dc63ec667e6546f34e0b6c088cdf8ae7c7dea0f3",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/dc63ec667e6546f34e0b6c088cdf8ae7c7dea0f3"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjEwLjA="
+ },
+ {
+  "name": "v0.9.0",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.9.0",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.9.0",
+  "commit": {
+   "sha": "8e51677abd7e3338e4952370bf7d902e37d8cbb6",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/8e51677abd7e3338e4952370bf7d902e37d8cbb6"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjkuMA=="
+ },
+ {
+  "name": "v0.8.0",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.8.0",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.8.0",
+  "commit": {
+   "sha": "4ab175fe6d3a4053444b04d805a6d686f53455b9",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/4ab175fe6d3a4053444b04d805a6d686f53455b9"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjguMA=="
+ },
+ {
+  "name": "v0.7.0",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.7.0",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.7.0",
+  "commit": {
+   "sha": "aa0fb696ab4b7482fa54a0422b8a19c87407350e",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/aa0fb696ab4b7482fa54a0422b8a19c87407350e"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjcuMA=="
+ },
+ {
+  "name": "v0.6.3",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.6.3",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.6.3",
+  "commit": {
+   "sha": "c4209bf5cd4eea208699c288dff8800dd8905536",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/c4209bf5cd4eea208699c288dff8800dd8905536"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjYuMw=="
+ },
+ {
+  "name": "v0.6.2",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.6.2",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.6.2",
+  "commit": {
+   "sha": "c54bbc6d7b78e7a45016efe0c4ac8af9d209aa20",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/c54bbc6d7b78e7a45016efe0c4ac8af9d209aa20"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjYuMg=="
+ },
+ {
+  "name": "v0.6.1",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.6.1",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.6.1",
+  "commit": {
+   "sha": "a362d3c0ee79097ce2e3fca4ad003f1e96dad472",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/a362d3c0ee79097ce2e3fca4ad003f1e96dad472"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjYuMQ=="
+ },
+ {
+  "name": "v0.6.0",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.6.0",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.6.0",
+  "commit": {
+   "sha": "b480c5fd0d383ac5d45b6390bd4b48068de6dd6b",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/b480c5fd0d383ac5d45b6390bd4b48068de6dd6b"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjYuMA=="
+ },
+ {
+  "name": "v0.5.0",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.5.0",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.5.0",
+  "commit": {
+   "sha": "b84704bb64eac3011f84346c79651c7c1234712c",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/b84704bb64eac3011f84346c79651c7c1234712c"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjUuMA=="
+ },
+ {
+  "name": "v0.4.1",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.4.1",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.4.1",
+  "commit": {
+   "sha": "5feb64dc60c936a7f9e424df9478aae9b88ee48a",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/5feb64dc60c936a7f9e424df9478aae9b88ee48a"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjQuMQ=="
+ },
+ {
+  "name": "v0.4.0",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.4.0",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.4.0",
+  "commit": {
+   "sha": "320c0a442cddeee26cec78619992c641c7029a56",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/320c0a442cddeee26cec78619992c641c7029a56"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjQuMA=="
+ },
+ {
+  "name": "v0.3.3",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.3.3",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.3.3",
+  "commit": {
+   "sha": "bc13e228d172cc2385aa445b512c6bf8ca2f3376",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/bc13e228d172cc2385aa445b512c6bf8ca2f3376"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjMuMw=="
+ },
+ {
+  "name": "v0.3.2",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.3.2",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.3.2",
+  "commit": {
+   "sha": "8f457ee2868ebfd20e311000aa472462c5ce3c84",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/8f457ee2868ebfd20e311000aa472462c5ce3c84"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjMuMg=="
+ },
+ {
+  "name": "v0.3.1",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.3.1",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.3.1",
+  "commit": {
+   "sha": "e7b517f40956a153972fd61a2c6da1140f52990b",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/e7b517f40956a153972fd61a2c6da1140f52990b"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjMuMQ=="
+ },
+ {
+  "name": "v0.3.0",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.3.0",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.3.0",
+  "commit": {
+   "sha": "ace88fca7ad67fcbe7372209d0add6e1f1aeaad2",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/ace88fca7ad67fcbe7372209d0add6e1f1aeaad2"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjMuMA=="
+ },
+ {
+  "name": "v0.2.1",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.2.1",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.2.1",
+  "commit": {
+   "sha": "5f27455af6e5e36d5f8b06c41214e1a71c054acb",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/5f27455af6e5e36d5f8b06c41214e1a71c054acb"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjIuMQ=="
+ },
+ {
+  "name": "v0.2.0",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.2.0",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.2.0",
+  "commit": {
+   "sha": "b3fe1718b629e3615f9a6c1ffd969fe2704bc4bc",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/b3fe1718b629e3615f9a6c1ffd969fe2704bc4bc"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjIuMA=="
+ },
+ {
+  "name": "v0.1.8",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.1.8",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.1.8",
+  "commit": {
+   "sha": "30548332a7d04328487906edcd999c3dab67db28",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/30548332a7d04328487906edcd999c3dab67db28"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjEuOA=="
+ },
+ {
+  "name": "v0.1.7",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.1.7",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.1.7",
+  "commit": {
+   "sha": "5dec838ba8bfd4afa75182bf12aeab74cd9be824",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/5dec838ba8bfd4afa75182bf12aeab74cd9be824"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjEuNw=="
+ },
+ {
+  "name": "v0.1.6",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.1.6",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.1.6",
+  "commit": {
+   "sha": "9f6076ddf2804d63dbc866e9935853da3ecd9e67",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/9f6076ddf2804d63dbc866e9935853da3ecd9e67"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjEuNg=="
+ },
+ {
+  "name": "v0.1.5",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.1.5",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.1.5",
+  "commit": {
+   "sha": "a10af855abdd444df5e464187c15e1c81fa18d4d",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/a10af855abdd444df5e464187c15e1c81fa18d4d"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjEuNQ=="
+ },
+ {
+  "name": "v0.1.4",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.1.4",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.1.4",
+  "commit": {
+   "sha": "59f8947054ba9d77f6f76c7c4316384870357e3d",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/59f8947054ba9d77f6f76c7c4316384870357e3d"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjEuNA=="
+ },
+ {
+  "name": "v0.1.3",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.1.3",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.1.3",
+  "commit": {
+   "sha": "0bf9fb66c7bb991b3c4365b3a02fbde7da423a2c",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/0bf9fb66c7bb991b3c4365b3a02fbde7da423a2c"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjEuMw=="
+ },
+ {
+  "name": "v0.1.1",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.1.1",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.1.1",
+  "commit": {
+   "sha": "f64a1917d13d9df8930fa5a767859b4e5328367f",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/f64a1917d13d9df8930fa5a767859b4e5328367f"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjEuMQ=="
+ },
+ {
+  "name": "v0.1.0",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/v0.1.0",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/v0.1.0",
+  "commit": {
+   "sha": "6ad6c24bf31cd3cd450e51aba675e82516aeae16",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/6ad6c24bf31cd3cd450e51aba675e82516aeae16"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzL3YwLjEuMA=="
+ },
+ {
+  "name": "0.1.2",
+  "zipball_url": "https://api.github.com/repos/containers/bubblewrap/zipball/refs/tags/0.1.2",
+  "tarball_url": "https://api.github.com/repos/containers/bubblewrap/tarball/refs/tags/0.1.2",
+  "commit": {
+   "sha": "089327ddcfafe7520967196393025a72081bec0b",
+   "url": "https://api.github.com/repos/containers/bubblewrap/commits/089327ddcfafe7520967196393025a72081bec0b"
+  },
+  "node_id": "MDM6UmVmNTE4NjgwMTA6cmVmcy90YWdzLzAuMS4y"
+ }
+]

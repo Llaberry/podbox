@@ -1,0 +1,766 @@
+[
+ {
+  "url": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2280767197",
+  "pull_request_review_id": 3126237643,
+  "id": 2280767197,
+  "node_id": "PRRC_kwDOIhy5kM6H8b7d",
+  "diff_hunk": "@@ -208,7 +208,7 @@ if(STRIP_DEBUGINFO)\n         VERBATIM\n     )\n endif()\n-install (TARGETS ruri DESTINATION /usr/bin/)\n+install (TARGETS ruri)",
+  "path": "CMakeLists.txt",
+  "commit_id": "b763c1d62688f70c928953f461c5e6a58f4e97d3",
+  "original_commit_id": "67e3c9f0a237fa8c45de03608148cd82b533de9d",
+  "user": {
+   "login": "Prince213",
+   "id": 25235514,
+   "node_id": "MDQ6VXNlcjI1MjM1NTE0",
+   "avatar_url": "https://avatars.githubusercontent.com/u/25235514?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/Prince213",
+   "html_url": "https://github.com/Prince213",
+   "followers_url": "https://api.github.com/users/Prince213/followers",
+   "following_url": "https://api.github.com/users/Prince213/following{/other_user}",
+   "gists_url": "https://api.github.com/users/Prince213/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/Prince213/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/Prince213/subscriptions",
+   "organizations_url": "https://api.github.com/users/Prince213/orgs",
+   "repos_url": "https://api.github.com/users/Prince213/repos",
+   "events_url": "https://api.github.com/users/Prince213/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/Prince213/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "This doesn't match you current PR description which says `DESTINATION bin`.",
+  "created_at": "2025-08-17T07:35:03Z",
+  "updated_at": "2025-08-17T07:36:13Z",
+  "html_url": "https://github.com/RuriOSS/ruri/pull/39#discussion_r2280767197",
+  "pull_request_url": "https://api.github.com/repos/RuriOSS/ruri/pulls/39",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2280767197"
+   },
+   "html": {
+    "href": "https://github.com/RuriOSS/ruri/pull/39#discussion_r2280767197"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/RuriOSS/ruri/pulls/39"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2280767197/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": null,
+  "original_line": 211,
+  "side": "RIGHT",
+  "author_association": "NONE",
+  "original_position": 5,
+  "position": 1,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2280773807",
+  "pull_request_review_id": 3126243620,
+  "id": 2280773807,
+  "node_id": "PRRC_kwDOIhy5kM6H8div",
+  "diff_hunk": "@@ -208,7 +208,7 @@ if(STRIP_DEBUGINFO)\n         VERBATIM\n     )\n endif()\n-install (TARGETS ruri DESTINATION /usr/bin/)\n+install (TARGETS ruri DESTINATION)",
+  "path": "CMakeLists.txt",
+  "commit_id": "b763c1d62688f70c928953f461c5e6a58f4e97d3",
+  "original_commit_id": "b763c1d62688f70c928953f461c5e6a58f4e97d3",
+  "user": {
+   "login": "Prince213",
+   "id": 25235514,
+   "node_id": "MDQ6VXNlcjI1MjM1NTE0",
+   "avatar_url": "https://avatars.githubusercontent.com/u/25235514?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/Prince213",
+   "html_url": "https://github.com/Prince213",
+   "followers_url": "https://api.github.com/users/Prince213/followers",
+   "following_url": "https://api.github.com/users/Prince213/following{/other_user}",
+   "gists_url": "https://api.github.com/users/Prince213/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/Prince213/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/Prince213/subscriptions",
+   "organizations_url": "https://api.github.com/users/Prince213/orgs",
+   "repos_url": "https://api.github.com/users/Prince213/repos",
+   "events_url": "https://api.github.com/users/Prince213/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/Prince213/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "This doesn't make sense.  Have you tested this change locally?",
+  "created_at": "2025-08-17T07:58:43Z",
+  "updated_at": "2025-08-17T07:58:49Z",
+  "html_url": "https://github.com/RuriOSS/ruri/pull/39#discussion_r2280773807",
+  "pull_request_url": "https://api.github.com/repos/RuriOSS/ruri/pulls/39",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2280773807"
+   },
+   "html": {
+    "href": "https://github.com/RuriOSS/ruri/pull/39#discussion_r2280773807"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/RuriOSS/ruri/pulls/39"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2280773807/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": 211,
+  "original_line": 211,
+  "side": "RIGHT",
+  "author_association": "NONE",
+  "original_position": 5,
+  "position": 5,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2280774635",
+  "pull_request_review_id": 3126244385,
+  "id": 2280774635,
+  "node_id": "PRRC_kwDOIhy5kM6H8dvr",
+  "diff_hunk": "@@ -208,7 +208,7 @@ if(STRIP_DEBUGINFO)\n         VERBATIM\n     )\n endif()\n-install (TARGETS ruri DESTINATION /usr/bin/)\n+install (TARGETS ruri DESTINATION)",
+  "path": "CMakeLists.txt",
+  "commit_id": "b763c1d62688f70c928953f461c5e6a58f4e97d3",
+  "original_commit_id": "b763c1d62688f70c928953f461c5e6a58f4e97d3",
+  "user": {
+   "login": "dabao1955",
+   "id": 79307765,
+   "node_id": "MDQ6VXNlcjc5MzA3NzY1",
+   "avatar_url": "https://avatars.githubusercontent.com/u/79307765?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/dabao1955",
+   "html_url": "https://github.com/dabao1955",
+   "followers_url": "https://api.github.com/users/dabao1955/followers",
+   "following_url": "https://api.github.com/users/dabao1955/following{/other_user}",
+   "gists_url": "https://api.github.com/users/dabao1955/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/dabao1955/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/dabao1955/subscriptions",
+   "organizations_url": "https://api.github.com/users/dabao1955/orgs",
+   "repos_url": "https://api.github.com/users/dabao1955/repos",
+   "events_url": "https://api.github.com/users/dabao1955/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/dabao1955/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "> This doesn't make sense. Have you tested this change locally?\r\n\r\n```\r\nuser@localhost ~/ruri (main)> ninja\r\n[0/1] Re-running CMake...\r\n-- Using ccache: /usr/bin/ccache\r\n-- Compiler supports flag: -flto=auto\r\n-- Compiler supports flag: -pie\r\n-- Compiler supports flag: -fstack-protector-all\r\n-- Compiler supports flag: -fdata-sections\r\n-- Compiler supports flag: -fno-omit-frame-pointer\r\n-- Compiler supports flag: -fno-stack-protector\r\n-- Compiler supports flag: -ftrivial-auto-var-init=pattern\r\n-- Compiler supports flag: -fstack-clash-protection\r\n-- Compiler supports flag: -Wno-unused-result\r\nCMake Warning at CMakeLists.txt:136 (message):\r\n  Compiler does not support flag: -mshstk\r\n\r\n\r\n-- Compiler supports flag: -ffunction-sections\r\n-- Compiler supports flag: -Wl,--gc-sections\r\n-- Compiler supports flag: -Wl,--disable-new-dtags\r\n-- Compiler supports flag: -Wl,--build-id=sha1\r\n-- Compiler supports flag: -Wl,-z,norelro\r\n-- Compiler supports flag: -Wl,-z,execstack\r\n-- Compiler supports flag: -Wall\r\n-- Compiler supports flag: -Wextra\r\n-- Compiler supports flag: -Wconversion\r\n-- Compiler supports flag: -pedantic\r\n-- Compiler supports flag: -pipe\r\n-- Compiler supports flag: -Wl,--strip-all\r\n-- Configuring done (9.9s)\r\n-- Generating done (0.0s)\r\n-- Build files have been written to: /home/user/ruri\r\nninja: no work to do.\r\nuser@localhost ~/ruri (main)> sudo ninja install\r\n[0/1] Install the project...\r\n-- Install configuration: \"\"\r\n-- Installing: /usr/local/bin/ruri\r\n```",
+  "created_at": "2025-08-17T08:01:36Z",
+  "updated_at": "2025-08-17T08:01:37Z",
+  "html_url": "https://github.com/RuriOSS/ruri/pull/39#discussion_r2280774635",
+  "pull_request_url": "https://api.github.com/repos/RuriOSS/ruri/pulls/39",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2280774635"
+   },
+   "html": {
+    "href": "https://github.com/RuriOSS/ruri/pull/39#discussion_r2280774635"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/RuriOSS/ruri/pulls/39"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2280774635/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": 211,
+  "original_line": 211,
+  "side": "RIGHT",
+  "in_reply_to_id": 2280773807,
+  "author_association": "CONTRIBUTOR",
+  "original_position": 5,
+  "position": 5,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2280774919",
+  "pull_request_review_id": 3126244658,
+  "id": 2280774919,
+  "node_id": "PRRC_kwDOIhy5kM6H8d0H",
+  "diff_hunk": "@@ -208,7 +208,7 @@ if(STRIP_DEBUGINFO)\n         VERBATIM\n     )\n endif()\n-install (TARGETS ruri DESTINATION /usr/bin/)\n+install (TARGETS ruri DESTINATION)",
+  "path": "CMakeLists.txt",
+  "commit_id": "b763c1d62688f70c928953f461c5e6a58f4e97d3",
+  "original_commit_id": "b763c1d62688f70c928953f461c5e6a58f4e97d3",
+  "user": {
+   "login": "Prince213",
+   "id": 25235514,
+   "node_id": "MDQ6VXNlcjI1MjM1NTE0",
+   "avatar_url": "https://avatars.githubusercontent.com/u/25235514?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/Prince213",
+   "html_url": "https://github.com/Prince213",
+   "followers_url": "https://api.github.com/users/Prince213/followers",
+   "following_url": "https://api.github.com/users/Prince213/following{/other_user}",
+   "gists_url": "https://api.github.com/users/Prince213/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/Prince213/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/Prince213/subscriptions",
+   "organizations_url": "https://api.github.com/users/Prince213/orgs",
+   "repos_url": "https://api.github.com/users/Prince213/repos",
+   "events_url": "https://api.github.com/users/Prince213/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/Prince213/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "This would already work I think.\r\n\r\n```suggestion\r\ninstall (TARGETS ruri)\r\n```",
+  "created_at": "2025-08-17T08:02:49Z",
+  "updated_at": "2025-08-17T08:02:49Z",
+  "html_url": "https://github.com/RuriOSS/ruri/pull/39#discussion_r2280774919",
+  "pull_request_url": "https://api.github.com/repos/RuriOSS/ruri/pulls/39",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2280774919"
+   },
+   "html": {
+    "href": "https://github.com/RuriOSS/ruri/pull/39#discussion_r2280774919"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/RuriOSS/ruri/pulls/39"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2280774919/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": 211,
+  "original_line": 211,
+  "side": "RIGHT",
+  "in_reply_to_id": 2280773807,
+  "author_association": "NONE",
+  "original_position": 5,
+  "position": 5,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2930849654",
+  "pull_request_review_id": 3943621083,
+  "id": 2930849654,
+  "node_id": "PRRC_kwDOIhy5kM6usTd2",
+  "diff_hunk": "@@ -1,87 +1,113 @@\n-cmake_minimum_required(VERSION 3.10)\n-project(ruri LANGUAGES C)\n-\n-# ==============================\n-# Sources & Executable\n-# ==============================\n-file(GLOB SOURCES CONFIGURE_DEPENDS\n-    ${CMAKE_SOURCE_DIR}/src/*.c\n-    ${CMAKE_SOURCE_DIR}/src/easteregg/*.c\n-)\n+cmake_minimum_required(VERSION 3.18...3.31 FATAL_ERROR)",
+  "path": "CMakeLists.txt",
+  "commit_id": "1d99cc2379638280e8eef7f689980cc98811c258",
+  "original_commit_id": "1d99cc2379638280e8eef7f689980cc98811c258",
+  "user": {
+   "login": "dabao1955",
+   "id": 79307765,
+   "node_id": "MDQ6VXNlcjc5MzA3NzY1",
+   "avatar_url": "https://avatars.githubusercontent.com/u/79307765?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/dabao1955",
+   "html_url": "https://github.com/dabao1955",
+   "followers_url": "https://api.github.com/users/dabao1955/followers",
+   "following_url": "https://api.github.com/users/dabao1955/following{/other_user}",
+   "gists_url": "https://api.github.com/users/dabao1955/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/dabao1955/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/dabao1955/subscriptions",
+   "organizations_url": "https://api.github.com/users/dabao1955/orgs",
+   "repos_url": "https://api.github.com/users/dabao1955/repos",
+   "events_url": "https://api.github.com/users/dabao1955/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/dabao1955/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "Why maxmium version is 3.31",
+  "created_at": "2026-03-13T12:16:25Z",
+  "updated_at": "2026-03-13T12:18:48Z",
+  "html_url": "https://github.com/RuriOSS/ruri/pull/49#discussion_r2930849654",
+  "pull_request_url": "https://api.github.com/repos/RuriOSS/ruri/pulls/49",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2930849654"
+   },
+   "html": {
+    "href": "https://github.com/RuriOSS/ruri/pull/49#discussion_r2930849654"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/RuriOSS/ruri/pulls/49"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2930849654/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": null,
+  "original_line": 1,
+  "side": "RIGHT",
+  "author_association": "CONTRIBUTOR",
+  "original_position": 11,
+  "position": 1,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2930852041",
+  "pull_request_review_id": 3943621083,
+  "id": 2930852041,
+  "node_id": "PRRC_kwDOIhy5kM6usUDJ",
+  "diff_hunk": "@@ -1,87 +1,113 @@\n-cmake_minimum_required(VERSION 3.10)\n-project(ruri LANGUAGES C)\n-\n-# ==============================\n-# Sources & Executable\n-# ==============================\n-file(GLOB SOURCES CONFIGURE_DEPENDS\n-    ${CMAKE_SOURCE_DIR}/src/*.c\n-    ${CMAKE_SOURCE_DIR}/src/easteregg/*.c\n-)\n+cmake_minimum_required(VERSION 3.18...3.31 FATAL_ERROR)\n+\n+# Must be set before project() so CMake picks up the launcher during compiler init\n+find_program(CCACHE_PROGRAM ccache)\n+if(CCACHE_PROGRAM)\n+    set(CMAKE_C_COMPILER_LAUNCHER \"${CCACHE_PROGRAM}\")\n+    message(STATUS \"Using ccache: ${CCACHE_PROGRAM}\")\n+else()\n+    message(STATUS \"Ccache not found. Compiling without cache.\")\n+endif()\n+\n+project(ruri LANGUAGES C VERSION 3.9.3)\n+# Avoid Pollution Reserve Config 'CMAKE_'\n+\n+if(NOT CMAKE_SYSTEM_NAME STREQUAL \"Linux\" AND NOT CMAKE_SYSTEM_NAME STREQUAL \"Android\")",
+  "path": "CMakeLists.txt",
+  "commit_id": "a6e1a4e90978751eaeef82860d644f41bab0e6e1",
+  "original_commit_id": "1d99cc2379638280e8eef7f689980cc98811c258",
+  "user": {
+   "login": "dabao1955",
+   "id": 79307765,
+   "node_id": "MDQ6VXNlcjc5MzA3NzY1",
+   "avatar_url": "https://avatars.githubusercontent.com/u/79307765?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/dabao1955",
+   "html_url": "https://github.com/dabao1955",
+   "followers_url": "https://api.github.com/users/dabao1955/followers",
+   "following_url": "https://api.github.com/users/dabao1955/following{/other_user}",
+   "gists_url": "https://api.github.com/users/dabao1955/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/dabao1955/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/dabao1955/subscriptions",
+   "organizations_url": "https://api.github.com/users/dabao1955/orgs",
+   "repos_url": "https://api.github.com/users/dabao1955/repos",
+   "events_url": "https://api.github.com/users/dabao1955/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/dabao1955/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "Macos:\uff1f",
+  "created_at": "2026-03-13T12:16:51Z",
+  "updated_at": "2026-03-13T12:18:48Z",
+  "html_url": "https://github.com/RuriOSS/ruri/pull/49#discussion_r2930852041",
+  "pull_request_url": "https://api.github.com/repos/RuriOSS/ruri/pulls/49",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2930852041"
+   },
+   "html": {
+    "href": "https://github.com/RuriOSS/ruri/pull/49#discussion_r2930852041"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/RuriOSS/ruri/pulls/49"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2930852041/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": 15,
+  "original_line": 15,
+  "side": "RIGHT",
+  "author_association": "CONTRIBUTOR",
+  "original_position": 25,
+  "position": 25,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2930856065",
+  "pull_request_review_id": 3943621083,
+  "id": 2930856065,
+  "node_id": "PRRC_kwDOIhy5kM6usVCB",
+  "diff_hunk": "@@ -1,87 +1,113 @@\n-cmake_minimum_required(VERSION 3.10)\n-project(ruri LANGUAGES C)\n-\n-# ==============================\n-# Sources & Executable\n-# ==============================\n-file(GLOB SOURCES CONFIGURE_DEPENDS\n-    ${CMAKE_SOURCE_DIR}/src/*.c\n-    ${CMAKE_SOURCE_DIR}/src/easteregg/*.c\n-)\n+cmake_minimum_required(VERSION 3.18...3.31 FATAL_ERROR)\n+\n+# Must be set before project() so CMake picks up the launcher during compiler init\n+find_program(CCACHE_PROGRAM ccache)\n+if(CCACHE_PROGRAM)\n+    set(CMAKE_C_COMPILER_LAUNCHER \"${CCACHE_PROGRAM}\")\n+    message(STATUS \"Using ccache: ${CCACHE_PROGRAM}\")\n+else()\n+    message(STATUS \"Ccache not found. Compiling without cache.\")\n+endif()\n+\n+project(ruri LANGUAGES C VERSION 3.9.3)\n+# Avoid Pollution Reserve Config 'CMAKE_'\n+\n+if(NOT CMAKE_SYSTEM_NAME STREQUAL \"Linux\" AND NOT CMAKE_SYSTEM_NAME STREQUAL \"Android\")\n+    message(FATAL_ERROR \"ruri is only supported on Linux platforms.\")\n+endif()\n \n+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS \"${CMAKE_SOURCE_DIR}/src/*.c\")\n add_executable(ruri ${SOURCES})\n \n-# ==============================\n-# Options\n-# ==============================\n-option(ENABLE_DEBUG \"Enable debug build\" OFF)\n+# Generate version header from CMake project version (single source of truth).\n+# Update the version by changing project(VERSION ...) above.\n+configure_file(\n+    \"${CMAKE_SOURCE_DIR}/src/include/version.h.in\"\n+    \"${CMAKE_BINARY_DIR}/src/include/version.h\"\n+    @ONLY\n+)\n+target_include_directories(ruri PRIVATE \"${CMAKE_BINARY_DIR}/src/include\")\n+\n option(ENABLE_STATIC \"Enable static linking\" OFF)\n option(DISABLE_LIBCAP \"Disable cap library linking\" OFF)\n option(DISABLE_LIBSECCOMP \"Disable seccomp library linking\" OFF)\n option(DISABLE_RURIENV \"Disable env in ruri\" OFF)\n-option(STRIP_DEBUGINFO \"Strip debuginfo from ruri binary\" ON)\n \n-# ==============================\n-# Platform Check\n-# ==============================\n-if(NOT CMAKE_SYSTEM_NAME STREQUAL \"Linux\")\n-    message(FATAL_ERROR \"ruri is only supported on Linux platforms.\")\n+get_property(_isMultiConfig GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)\n+if(NOT _isMultiConfig)\n+    if(NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL \"\")\n+        set(CMAKE_BUILD_TYPE \"Release\" CACHE STRING\n+            \"Build type: Debug, Release, RelWithDebInfo, MinSizeRel\" FORCE)\n+        message(STATUS \"CMAKE_BUILD_TYPE not set, defaulting to Release\")\n+    endif()\n endif()\n \n-# ==============================\n-# Build Metadata\n-# ==============================\n-execute_process(COMMAND date \"+%Y-%m-%d\" OUTPUT_VARIABLE CMAKE_CURRENT_DATE OUTPUT_STRIP_TRAILING_WHITESPACE)\n-execute_process(COMMAND date \"+%H:%M:%S\" OUTPUT_VARIABLE CMAKE_CURRENT_TIME OUTPUT_STRIP_TRAILING_WHITESPACE)\n-\n-execute_process(\n-    COMMAND git rev-parse --short HEAD\n-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}\n-    OUTPUT_VARIABLE GIT_COMMIT_ID\n-    OUTPUT_STRIP_TRAILING_WHITESPACE\n-)\n+# Warn as early as possible so the message is prominent in configure output.\n+if(CMAKE_BUILD_TYPE STREQUAL \"Debug\")\n+    message(WARNING \"DEBUG mode is enabled: debug symbols will be preserved.\")\n+endif()\n \n-# ==============================\n-# Compiler & Toolchain Setup\n-# ==============================\n-# ccache\n-find_program(CCACHE_FOUND ccache)\n-if(CCACHE_FOUND)\n-    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)\n-    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)\n-    message(STATUS \"Using ccache: ${CCACHE_FOUND}\")\n+include(CMakeDependentOption)\n+if(_isMultiConfig)\n+    option(STRIP_DEBUGINFO \"Strip debuginfo from ruri binary\" ON)\n else()\n-    message(STATUS \"Ccache not found. Compiling without cache.\")\n+    # Stripping is enabled by default only in Release/MinSizeRel\n+    # RelWithDebInfo includes -g, stripping would defeat its purpose\n+    cmake_dependent_option(\n+        STRIP_DEBUGINFO \"Strip debuginfo from ruri binary\" ON\n+        \"CMAKE_BUILD_TYPE STREQUAL Release OR CMAKE_BUILD_TYPE STREQUAL MinSizeRel\"\n+        OFF\n+    )\n endif()\n+unset(_isMultiConfig)\n \n-# TinyCC special handling\n-if(CMAKE_C_COMPILER MATCHES \"tcc\")\n-    set(_arch ${CMAKE_SYSTEM_PROCESSOR})\n-    if(_arch MATCHES \"x86_64\")\n-        set(CMAKE_LIBRARY_PATH \"/usr/lib/x86_64-linux-gnu/\")\n-        set(CMAKE_INCLUDE_PATH \"/usr/include/x86_64-linux-gnu/\")\n-    elseif(_arch MATCHES \"aarch64\")\n-        set(CMAKE_LIBRARY_PATH \"/usr/lib/aarch64-linux-gnu/\")\n-        set(CMAKE_INCLUDE_PATH \"/usr/include/aarch64-linux-gnu/\")\n-    elseif(_arch MATCHES \"armv7l\")\n-        set(CMAKE_LIBRARY_PATH \"/usr/lib/arm-linux-gnueabihf/\")\n-        set(CMAKE_INCLUDE_PATH \"/usr/include/arm-linux-gnueabihf/\")\n-    elseif(_arch MATCHES \"i386\")\n-        set(CMAKE_LIBRARY_PATH \"/usr/lib/i386-linux-gnu/\")\n-        set(CMAKE_INCLUDE_PATH \"/usr/include/i386-linux-gnu/\")\n-    elseif(_arch MATCHES \"powerpc64le\")\n-        set(CMAKE_LIBRARY_PATH \"/usr/lib/powerpc64le-linux-gnu/\")\n-        set(CMAKE_INCLUDE_PATH \"/usr/include/powerpc64le-linux-gnu/\")\n+\n+# Gcc/Clang/Tcc already provide __DATE__ and __TIME__ builtins used directly in src/info.c.\n+# string(TIMESTAMP CURRENT_BUILD_DATE \"%Y-%m-%d\")\n+# string(TIMESTAMP CURRENT_BUILD_TIME \"%H:%M:%S\")\n+\n+find_program(GIT_EXECUTABLE git)\n+if(GIT_EXECUTABLE)\n+    execute_process(\n+        COMMAND ${GIT_EXECUTABLE} rev-parse --short=8 HEAD\n+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}\n+        OUTPUT_VARIABLE GIT_COMMIT_ID\n+        OUTPUT_STRIP_TRAILING_WHITESPACE\n+        ERROR_QUIET\n+        RESULT_VARIABLE GIT_RESULT\n+        TIMEOUT 5",
+  "path": "CMakeLists.txt",
+  "commit_id": "a6e1a4e90978751eaeef82860d644f41bab0e6e1",
+  "original_commit_id": "1d99cc2379638280e8eef7f689980cc98811c258",
+  "user": {
+   "login": "dabao1955",
+   "id": 79307765,
+   "node_id": "MDQ6VXNlcjc5MzA3NzY1",
+   "avatar_url": "https://avatars.githubusercontent.com/u/79307765?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/dabao1955",
+   "html_url": "https://github.com/dabao1955",
+   "followers_url": "https://api.github.com/users/dabao1955/followers",
+   "following_url": "https://api.github.com/users/dabao1955/following{/other_user}",
+   "gists_url": "https://api.github.com/users/dabao1955/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/dabao1955/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/dabao1955/subscriptions",
+   "organizations_url": "https://api.github.com/users/dabao1955/orgs",
+   "repos_url": "https://api.github.com/users/dabao1955/repos",
+   "events_url": "https://api.github.com/users/dabao1955/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/dabao1955/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "timeout\uff1f",
+  "created_at": "2026-03-13T12:17:32Z",
+  "updated_at": "2026-03-13T12:18:48Z",
+  "html_url": "https://github.com/RuriOSS/ruri/pull/49#discussion_r2930856065",
+  "pull_request_url": "https://api.github.com/repos/RuriOSS/ruri/pulls/49",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2930856065"
+   },
+   "html": {
+    "href": "https://github.com/RuriOSS/ruri/pull/49#discussion_r2930856065"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/RuriOSS/ruri/pulls/49"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2930856065/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": 78,
+  "original_line": 78,
+  "side": "RIGHT",
+  "author_association": "CONTRIBUTOR",
+  "original_position": 138,
+  "position": 138,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2930862599",
+  "pull_request_review_id": 3943621083,
+  "id": 2930862599,
+  "node_id": "PRRC_kwDOIhy5kM6usWoH",
+  "diff_hunk": "",
+  "path": "test/check_flag.c",
+  "commit_id": "1d99cc2379638280e8eef7f689980cc98811c258",
+  "original_commit_id": "1d99cc2379638280e8eef7f689980cc98811c258",
+  "user": {
+   "login": "dabao1955",
+   "id": 79307765,
+   "node_id": "MDQ6VXNlcjc5MzA3NzY1",
+   "avatar_url": "https://avatars.githubusercontent.com/u/79307765?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/dabao1955",
+   "html_url": "https://github.com/dabao1955",
+   "followers_url": "https://api.github.com/users/dabao1955/followers",
+   "following_url": "https://api.github.com/users/dabao1955/following{/other_user}",
+   "gists_url": "https://api.github.com/users/dabao1955/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/dabao1955/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/dabao1955/subscriptions",
+   "organizations_url": "https://api.github.com/users/dabao1955/orgs",
+   "repos_url": "https://api.github.com/users/dabao1955/repos",
+   "events_url": "https://api.github.com/users/dabao1955/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/dabao1955/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "Why remove this?",
+  "created_at": "2026-03-13T12:18:43Z",
+  "updated_at": "2026-03-13T12:18:48Z",
+  "html_url": "https://github.com/RuriOSS/ruri/pull/49#discussion_r2930862599",
+  "pull_request_url": "https://api.github.com/repos/RuriOSS/ruri/pulls/49",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2930862599"
+   },
+   "html": {
+    "href": "https://github.com/RuriOSS/ruri/pull/49#discussion_r2930862599"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/RuriOSS/ruri/pulls/49"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2930862599/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": 1,
+  "original_line": 1,
+  "side": "RIGHT",
+  "author_association": "CONTRIBUTOR",
+  "original_position": 1,
+  "position": 1,
+  "subject_type": "file"
+ },
+ {
+  "url": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2932896159",
+  "pull_request_review_id": 3945981865,
+  "id": 2932896159,
+  "node_id": "PRRC_kwDOIhy5kM6u0HGf",
+  "diff_hunk": "@@ -1,87 +1,113 @@\n-cmake_minimum_required(VERSION 3.10)\n-project(ruri LANGUAGES C)\n-\n-# ==============================\n-# Sources & Executable\n-# ==============================\n-file(GLOB SOURCES CONFIGURE_DEPENDS\n-    ${CMAKE_SOURCE_DIR}/src/*.c\n-    ${CMAKE_SOURCE_DIR}/src/easteregg/*.c\n-)\n+cmake_minimum_required(VERSION 3.18...3.31 FATAL_ERROR)",
+  "path": "CMakeLists.txt",
+  "commit_id": "1d99cc2379638280e8eef7f689980cc98811c258",
+  "original_commit_id": "1d99cc2379638280e8eef7f689980cc98811c258",
+  "user": {
+   "login": "lin1328",
+   "id": 67982316,
+   "node_id": "MDQ6VXNlcjY3OTgyMzE2",
+   "avatar_url": "https://avatars.githubusercontent.com/u/67982316?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/lin1328",
+   "html_url": "https://github.com/lin1328",
+   "followers_url": "https://api.github.com/users/lin1328/followers",
+   "following_url": "https://api.github.com/users/lin1328/following{/other_user}",
+   "gists_url": "https://api.github.com/users/lin1328/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/lin1328/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/lin1328/subscriptions",
+   "organizations_url": "https://api.github.com/users/lin1328/orgs",
+   "repos_url": "https://api.github.com/users/lin1328/repos",
+   "events_url": "https://api.github.com/users/lin1328/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/lin1328/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "this is just a forgotten modification and has no practical significance",
+  "created_at": "2026-03-13T17:55:37Z",
+  "updated_at": "2026-03-13T17:55:37Z",
+  "html_url": "https://github.com/RuriOSS/ruri/pull/49#discussion_r2932896159",
+  "pull_request_url": "https://api.github.com/repos/RuriOSS/ruri/pulls/49",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2932896159"
+   },
+   "html": {
+    "href": "https://github.com/RuriOSS/ruri/pull/49#discussion_r2932896159"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/RuriOSS/ruri/pulls/49"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2932896159/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": null,
+  "original_line": 1,
+  "side": "RIGHT",
+  "in_reply_to_id": 2930849654,
+  "author_association": "CONTRIBUTOR",
+  "original_position": 11,
+  "position": 1,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2932904829",
+  "pull_request_review_id": 3945991601,
+  "id": 2932904829,
+  "node_id": "PRRC_kwDOIhy5kM6u0JN9",
+  "diff_hunk": "@@ -1,87 +1,113 @@\n-cmake_minimum_required(VERSION 3.10)\n-project(ruri LANGUAGES C)\n-\n-# ==============================\n-# Sources & Executable\n-# ==============================\n-file(GLOB SOURCES CONFIGURE_DEPENDS\n-    ${CMAKE_SOURCE_DIR}/src/*.c\n-    ${CMAKE_SOURCE_DIR}/src/easteregg/*.c\n-)\n+cmake_minimum_required(VERSION 3.18...3.31 FATAL_ERROR)\n+\n+# Must be set before project() so CMake picks up the launcher during compiler init\n+find_program(CCACHE_PROGRAM ccache)\n+if(CCACHE_PROGRAM)\n+    set(CMAKE_C_COMPILER_LAUNCHER \"${CCACHE_PROGRAM}\")\n+    message(STATUS \"Using ccache: ${CCACHE_PROGRAM}\")\n+else()\n+    message(STATUS \"Ccache not found. Compiling without cache.\")\n+endif()\n+\n+project(ruri LANGUAGES C VERSION 3.9.3)\n+# Avoid Pollution Reserve Config 'CMAKE_'\n+\n+if(NOT CMAKE_SYSTEM_NAME STREQUAL \"Linux\" AND NOT CMAKE_SYSTEM_NAME STREQUAL \"Android\")\n+    message(FATAL_ERROR \"ruri is only supported on Linux platforms.\")\n+endif()\n \n+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS \"${CMAKE_SOURCE_DIR}/src/*.c\")\n add_executable(ruri ${SOURCES})\n \n-# ==============================\n-# Options\n-# ==============================\n-option(ENABLE_DEBUG \"Enable debug build\" OFF)\n+# Generate version header from CMake project version (single source of truth).\n+# Update the version by changing project(VERSION ...) above.\n+configure_file(\n+    \"${CMAKE_SOURCE_DIR}/src/include/version.h.in\"\n+    \"${CMAKE_BINARY_DIR}/src/include/version.h\"\n+    @ONLY\n+)\n+target_include_directories(ruri PRIVATE \"${CMAKE_BINARY_DIR}/src/include\")\n+\n option(ENABLE_STATIC \"Enable static linking\" OFF)\n option(DISABLE_LIBCAP \"Disable cap library linking\" OFF)\n option(DISABLE_LIBSECCOMP \"Disable seccomp library linking\" OFF)\n option(DISABLE_RURIENV \"Disable env in ruri\" OFF)\n-option(STRIP_DEBUGINFO \"Strip debuginfo from ruri binary\" ON)\n \n-# ==============================\n-# Platform Check\n-# ==============================\n-if(NOT CMAKE_SYSTEM_NAME STREQUAL \"Linux\")\n-    message(FATAL_ERROR \"ruri is only supported on Linux platforms.\")\n+get_property(_isMultiConfig GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)\n+if(NOT _isMultiConfig)\n+    if(NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL \"\")\n+        set(CMAKE_BUILD_TYPE \"Release\" CACHE STRING\n+            \"Build type: Debug, Release, RelWithDebInfo, MinSizeRel\" FORCE)\n+        message(STATUS \"CMAKE_BUILD_TYPE not set, defaulting to Release\")\n+    endif()\n endif()\n \n-# ==============================\n-# Build Metadata\n-# ==============================\n-execute_process(COMMAND date \"+%Y-%m-%d\" OUTPUT_VARIABLE CMAKE_CURRENT_DATE OUTPUT_STRIP_TRAILING_WHITESPACE)\n-execute_process(COMMAND date \"+%H:%M:%S\" OUTPUT_VARIABLE CMAKE_CURRENT_TIME OUTPUT_STRIP_TRAILING_WHITESPACE)\n-\n-execute_process(\n-    COMMAND git rev-parse --short HEAD\n-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}\n-    OUTPUT_VARIABLE GIT_COMMIT_ID\n-    OUTPUT_STRIP_TRAILING_WHITESPACE\n-)\n+# Warn as early as possible so the message is prominent in configure output.\n+if(CMAKE_BUILD_TYPE STREQUAL \"Debug\")\n+    message(WARNING \"DEBUG mode is enabled: debug symbols will be preserved.\")\n+endif()\n \n-# ==============================\n-# Compiler & Toolchain Setup\n-# ==============================\n-# ccache\n-find_program(CCACHE_FOUND ccache)\n-if(CCACHE_FOUND)\n-    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)\n-    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)\n-    message(STATUS \"Using ccache: ${CCACHE_FOUND}\")\n+include(CMakeDependentOption)\n+if(_isMultiConfig)\n+    option(STRIP_DEBUGINFO \"Strip debuginfo from ruri binary\" ON)\n else()\n-    message(STATUS \"Ccache not found. Compiling without cache.\")\n+    # Stripping is enabled by default only in Release/MinSizeRel\n+    # RelWithDebInfo includes -g, stripping would defeat its purpose\n+    cmake_dependent_option(\n+        STRIP_DEBUGINFO \"Strip debuginfo from ruri binary\" ON\n+        \"CMAKE_BUILD_TYPE STREQUAL Release OR CMAKE_BUILD_TYPE STREQUAL MinSizeRel\"\n+        OFF\n+    )\n endif()\n+unset(_isMultiConfig)\n \n-# TinyCC special handling\n-if(CMAKE_C_COMPILER MATCHES \"tcc\")\n-    set(_arch ${CMAKE_SYSTEM_PROCESSOR})\n-    if(_arch MATCHES \"x86_64\")\n-        set(CMAKE_LIBRARY_PATH \"/usr/lib/x86_64-linux-gnu/\")\n-        set(CMAKE_INCLUDE_PATH \"/usr/include/x86_64-linux-gnu/\")\n-    elseif(_arch MATCHES \"aarch64\")\n-        set(CMAKE_LIBRARY_PATH \"/usr/lib/aarch64-linux-gnu/\")\n-        set(CMAKE_INCLUDE_PATH \"/usr/include/aarch64-linux-gnu/\")\n-    elseif(_arch MATCHES \"armv7l\")\n-        set(CMAKE_LIBRARY_PATH \"/usr/lib/arm-linux-gnueabihf/\")\n-        set(CMAKE_INCLUDE_PATH \"/usr/include/arm-linux-gnueabihf/\")\n-    elseif(_arch MATCHES \"i386\")\n-        set(CMAKE_LIBRARY_PATH \"/usr/lib/i386-linux-gnu/\")\n-        set(CMAKE_INCLUDE_PATH \"/usr/include/i386-linux-gnu/\")\n-    elseif(_arch MATCHES \"powerpc64le\")\n-        set(CMAKE_LIBRARY_PATH \"/usr/lib/powerpc64le-linux-gnu/\")\n-        set(CMAKE_INCLUDE_PATH \"/usr/include/powerpc64le-linux-gnu/\")\n+\n+# Gcc/Clang/Tcc already provide __DATE__ and __TIME__ builtins used directly in src/info.c.\n+# string(TIMESTAMP CURRENT_BUILD_DATE \"%Y-%m-%d\")\n+# string(TIMESTAMP CURRENT_BUILD_TIME \"%H:%M:%S\")\n+\n+find_program(GIT_EXECUTABLE git)\n+if(GIT_EXECUTABLE)\n+    execute_process(\n+        COMMAND ${GIT_EXECUTABLE} rev-parse --short=8 HEAD\n+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}\n+        OUTPUT_VARIABLE GIT_COMMIT_ID\n+        OUTPUT_STRIP_TRAILING_WHITESPACE\n+        ERROR_QUIET\n+        RESULT_VARIABLE GIT_RESULT\n+        TIMEOUT 5",
+  "path": "CMakeLists.txt",
+  "commit_id": "a6e1a4e90978751eaeef82860d644f41bab0e6e1",
+  "original_commit_id": "1d99cc2379638280e8eef7f689980cc98811c258",
+  "user": {
+   "login": "lin1328",
+   "id": 67982316,
+   "node_id": "MDQ6VXNlcjY3OTgyMzE2",
+   "avatar_url": "https://avatars.githubusercontent.com/u/67982316?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/lin1328",
+   "html_url": "https://github.com/lin1328",
+   "followers_url": "https://api.github.com/users/lin1328/followers",
+   "following_url": "https://api.github.com/users/lin1328/following{/other_user}",
+   "gists_url": "https://api.github.com/users/lin1328/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/lin1328/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/lin1328/subscriptions",
+   "organizations_url": "https://api.github.com/users/lin1328/orgs",
+   "repos_url": "https://api.github.com/users/lin1328/repos",
+   "events_url": "https://api.github.com/users/lin1328/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/lin1328/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "Prevent processes from hanging unexpectedly",
+  "created_at": "2026-03-13T17:56:57Z",
+  "updated_at": "2026-03-13T17:56:57Z",
+  "html_url": "https://github.com/RuriOSS/ruri/pull/49#discussion_r2932904829",
+  "pull_request_url": "https://api.github.com/repos/RuriOSS/ruri/pulls/49",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2932904829"
+   },
+   "html": {
+    "href": "https://github.com/RuriOSS/ruri/pull/49#discussion_r2932904829"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/RuriOSS/ruri/pulls/49"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2932904829/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": 78,
+  "original_line": 78,
+  "side": "RIGHT",
+  "in_reply_to_id": 2930856065,
+  "author_association": "CONTRIBUTOR",
+  "original_position": 138,
+  "position": 138,
+  "subject_type": "line"
+ },
+ {
+  "url": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2932918078",
+  "pull_request_review_id": 3946006289,
+  "id": 2932918078,
+  "node_id": "PRRC_kwDOIhy5kM6u0Mc-",
+  "diff_hunk": "",
+  "path": "test/check_flag.c",
+  "commit_id": "1d99cc2379638280e8eef7f689980cc98811c258",
+  "original_commit_id": "1d99cc2379638280e8eef7f689980cc98811c258",
+  "user": {
+   "login": "lin1328",
+   "id": 67982316,
+   "node_id": "MDQ6VXNlcjY3OTgyMzE2",
+   "avatar_url": "https://avatars.githubusercontent.com/u/67982316?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/lin1328",
+   "html_url": "https://github.com/lin1328",
+   "followers_url": "https://api.github.com/users/lin1328/followers",
+   "following_url": "https://api.github.com/users/lin1328/following{/other_user}",
+   "gists_url": "https://api.github.com/users/lin1328/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/lin1328/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/lin1328/subscriptions",
+   "organizations_url": "https://api.github.com/users/lin1328/orgs",
+   "repos_url": "https://api.github.com/users/lin1328/repos",
+   "events_url": "https://api.github.com/users/lin1328/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/lin1328/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "[CheckFlagCommonConfig](https://gitlab.kitware.com/cmake/cmake/-/blob/master/Modules/Internal/CheckFlagCommonConfig.cmake#L12) The imported module automatically generates minimal test files internally, with no need for additional references",
+  "created_at": "2026-03-13T17:59:01Z",
+  "updated_at": "2026-03-13T17:59:02Z",
+  "html_url": "https://github.com/RuriOSS/ruri/pull/49#discussion_r2932918078",
+  "pull_request_url": "https://api.github.com/repos/RuriOSS/ruri/pulls/49",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2932918078"
+   },
+   "html": {
+    "href": "https://github.com/RuriOSS/ruri/pull/49#discussion_r2932918078"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/RuriOSS/ruri/pulls/49"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/RuriOSS/ruri/pulls/comments/2932918078/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": 1,
+  "original_line": 1,
+  "side": "RIGHT",
+  "in_reply_to_id": 2930862599,
+  "author_association": "CONTRIBUTOR",
+  "original_position": 1,
+  "position": 1,
+  "subject_type": "file"
+ }
+]

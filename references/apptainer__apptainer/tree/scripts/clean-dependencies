@@ -1,0 +1,13 @@
+#!/bin/bash
+# Copyright (c) Contributors to the Apptainer project, established as
+#   Apptainer a Series of LF Projects LLC.
+#   For website terms of use, trademark policy, privacy policy and other
+#   project policies see https://lfprojects.org/policies
+#
+# Clean out old versions in the current directory of the dependent
+# FUSE-based packages.
+
+set -ex
+for PKG in squashfs-tools squashfuse e2fsprogs fuse-overlayfs gocryptfs PRoot; do
+    rm -rf ${PKG}[_-]*
+done

@@ -1,0 +1,1500 @@
+// Table-driven syscall dispatch — routes seccomp notifications to handler chains.
+//
+// Each syscall number maps to an ordered chain of handlers.  The chain is walked
+// until a handler returns a non-Continue action (or the chain is exhausted, in
+// which case Continue is returned).
+//
+// Continue safety (issue #27):
+//   - The chain walker treats Continue as "this handler did not intervene,
+//     try the next one." A final Continue (no handler intervened, or chain
+//     exhausted) means the syscall passes through to the kernel as-issued.
+//     The kernel still enforces Landlock and the BPF filter on the
+//     untouched syscall, so dispatch-level Continue is not a security
+//     decision — it's the absence of one.
+//   - The conditional shim closures (random/hostname/etc_hosts opens) that
+//     wrap an Option-returning helper translate `None` into Continue,
+//     which is the same "not my path, next handler" semantics. None of
+//     them approve a syscall based on user-memory contents.
+
+use std::collections::HashMap;
+use std::os::unix::io::RawFd;
+use std::sync::Arc;
+
+use super::ctx::SupervisorCtx;
+use super::notif::{NotifAction, NotifPolicy};
+use super::state::ResourceState;
+use super::syscall::SyscallError;
+use crate::arch;
+use crate::sys::structs::SeccompNotif;
+
+use thiserror::Error;
+use tokio::sync::Mutex;
+
+// ============================================================
+// Types
+// ============================================================
+
+// ============================================================
+// Handler trait — the new public extension API.
+// ============================================================
+
+/// Public extension trait for sandlock seccomp-notif handlers.
+///
+/// Each implementor is registered against a [`crate::seccomp::syscall::Syscall`]
+/// through [`crate::Sandbox::run_with_handlers`] /
+/// [`crate::Sandbox::run_interactive_with_handlers`].  Receives
+/// `&HandlerCtx` borrowed for the call; cannot outlive the dispatch
+/// invocation.
+///
+/// State lives on the implementor — no `Arc::clone` ladders, no
+/// closure ceremony at registration time.
+///
+/// `handle` returns a boxed `Future` so the trait stays dyn-compatible
+/// (the supervisor stores user handlers as `Vec<Arc<dyn Handler>>`,
+/// keyed by syscall number).  Returning `impl Future` directly via
+/// RPITIT would be more efficient but is not object-safe, and changing
+/// the storage to a non-erased shape would force a generic dispatch
+/// chain incompatible with arbitrary user handler types.
+pub trait Handler: Send + Sync + 'static {
+    fn handle<'a>(
+        &'a self,
+        cx: &'a HandlerCtx,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = NotifAction> + Send + 'a>>;
+}
+
+/// Context passed to `Handler::handle`.
+///
+/// `notif` is the kernel notification (owned by value — it's a small
+/// `repr(C)` struct, cheap to copy).  `notif_fd` is the supervisor's
+/// seccomp listener fd, used by helpers like `read_child_mem` /
+/// `write_child_mem` / `read_child_cstr` for TOCTOU-safe child memory
+/// access.
+///
+/// Handler state lives on the implementor (`&self`).  Supervisor-internal
+/// state is intentionally not exposed here so the `SupervisorCtx`
+/// internal fields are not part of the downstream extension contract.
+pub struct HandlerCtx {
+    pub notif: SeccompNotif,
+    pub notif_fd: RawFd,
+}
+
+// Blanket impl: any Fn(&HandlerCtx) -> Future is a Handler.
+//
+// Lets lightweight closure-style handlers work without ceremony at the
+// call site.  Handlers that need state should use `struct + explicit
+// impl Handler` instead.
+impl<F, Fut> Handler for F
+where
+    F: Fn(&HandlerCtx) -> Fut + Send + Sync + 'static,
+    Fut: std::future::Future<Output = NotifAction> + Send + 'static,
+{
+    fn handle<'a>(
+        &'a self,
+        cx: &'a HandlerCtx,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = NotifAction> + Send + 'a>> {
+        Box::pin((self)(cx))
+    }
+}
+
+// Concrete impls for `Box<dyn Handler>` and `Arc<dyn Handler>` so callers
+// can erase concrete handler types behind a smart pointer when mixing
+// different handler shapes in one `IntoIterator` passed to
+// `run_with_handlers` — e.g. `Vec<(i64, Box<dyn Handler>)>` lets a
+// downstream register handlers of different concrete types without
+// writing a per-crate wrapper enum.
+//
+// These are concrete `Box<dyn Handler>` / `Arc<dyn Handler>` rather than
+// `<H: Handler + ?Sized>` blankets to avoid coherence overlap with the
+// `impl<F, Fut> Handler for F where F: Fn(&HandlerCtx) -> Fut` blanket
+// above.
+impl Handler for Box<dyn Handler> {
+    fn handle<'a>(
+        &'a self,
+        cx: &'a HandlerCtx,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = NotifAction> + Send + 'a>> {
+        (**self).handle(cx)
+    }
+}
+
+impl Handler for std::sync::Arc<dyn Handler> {
+    fn handle<'a>(
+        &'a self,
+        cx: &'a HandlerCtx,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = NotifAction> + Send + 'a>> {
+        (**self).handle(cx)
+    }
+}
+
+/// Errors raised when registering user handlers via
+/// [`crate::Sandbox::run_with_handlers`].
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum HandlerError {
+    #[error("invalid syscall in handler registration: {0}")]
+    InvalidSyscall(#[from] SyscallError),
+
+    #[error(
+        "handler on syscall {syscall_nr} conflicts with the policy syscall blocklist \
+         and would let user code bypass it via SECCOMP_USER_NOTIF_FLAG_CONTINUE"
+    )]
+    OnDenySyscall { syscall_nr: i64 },
+}
+
+/// Reject handler registrations that would weaken sandlock's confinement
+/// guarantees.
+///
+/// The cBPF program emits notif JEQs *before* deny JEQs, so a syscall
+/// present in both lists hits `SECCOMP_RET_USER_NOTIF` first.  A handler
+/// registered on a syscall that is on the blocklist would therefore
+/// convert a kernel-deny into a user-supervised path: a handler returning
+/// `NotifAction::Continue` becomes `SECCOMP_USER_NOTIF_FLAG_CONTINUE` and
+/// the kernel actually runs the syscall — silently bypassing deny.
+///
+/// The blocklist is whatever [`crate::context::blocklist_syscall_numbers`]
+/// resolves from Sandlock's default syscall blocklist plus policy extras.
+///
+/// Every open-family syscall a path-keyed handler must intercept to be
+/// leak-proof: `open` (legacy), `openat`, and `openat2`. A handler that
+/// only registers `openat` is bypassed by any libc that picks one of
+/// the others. The corresponding BPF notif list (in `context::notif_syscalls`)
+/// must register the same set so the kernel actually produces a
+/// notification — otherwise `RET_ALLOW` makes the handler unreachable.
+fn open_family_syscalls() -> Vec<i64> {
+    let mut v = vec![libc::SYS_openat, arch::SYS_OPENAT2];
+    if let Some(legacy_open) = arch::sys_open() {
+        v.push(legacy_open);
+    }
+    v
+}
+
+/// Takes only the syscall numbers because that's all it needs to check.
+/// Called from the `run_with_handlers` entry points before any
+/// handler is registered against the dispatch table.
+///
+/// Returns the offending syscall number on rejection so the caller can
+/// surface it to the end user.
+pub(crate) fn validate_handler_syscalls_against_policy(
+    syscall_nrs: &[i64],
+    policy: &crate::sandbox::Sandbox,
+) -> Result<(), i64> {
+    let blocklist: std::collections::HashSet<u32> =
+        crate::context::blocklist_syscall_numbers(policy).into_iter().collect();
+    for &nr in syscall_nrs {
+        if blocklist.contains(&(nr as u32)) {
+            return Err(nr);
+        }
+    }
+    Ok(())
+}
+
+
+/// Ordered chain of handlers for a single syscall number.
+struct HandlerChain {
+    handlers: Vec<std::sync::Arc<dyn Handler>>,
+}
+
+/// Maps syscall numbers to handler chains.
+pub struct DispatchTable {
+    chains: HashMap<i64, HandlerChain>,
+}
+
+impl DispatchTable {
+    /// Create an empty dispatch table.
+    pub fn new() -> Self {
+        Self {
+            chains: HashMap::new(),
+        }
+    }
+
+    /// Register a handler for the given syscall number.  Handlers are
+    /// called in registration order; the first non-Continue result wins.
+    ///
+    /// Generic over `H: Handler` — accepts either a struct with explicit
+    /// `impl Handler for ...` or a closure (via blanket impl).
+    pub fn register<H: Handler>(&mut self, syscall_nr: i64, handler: H) {
+        self.register_arc(syscall_nr, std::sync::Arc::new(handler));
+    }
+
+    /// Register a pre-`Arc`'d handler.  Used both by builtin chunks
+    /// that share state via `Arc::clone` (one `ForkHandler` instance
+    /// registers against `SYS_clone`/`SYS_clone3`/`SYS_vfork`) and by
+    /// `run_with_handlers` when each item already arrives as
+    /// `Arc<dyn Handler>`.
+    pub(crate) fn register_arc(
+        &mut self,
+        syscall_nr: i64,
+        handler: std::sync::Arc<dyn Handler>,
+    ) {
+        self.chains
+            .entry(syscall_nr)
+            .or_insert_with(|| HandlerChain { handlers: Vec::new() })
+            .handlers
+            .push(handler);
+    }
+
+    /// Dispatch a notification through the handler chain for its syscall number.
+    pub(crate) async fn dispatch(
+        &self,
+        notif: SeccompNotif,
+        notif_fd: RawFd,
+    ) -> NotifAction {
+        let nr = notif.data.nr as i64;
+        if let Some(chain) = self.chains.get(&nr) {
+            let handler_ctx = HandlerCtx { notif, notif_fd };
+            for handler in &chain.handlers {
+                let action = handler.handle(&handler_ctx).await;
+                if !matches!(action, NotifAction::Continue) {
+                    return action;
+                }
+            }
+        }
+        NotifAction::Continue
+    }
+}
+
+// ============================================================
+// Table builder — mechanical translation of old dispatch()
+// ============================================================
+
+/// Build the dispatch table from a `NotifPolicy`.  Every branch from the old
+/// monolithic `dispatch()` function is translated into a `table.register()` call.
+/// Priority is preserved by registration order.
+///
+/// `pending_handlers` are appended **after** all builtin handlers, so they
+/// observe the post-builtin view (e.g. `chroot`-normalized paths on
+/// `openat`).  Builtins cannot be overridden or removed — this is the
+/// security boundary for downstream crates.
+pub(crate) fn build_dispatch_table(
+    policy: &Arc<NotifPolicy>,
+    resource: &Arc<Mutex<ResourceState>>,
+    ctx: &Arc<SupervisorCtx>,
+    pending_handlers: Vec<(i64, std::sync::Arc<dyn Handler>)>,
+) -> DispatchTable {
+    let mut table = DispatchTable::new();
+
+    // ------------------------------------------------------------------
+    // Fork/clone family (always on)
+    // ------------------------------------------------------------------
+    for nr in arch::fork_like_syscalls() {
+        let policy_for_fork = Arc::clone(policy);
+        let ctx_for_fork = Arc::clone(ctx);
+        table.register(nr, move |cx: &HandlerCtx| {
+            let notif = cx.notif;
+            let notif_fd = cx.notif_fd;
+            let policy = Arc::clone(&policy_for_fork);
+            let ctx = Arc::clone(&ctx_for_fork);
+            async move {
+                crate::resource::handle_fork(&notif, notif_fd, &ctx, &policy).await
+            }
+        });
+    }
+
+    // ------------------------------------------------------------------
+    // Wait family (always on)
+    // ------------------------------------------------------------------
+    for &nr in &[libc::SYS_wait4, libc::SYS_waitid] {
+        let resource_for_wait = Arc::clone(resource);
+        table.register(nr, move |cx: &HandlerCtx| {
+            let notif = cx.notif;
+            let resource = Arc::clone(&resource_for_wait);
+            async move {
+                crate::resource::handle_wait(&notif, &resource).await
+            }
+        });
+    }
+
+    // ------------------------------------------------------------------
+    // Memory management (conditional on has_memory_limit)
+    // ------------------------------------------------------------------
+    if policy.has_memory_limit {
+        for &nr in &[
+            libc::SYS_mmap, libc::SYS_munmap, libc::SYS_brk,
+            libc::SYS_mremap, libc::SYS_shmget,
+        ] {
+            let policy_for_mem = Arc::clone(policy);
+            let __sup = Arc::clone(ctx);
+            table.register(nr, move |cx: &HandlerCtx| {
+                let notif = cx.notif;
+                let sup = Arc::clone(&__sup);
+                let policy = Arc::clone(&policy_for_mem);
+                async move {
+                    crate::resource::handle_memory(&notif, &sup, &policy).await
+                }
+            });
+        }
+
+        // exec replaces the address space, invalidating both its charge and
+        // its brk base; see handle_exec_memory_reset. Registered first for
+        // these nrs (always Continue), so later chroot/COW exec handlers
+        // still run.
+        for &nr in &[libc::SYS_execve, libc::SYS_execveat] {
+            let __sup = Arc::clone(ctx);
+            table.register(nr, move |cx: &HandlerCtx| {
+                let notif = cx.notif;
+                let sup = Arc::clone(&__sup);
+                async move {
+                    crate::resource::handle_exec_memory_reset(&notif, &sup).await
+                }
+            });
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Network (conditional on has_net_destination_policy || has_unix_fs_gate;
+    // the latter traps connect() to gate named unix sockets). has_http_acl is
+    // already subsumed by has_net_destination_policy, so it isn't listed.
+    // ------------------------------------------------------------------
+    if policy.has_net_destination_policy || policy.has_unix_fs_gate {
+        for &nr in &[
+            libc::SYS_connect,
+            libc::SYS_sendto,
+            libc::SYS_sendmsg,
+            libc::SYS_sendmmsg,
+        ] {
+            let __sup = Arc::clone(ctx);
+            table.register(nr, move |cx: &HandlerCtx| {
+                let notif = cx.notif;
+                let sup = Arc::clone(&__sup);
+                let notif_fd = cx.notif_fd;
+                async move {
+                    crate::network::handle_net(&notif, &sup, notif_fd).await
+                }
+            });
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Deterministic random — getrandom()
+    // ------------------------------------------------------------------
+    if policy.has_random_seed {
+        let __sup = Arc::clone(ctx);
+        table.register(libc::SYS_getrandom, move |cx: &HandlerCtx| {
+            let notif = cx.notif;
+            let sup = Arc::clone(&__sup);
+            let notif_fd = cx.notif_fd;
+            async move {
+                let mut tr = sup.time_random.lock().await;
+                if let Some(ref mut rng) = tr.random_state {
+                    crate::random::handle_getrandom(&notif, rng, notif_fd)
+                } else {
+                    NotifAction::Continue
+                }
+            }
+        });
+    }
+
+    // ------------------------------------------------------------------
+    // Deterministic random — /dev/urandom and /dev/random opens.
+    // Registered for every open-family syscall so dirfd-relative and
+    // legacy `open` spellings can't slip past the seed and read the
+    // kernel's real entropy.
+    // ------------------------------------------------------------------
+    if policy.has_random_seed {
+        for nr in open_family_syscalls() {
+            let __sup = Arc::clone(ctx);
+            let policy_rand = Arc::clone(policy);
+            table.register(nr, move |cx: &HandlerCtx| {
+                let notif = cx.notif;
+                let sup = Arc::clone(&__sup);
+                let policy = Arc::clone(&policy_rand);
+                let notif_fd = cx.notif_fd;
+                async move {
+                    let mut tr = sup.time_random.lock().await;
+                    if let Some(ref mut rng) = tr.random_state {
+                        if let Some(action) = crate::random::handle_random_open(
+                            &notif, rng, notif_fd,
+                            policy.chroot_root.as_deref(), &policy.chroot_mounts,
+                            &sup.processes,
+                        ) {
+                            return action;
+                        }
+                    }
+                    NotifAction::Continue
+                }
+            });
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Timer adjustment (conditional on has_time_start)
+    // ------------------------------------------------------------------
+    if policy.has_time_start {
+        let time_offset = policy.time_offset;
+        for &nr in &[
+            libc::SYS_clock_nanosleep as i64,
+            libc::SYS_timerfd_settime as i64,
+            libc::SYS_timer_settime as i64,
+        ] {
+            table.register(nr, move |cx: &HandlerCtx| {
+                let notif = cx.notif;
+                let notif_fd = cx.notif_fd;
+                async move {
+                    crate::time::handle_timer(&notif, time_offset, notif_fd)
+                }
+            });
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // /etc/hosts virtualization: always on. The synthetic file contains
+    // the loopback base (or, in chroot/image mode, the image's own
+    // `/etc/hosts` merged with a loopback fallback) plus any concrete
+    // hostnames resolved from `net_allow`, so the host's on-disk
+    // `/etc/hosts` never leaks in and image-baked entries are preserved.
+    //
+    // Registered for every open-family syscall (see `open_family_syscalls`).
+    // Must run *before* the chroot handler so that in chroot mode the
+    // synthetic memfd wins over a direct open of `<chroot>/etc/hosts` —
+    // the chroot handler always intercepts opens within the chroot and
+    // would otherwise serve the raw image file, defeating the merge.
+    // ------------------------------------------------------------------
+    {
+        let etc_hosts = policy.virtual_etc_hosts.clone();
+        for nr in open_family_syscalls() {
+            let etc_hosts = etc_hosts.clone();
+            let policy_hosts = Arc::clone(policy);
+            let processes_for_open = Arc::clone(&ctx.processes);
+            table.register(nr, move |cx: &HandlerCtx| {
+                let notif = cx.notif;
+                let notif_fd = cx.notif_fd;
+                let etc_hosts = etc_hosts.clone();
+                let policy = Arc::clone(&policy_hosts);
+                let processes = Arc::clone(&processes_for_open);
+                async move {
+                    if let Some(action) = crate::procfs::handle_etc_hosts_open(
+                        &notif, &etc_hosts, notif_fd,
+                        policy.chroot_root.as_deref(), &policy.chroot_mounts,
+                        &processes,
+                    ) {
+                        action
+                    } else {
+                        NotifAction::Continue
+                    }
+                }
+            });
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // CA injection: splice the active MITM CA into user-declared trust
+    // bundles. Registered before chroot/COW so the substituted memfd wins
+    // over a real open of the bundle file. Only active when MITM is on and
+    // the user declared at least one --http-inject-ca path.
+    // ------------------------------------------------------------------
+    if let Some(ca_pem) = policy.ca_inject_pem.clone() {
+        if !policy.ca_inject_paths.is_empty() {
+            let inject_paths = std::sync::Arc::new(policy.ca_inject_paths.clone());
+            for nr in open_family_syscalls() {
+                let ca_pem = std::sync::Arc::clone(&ca_pem);
+                let inject_paths = std::sync::Arc::clone(&inject_paths);
+                let policy_ca = Arc::clone(policy);
+                let processes_for_open = Arc::clone(&ctx.processes);
+                table.register(nr, move |cx: &HandlerCtx| {
+                    let notif = cx.notif;
+                    let notif_fd = cx.notif_fd;
+                    let ca_pem = std::sync::Arc::clone(&ca_pem);
+                    let inject_paths = std::sync::Arc::clone(&inject_paths);
+                    let policy = Arc::clone(&policy_ca);
+                    let processes = Arc::clone(&processes_for_open);
+                    async move {
+                        crate::ca_inject::handle_ca_inject_open(
+                            &notif, &inject_paths, &ca_pem, notif_fd,
+                            policy.chroot_root.as_deref(), &policy.chroot_mounts,
+                            &processes,
+                        )
+                        .unwrap_or(NotifAction::Continue)
+                    }
+                });
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // /proc file virtualization (always on). Registered BEFORE chroot/COW so a
+    // synthesized /proc memfd wins over a real open of <chroot>/proc/* (the
+    // empty rootfs procfs) — mirroring the /etc/hosts and CA handlers above.
+    // The handler also does sensitive-path blocking and per-PID filtering
+    // (security boundaries), so it must run first and catch every open-family
+    // spelling. NOTE: only the open-family handler moves here; the getdents
+    // directory-listing handler stays after chroot (below) so a chrooted /proc
+    // dir fd lists the empty rootfs procfs rather than the host's entries.
+    // ------------------------------------------------------------------
+    for nr in open_family_syscalls() {
+        let policy_for_proc_open = Arc::clone(policy);
+        let resource_for_proc_open = Arc::clone(resource);
+        let __sup = Arc::clone(ctx);
+        table.register(nr, move |cx: &HandlerCtx| {
+            let notif = cx.notif;
+            let sup = Arc::clone(&__sup);
+            let notif_fd = cx.notif_fd;
+            let policy = Arc::clone(&policy_for_proc_open);
+            let resource = Arc::clone(&resource_for_proc_open);
+            async move {
+                let processes = Arc::clone(&sup.processes);
+                let network = Arc::clone(&sup.network);
+                crate::procfs::handle_proc_open(&notif, &processes, &resource, &network, &policy, notif_fd).await
+            }
+        });
+    }
+
+    // ------------------------------------------------------------------
+    // Chroot path interception (before COW)
+    // ------------------------------------------------------------------
+    if policy.chroot_root.is_some() {
+        register_chroot_handlers(&mut table, policy, ctx);
+    }
+
+    // ------------------------------------------------------------------
+    // COW filesystem interception
+    // ------------------------------------------------------------------
+    if policy.cow_enabled {
+        register_cow_handlers(&mut table, ctx);
+    }
+
+    // ------------------------------------------------------------------
+    // /proc directory-listing PID filter. Stays after chroot/COW: under chroot
+    // the /proc dir fd resolves to the empty rootfs procfs, so the listing is
+    // empty rather than leaking the host's /proc entry names (which are not all
+    // synthesized and would dangle on access).
+    // ------------------------------------------------------------------
+    let mut getdents_nrs = vec![libc::SYS_getdents64];
+    if let Some(getdents) = arch::sys_getdents() {
+        getdents_nrs.push(getdents);
+    }
+    for nr in getdents_nrs {
+        let policy_for_getdents = Arc::clone(policy);
+        let __sup = Arc::clone(ctx);
+        table.register(nr, move |cx: &HandlerCtx| {
+            let notif = cx.notif;
+            let sup = Arc::clone(&__sup);
+            let notif_fd = cx.notif_fd;
+            let policy = Arc::clone(&policy_for_getdents);
+            async move {
+                let processes = Arc::clone(&sup.processes);
+                crate::procfs::handle_getdents(&notif, &processes, &policy, notif_fd).await
+            }
+        });
+    }
+
+    // ------------------------------------------------------------------
+    // Virtual CPU count
+    // ------------------------------------------------------------------
+    if let Some(n) = policy.num_cpus {
+        table.register(libc::SYS_sched_getaffinity, move |cx: &HandlerCtx| {
+            let notif = cx.notif;
+            let notif_fd = cx.notif_fd;
+            async move {
+                crate::procfs::handle_sched_getaffinity(&notif, n, notif_fd)
+            }
+        });
+    }
+
+    // ------------------------------------------------------------------
+    // Hostname virtualization. The `/etc/hostname` shim is registered
+    // for every open-family syscall so dirfd-relative and legacy `open`
+    // spellings can't leak the host's real hostname.
+    // ------------------------------------------------------------------
+    if let Some(ref hostname) = policy.virtual_hostname {
+        let hostname_for_uname = hostname.clone();
+        let hostname_for_open = hostname.clone();
+        table.register(libc::SYS_uname, move |cx: &HandlerCtx| {
+            let notif = cx.notif;
+            let notif_fd = cx.notif_fd;
+            let hostname = hostname_for_uname.clone();
+            async move {
+                crate::procfs::handle_uname(&notif, &hostname, notif_fd)
+            }
+        });
+        for nr in open_family_syscalls() {
+            let hostname = hostname_for_open.clone();
+            let policy_hostname = Arc::clone(policy);
+            let processes_for_open = Arc::clone(&ctx.processes);
+            table.register(nr, move |cx: &HandlerCtx| {
+                let notif = cx.notif;
+                let notif_fd = cx.notif_fd;
+                let hostname = hostname.clone();
+                let policy = Arc::clone(&policy_hostname);
+                let processes = Arc::clone(&processes_for_open);
+                async move {
+                    if let Some(action) = crate::procfs::handle_hostname_open(
+                        &notif, &hostname, notif_fd,
+                        policy.chroot_root.as_deref(), &policy.chroot_mounts,
+                        &processes,
+                    ) {
+                        action
+                    } else {
+                        NotifAction::Continue
+                    }
+                }
+            });
+        }
+    }
+
+    // /etc/hosts is registered above the chroot block — see the comment there.
+
+    // ------------------------------------------------------------------
+    // Deterministic directory listing
+    // ------------------------------------------------------------------
+    if policy.deterministic_dirs {
+        let mut getdents_nrs = vec![libc::SYS_getdents64];
+        if let Some(getdents) = arch::sys_getdents() {
+            getdents_nrs.push(getdents);
+        }
+        for nr in getdents_nrs {
+            let __sup = Arc::clone(ctx);
+            table.register(nr, move |cx: &HandlerCtx| {
+                let notif = cx.notif;
+                let sup = Arc::clone(&__sup);
+                let notif_fd = cx.notif_fd;
+                async move {
+                    let processes = Arc::clone(&sup.processes);
+                    crate::procfs::handle_sorted_getdents(&notif, &processes, notif_fd).await
+                }
+            });
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // NETLINK_ROUTE virtualization (always on).
+    //
+    // Send/recv traffic flows through a `socketpair(AF_UNIX,
+    // SOCK_SEQPACKET)` whose supervisor-side end is driven by a tokio
+    // task spawned in `handle_socket`.  Only `socket`, `bind`,
+    // `getsockname`, `recvmsg`/`recvfrom`, and `close` need supervisor
+    // intercepts; send uses the kernel directly.
+    //
+    // Must register before `port_remap` so the netlink `bind` handler
+    // runs first and returns `Continue` for non-cookie fds.
+    // ------------------------------------------------------------------
+    {
+        let __sup = Arc::clone(ctx);
+        table.register(libc::SYS_socket, move |cx: &HandlerCtx| {
+            let notif = cx.notif;
+            let sup = Arc::clone(&__sup);
+            async move {
+                let state = Arc::clone(&sup.netlink);
+                crate::netlink::handlers::handle_socket(&notif, &state).await
+            }
+        });
+        let __sup = Arc::clone(ctx);
+        table.register(libc::SYS_bind, move |cx: &HandlerCtx| {
+            let notif = cx.notif;
+            let sup = Arc::clone(&__sup);
+            async move {
+                let state = Arc::clone(&sup.netlink);
+                crate::netlink::handlers::handle_bind(&notif, &state).await
+            }
+        });
+        let __sup = Arc::clone(ctx);
+        table.register(libc::SYS_getsockname, move |cx: &HandlerCtx| {
+            let notif = cx.notif;
+            let sup = Arc::clone(&__sup);
+            let notif_fd = cx.notif_fd;
+            async move {
+                let state = Arc::clone(&sup.netlink);
+                crate::netlink::handlers::handle_getsockname(&notif, &state, notif_fd).await
+            }
+        });
+        // Zero the msg_name region on recv so glibc sees nl_pid=0
+        // (the kernel only writes sun_family on unix socketpair recvmsg,
+        //  leaving the rest of the buffer as stack garbage otherwise).
+        for &nr in &[libc::SYS_recvfrom, libc::SYS_recvmsg] {
+            let __sup = Arc::clone(ctx);
+            table.register(nr, move |cx: &HandlerCtx| {
+                let notif = cx.notif;
+                let sup = Arc::clone(&__sup);
+                let notif_fd = cx.notif_fd;
+                async move {
+                    let state = Arc::clone(&sup.netlink);
+                    crate::netlink::handlers::handle_netlink_recvmsg(&notif, &state, notif_fd).await
+                }
+            });
+        }
+        // Unregister on close so the (pid, fd) slot isn't left in the
+        // cookie set once the child reuses the fd for something else.
+        let __sup = Arc::clone(ctx);
+        table.register(libc::SYS_close, move |cx: &HandlerCtx| {
+            let notif = cx.notif;
+            let sup = Arc::clone(&__sup);
+            async move {
+                let state = Arc::clone(&sup.netlink);
+                crate::netlink::handlers::handle_close(&notif, &state).await
+            }
+        });
+    }
+
+    // ------------------------------------------------------------------
+    // Bind — on-behalf
+    // ------------------------------------------------------------------
+    if policy.port_remap || policy.has_net_destination_policy || policy.has_bind_denylist {
+        let __sup = Arc::clone(ctx);
+        table.register(libc::SYS_bind, move |cx: &HandlerCtx| {
+            let notif = cx.notif;
+            let sup = Arc::clone(&__sup);
+            let notif_fd = cx.notif_fd;
+            async move {
+                crate::port_remap::handle_bind(&notif, &sup.network, notif_fd).await
+            }
+        });
+    }
+
+    // ------------------------------------------------------------------
+    // getsockname — port remap
+    // ------------------------------------------------------------------
+    if policy.port_remap {
+        let __sup = Arc::clone(ctx);
+        table.register(libc::SYS_getsockname, move |cx: &HandlerCtx| {
+            let notif = cx.notif;
+            let sup = Arc::clone(&__sup);
+            let notif_fd = cx.notif_fd;
+            async move {
+                crate::port_remap::handle_getsockname(&notif, &sup.network, notif_fd).await
+            }
+        });
+    }
+
+    // ------------------------------------------------------------------
+    // Pending user handlers — appended after builtins so builtin handlers
+    // keep their security-critical priority (chroot path normalization,
+    // COW writes, resource accounting).
+    // ------------------------------------------------------------------
+    for (nr, h) in pending_handlers {
+        table.register_arc(nr, h);
+    }
+
+    table
+}
+
+// ============================================================
+// Chroot handler registration
+// ============================================================
+
+fn register_chroot_handlers(
+    table: &mut DispatchTable,
+    policy: &Arc<NotifPolicy>,
+    ctx: &Arc<SupervisorCtx>,
+) {
+    use crate::chroot::dispatch::ChrootCtx;
+
+    // Helper macro — produces a closure satisfying Handler via blanket impl.
+    // The closure clones `policy` (Arc) before the async block; inside the
+    // async block it borrows fields of that cloned Arc to build `ChrootCtx`.
+    macro_rules! chroot_handler {
+        ($policy:expr, $handler:expr) => {{
+            let policy = Arc::clone($policy);
+            let chroot_state = Arc::clone(&ctx.chroot);
+            let cow_state = Arc::clone(&ctx.cow);
+            let processes = Arc::clone(&ctx.processes);
+            move |cx: &HandlerCtx| {
+                let notif = cx.notif;
+                let chroot_state = Arc::clone(&chroot_state);
+                let cow_state = Arc::clone(&cow_state);
+                let processes = Arc::clone(&processes);
+                let notif_fd = cx.notif_fd;
+                let policy = Arc::clone(&policy);
+                async move {
+                    let chroot_ctx = ChrootCtx::new(&policy, &processes);
+                    $handler(&notif, &chroot_state, &cow_state, notif_fd, &chroot_ctx).await
+                }
+            }
+        }};
+    }
+
+    // Same shape for fall-through variants (semantically identical here;
+    // kept separate for symmetry with the old code).
+    macro_rules! chroot_handler_fallthrough {
+        ($policy:expr, $handler:expr) => {{
+            let policy = Arc::clone($policy);
+            let chroot_state = Arc::clone(&ctx.chroot);
+            let cow_state = Arc::clone(&ctx.cow);
+            let processes = Arc::clone(&ctx.processes);
+            move |cx: &HandlerCtx| {
+                let notif = cx.notif;
+                let chroot_state = Arc::clone(&chroot_state);
+                let cow_state = Arc::clone(&cow_state);
+                let processes = Arc::clone(&processes);
+                let notif_fd = cx.notif_fd;
+                let policy = Arc::clone(&policy);
+                async move {
+                    let chroot_ctx = ChrootCtx::new(&policy, &processes);
+                    $handler(&notif, &chroot_state, &cow_state, notif_fd, &chroot_ctx).await
+                }
+            }
+        }};
+    }
+
+    // openat — fallthrough if Continue
+    // openat, openat2 — fallthrough if Continue. Both carry (dirfd, path) in
+    // the same slots; the handler decodes the rest per spelling.
+    for &nr in &[libc::SYS_openat, arch::SYS_OPENAT2] {
+        table.register(nr, chroot_handler_fallthrough!(policy,
+            crate::chroot::dispatch::handle_chroot_open));
+    }
+
+    // open (legacy) — fallthrough if Continue
+    if let Some(open) = arch::sys_open() {
+        table.register(open, chroot_handler_fallthrough!(policy,
+            crate::chroot::dispatch::handle_chroot_legacy_open));
+    }
+
+    // execve, execveat — unconditional return
+    for &nr in &[libc::SYS_execve, libc::SYS_execveat] {
+        table.register(nr, chroot_handler!(policy,
+            crate::chroot::dispatch::handle_chroot_exec));
+    }
+
+    // Modern write syscalls
+    let mut write_nrs = vec![
+        libc::SYS_unlinkat, libc::SYS_mkdirat, libc::SYS_renameat2,
+        libc::SYS_symlinkat, libc::SYS_linkat, libc::SYS_fchmodat,
+        libc::SYS_fchownat, libc::SYS_truncate,
+    ];
+    // renameat only exists where the ABI kept it, and libc's rename() lands
+    // there on the arches without a plain rename(2).
+    write_nrs.extend(arch::sys_renameat());
+    for nr in write_nrs {
+        table.register(nr, chroot_handler!(policy,
+            crate::chroot::dispatch::handle_chroot_write));
+    }
+
+    // Legacy write syscalls
+    if let Some(nr) = arch::sys_unlink() {
+        table.register(nr, chroot_handler!(policy,
+            crate::chroot::dispatch::handle_chroot_legacy_unlink));
+    }
+    if let Some(nr) = arch::sys_rmdir() {
+        table.register(nr, chroot_handler!(policy,
+            crate::chroot::dispatch::handle_chroot_legacy_rmdir));
+    }
+    if let Some(nr) = arch::sys_mkdir() {
+        table.register(nr, chroot_handler!(policy,
+            crate::chroot::dispatch::handle_chroot_legacy_mkdir));
+    }
+    if let Some(nr) = arch::sys_rename() {
+        table.register(nr, chroot_handler!(policy,
+            crate::chroot::dispatch::handle_chroot_legacy_rename));
+    }
+    if let Some(nr) = arch::sys_symlink() {
+        table.register(nr, chroot_handler!(policy,
+            crate::chroot::dispatch::handle_chroot_legacy_symlink));
+    }
+    if let Some(nr) = arch::sys_link() {
+        table.register(nr, chroot_handler!(policy,
+            crate::chroot::dispatch::handle_chroot_legacy_link));
+    }
+    if let Some(nr) = arch::sys_chmod() {
+        table.register(nr, chroot_handler!(policy,
+            crate::chroot::dispatch::handle_chroot_legacy_chmod));
+    }
+
+    // chown — non-follow
+    if let Some(chown) = arch::sys_chown() {
+        let policy_for_chown = Arc::clone(policy);
+        let __sup = Arc::clone(ctx);
+        table.register(chown, move |cx: &HandlerCtx| {
+            let notif = cx.notif;
+            let sup = Arc::clone(&__sup);
+            let notif_fd = cx.notif_fd;
+            let policy = Arc::clone(&policy_for_chown);
+            async move {
+                let chroot_ctx = ChrootCtx::new(&policy, &sup.processes);
+                crate::chroot::dispatch::handle_chroot_legacy_chown(&notif, &sup.chroot, &sup.cow, notif_fd, &chroot_ctx, false).await
+            }
+        });
+    }
+
+    // lchown — follow
+    if let Some(lchown) = arch::sys_lchown() {
+        let policy_for_lchown = Arc::clone(policy);
+        let __sup = Arc::clone(ctx);
+        table.register(lchown, move |cx: &HandlerCtx| {
+            let notif = cx.notif;
+            let sup = Arc::clone(&__sup);
+            let notif_fd = cx.notif_fd;
+            let policy = Arc::clone(&policy_for_lchown);
+            async move {
+                let chroot_ctx = ChrootCtx::new(&policy, &sup.processes);
+                crate::chroot::dispatch::handle_chroot_legacy_chown(&notif, &sup.chroot, &sup.cow, notif_fd, &chroot_ctx, true).await
+            }
+        });
+    }
+
+    // stat family
+    for &nr in &[
+        libc::SYS_newfstatat,
+        libc::SYS_faccessat,
+        arch::SYS_FACCESSAT2,
+    ] {
+        table.register(nr, chroot_handler!(policy,
+            crate::chroot::dispatch::handle_chroot_stat));
+    }
+
+    // Legacy stat
+    if let Some(nr) = arch::sys_stat() {
+        table.register(nr, chroot_handler!(policy,
+            crate::chroot::dispatch::handle_chroot_legacy_stat));
+    }
+    if let Some(nr) = arch::sys_lstat() {
+        table.register(nr, chroot_handler!(policy,
+            crate::chroot::dispatch::handle_chroot_legacy_lstat));
+    }
+    if let Some(nr) = arch::sys_access() {
+        table.register(nr, chroot_handler!(policy,
+            crate::chroot::dispatch::handle_chroot_legacy_access));
+    }
+
+    // statx
+    table.register(libc::SYS_statx, chroot_handler!(policy,
+        crate::chroot::dispatch::handle_chroot_statx));
+
+    // readlink
+    table.register(libc::SYS_readlinkat, chroot_handler!(policy,
+        crate::chroot::dispatch::handle_chroot_readlink));
+    if let Some(nr) = arch::sys_readlink() {
+        table.register(nr, chroot_handler!(policy,
+            crate::chroot::dispatch::handle_chroot_legacy_readlink));
+    }
+
+    // getdents
+    let mut getdents_nrs = vec![libc::SYS_getdents64];
+    if let Some(getdents) = arch::sys_getdents() {
+        getdents_nrs.push(getdents);
+    }
+    for nr in getdents_nrs {
+        table.register(nr, chroot_handler!(policy,
+            crate::chroot::dispatch::handle_chroot_getdents));
+    }
+
+    // chdir, fchdir, getcwd, statfs, utimensat
+    table.register(libc::SYS_chdir as i64, chroot_handler!(policy,
+        crate::chroot::dispatch::handle_chroot_chdir));
+    table.register(libc::SYS_fchdir as i64, chroot_handler!(policy,
+        crate::chroot::dispatch::handle_chroot_fchdir));
+    table.register(libc::SYS_getcwd as i64, chroot_handler!(policy,
+        crate::chroot::dispatch::handle_chroot_getcwd));
+    table.register(libc::SYS_statfs as i64, chroot_handler!(policy,
+        crate::chroot::dispatch::handle_chroot_statfs));
+    table.register(libc::SYS_utimensat as i64, chroot_handler!(policy,
+        crate::chroot::dispatch::handle_chroot_utimensat));
+
+    // xattr family (path-based) — get/set/list/remove and their l* variants
+    for &nr in &[
+        libc::SYS_getxattr, libc::SYS_lgetxattr,
+        libc::SYS_setxattr, libc::SYS_lsetxattr,
+        libc::SYS_listxattr, libc::SYS_llistxattr,
+        libc::SYS_removexattr, libc::SYS_lremovexattr,
+    ] {
+        table.register(nr, chroot_handler!(policy,
+            crate::chroot::dispatch::handle_chroot_xattr));
+    }
+}
+
+// ============================================================
+// COW handler registration
+// ============================================================
+
+fn register_cow_handlers(table: &mut DispatchTable, ctx: &Arc<SupervisorCtx>) {
+    // Helper that captures `ctx.cow` and `ctx.processes` once at table-build
+    // time, then re-clones the per-handler `Arc`s on each invocation.
+    macro_rules! cow_call {
+        ($handler:expr) => {{
+            let cow_state = Arc::clone(&ctx.cow);
+            let processes_state = Arc::clone(&ctx.processes);
+            move |cx: &HandlerCtx| {
+                let notif = cx.notif;
+                let cow_state = Arc::clone(&cow_state);
+                let processes_state = Arc::clone(&processes_state);
+                let notif_fd = cx.notif_fd;
+                async move {
+                    $handler(&notif, &cow_state, &processes_state, notif_fd).await
+                }
+            }
+        }};
+    }
+
+    // Write syscalls (*at variants + legacy)
+    let mut write_nrs = vec![
+        libc::SYS_unlinkat, libc::SYS_mkdirat, libc::SYS_mknodat, libc::SYS_renameat2,
+        libc::SYS_symlinkat, libc::SYS_linkat, libc::SYS_fchmodat,
+        libc::SYS_fchownat, libc::SYS_truncate,
+    ];
+    write_nrs.extend([
+        arch::sys_unlink(), arch::sys_rmdir(), arch::sys_mkdir(), arch::sys_mknod(),
+        arch::sys_rename(), arch::sys_renameat(), arch::sys_symlink(), arch::sys_link(),
+        arch::sys_chmod(), arch::sys_chown(), arch::sys_lchown(),
+    ].into_iter().flatten());
+    for nr in write_nrs {
+        table.register(nr, cow_call!(crate::cow::dispatch::handle_cow_write));
+    }
+
+    table.register(libc::SYS_utimensat, cow_call!(crate::cow::dispatch::handle_cow_utimensat));
+
+    let mut access_nrs = vec![libc::SYS_faccessat, arch::SYS_FACCESSAT2];
+    access_nrs.extend(arch::sys_access());
+    for nr in access_nrs {
+        table.register(nr, cow_call!(crate::cow::dispatch::handle_cow_access));
+    }
+
+    for nr in open_family_syscalls() {
+        table.register(nr, cow_call!(crate::cow::dispatch::handle_cow_open));
+    }
+
+    let mut stat_nrs = vec![libc::SYS_newfstatat, libc::SYS_faccessat];
+    stat_nrs.extend([arch::sys_stat(), arch::sys_lstat(), arch::sys_access()].into_iter().flatten());
+    for nr in stat_nrs {
+        table.register(nr, cow_call!(crate::cow::dispatch::handle_cow_stat));
+    }
+
+    table.register(libc::SYS_statx, cow_call!(crate::cow::dispatch::handle_cow_statx));
+
+    let mut readlink_nrs = vec![libc::SYS_readlinkat];
+    readlink_nrs.extend(arch::sys_readlink());
+    for nr in readlink_nrs {
+        table.register(nr, cow_call!(crate::cow::dispatch::handle_cow_readlink));
+    }
+
+    let mut getdents_nrs = vec![libc::SYS_getdents64];
+    getdents_nrs.extend(arch::sys_getdents());
+    for nr in getdents_nrs {
+        table.register(nr, cow_call!(crate::cow::dispatch::handle_cow_getdents));
+    }
+
+    table.register(libc::SYS_chdir, cow_call!(crate::cow::dispatch::handle_cow_chdir));
+    table.register(libc::SYS_getcwd, cow_call!(crate::cow::dispatch::handle_cow_getcwd));
+
+    for &nr in &[libc::SYS_execve, libc::SYS_execveat] {
+        table.register(nr, cow_call!(crate::cow::dispatch::handle_cow_exec));
+    }
+}
+
+// ============================================================
+// Tests
+// ============================================================
+
+#[cfg(test)]
+mod handler_tests {
+    //! Unit tests for the user-supplied handler extension API.
+    //!
+    //! Drive the actual `DispatchTable::dispatch` walker against a minimal
+    //! `SupervisorCtx` constructed from default-state pieces.  Handler
+    //! closures here ignore the context (no notif fd, no real child), so
+    //! the dispatch invariants under test (registration order, chain
+    //! short-circuit on first non-`Continue`, append-after-builtin
+    //! placement) are exercised end-to-end without needing a live
+    //! Landlock+seccomp sandbox — those scenarios live under
+    //! `crates/sandlock-core/tests/integration/test_handlers.rs`.
+    use super::*;
+    use crate::netlink::NetlinkState;
+    use crate::seccomp::ctx::SupervisorCtx;
+    use crate::seccomp::notif::NotifPolicy;
+    use crate::seccomp::state::{
+        ChrootState, CowState, NetworkState, PolicyFnState, ProcessIndex, ProcfsState,
+        ResourceState, TimeRandomState,
+    };
+    use crate::sys::structs::{SeccompData, SeccompNotif};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    fn fake_notif(nr: i32) -> SeccompNotif {
+        SeccompNotif {
+            id: 0,
+            pid: 1,
+            flags: 0,
+            data: SeccompData {
+                nr,
+                arch: 0,
+                instruction_pointer: 0,
+                args: [0; 6],
+            },
+        }
+    }
+
+    /// Minimal `SupervisorCtx` for unit tests.  Every field is built from
+    /// the corresponding state's `new()`/default constructor — no syscalls,
+    /// no fds, no spawned children.  Handlers in these tests do not
+    /// actually inspect the context, so the values do not need to match
+    /// any real run; they only need to satisfy the type signature so we
+    /// can call `dispatch()`.
+    fn fake_supervisor_ctx() -> Arc<SupervisorCtx> {
+        Arc::new(SupervisorCtx {
+            resource: Arc::new(Mutex::new(ResourceState::new(0, 0))),
+            cow: Arc::new(Mutex::new(CowState::new())),
+            procfs: Arc::new(Mutex::new(ProcfsState::new())),
+            network: Arc::new(Mutex::new(NetworkState::new())),
+            time_random: Arc::new(Mutex::new(TimeRandomState::new(None, None))),
+            policy_fn: Arc::new(Mutex::new(PolicyFnState::new())),
+            chroot: Arc::new(Mutex::new(ChrootState::new())),
+            netlink: Arc::new(NetlinkState::new()),
+            processes: Arc::new(ProcessIndex::new()),
+            policy: Arc::new(NotifPolicy {
+                max_memory_bytes: 0,
+                max_processes: 0,
+                has_memory_limit: false,
+                has_net_destination_policy: false,
+                has_bind_denylist: false,
+                has_unix_fs_gate: false,
+                has_random_seed: false,
+                has_time_start: false,
+                time_offset: 0,
+                num_cpus: None,
+                argv_safety_required: false,
+                port_remap: false,
+                cow_enabled: false,
+                chroot_root: None,
+                chroot_readable: Vec::new(),
+                chroot_writable: Vec::new(),
+                chroot_denied: Vec::new(),
+                chroot_mounts: Vec::new(),
+                chroot_mount_ro: Vec::new(),
+                deterministic_dirs: false,
+                virtual_hostname: None,
+                has_http_acl: false,
+                virtual_etc_hosts: String::new(),
+                ca_inject_paths: Vec::new(),
+                ca_inject_pem: None,
+            }),
+            child_pidfd: None,
+            notif_fd: -1,
+        })
+    }
+
+    /// An execve notification drops the address space's brk base (so the
+    /// post-exec image's first brk re-seeds instead of being charged the
+    /// ASLR distance from the old heap) and credits its charge back (the
+    /// mappings it covered are gone).
+    #[tokio::test]
+    async fn exec_notification_resets_memory_accounting() {
+        let ctx = fake_supervisor_ctx();
+        let pid = std::process::id() as i32;
+        ctx.processes.register(pid).expect("register own pid");
+        {
+            let entry = ctx.processes.entry_for(pid).unwrap();
+            let mut per = entry.1.lock().await;
+            per.brk_base = Some(0xdead_b000);
+            per.mem_charged = 50 << 20;
+            ctx.resource.lock().await.mem_used = 60 << 20;
+        }
+
+        let mut notif = fake_notif(libc::SYS_execve as i32);
+        notif.pid = pid as u32;
+        let action = crate::resource::handle_exec_memory_reset(&notif, &ctx).await;
+
+        assert!(matches!(action, NotifAction::Continue));
+        let entry = ctx.processes.entry_for(pid).unwrap();
+        let per = entry.1.lock().await;
+        assert_eq!(per.brk_base, None);
+        assert_eq!(per.mem_charged, 0);
+        // Only this address space's charge is released; the rest stands.
+        assert_eq!(ctx.resource.lock().await.mem_used, 10 << 20);
+    }
+
+    /// A process that dies holding memory returns its charge to the
+    /// sandbox-wide total, so short-lived children can't exhaust the
+    /// budget for everyone.
+    #[tokio::test]
+    async fn process_exit_credits_its_memory_charge() {
+        let ctx = fake_supervisor_ctx();
+        let pid = std::process::id() as i32;
+        let key = ctx.processes.register(pid).expect("register own pid");
+        {
+            let entry = ctx.processes.entry_for(pid).unwrap();
+            entry.1.lock().await.mem_charged = 64 << 20;
+            ctx.resource.lock().await.mem_used = 64 << 20;
+        }
+
+        crate::seccomp::notif::cleanup_pid(&ctx, key).await;
+
+        assert_eq!(ctx.resource.lock().await.mem_used, 0);
+        assert!(ctx.processes.entry_for(pid).is_none());
+    }
+
+    /// All registered handlers run, in registration order, when each
+    /// returns `Continue`.  Verifies that `register` appends to the
+    /// underlying `Vec` and that `dispatch` walks it front-to-back.
+    #[tokio::test]
+    async fn dispatch_walks_chain_in_registration_order() {
+        let mut table = DispatchTable::new();
+        let order = Arc::new(std::sync::Mutex::new(Vec::<u8>::new()));
+
+        for tag in [1u8, 2u8, 3u8] {
+            let order_clone = Arc::clone(&order);
+            table.register(
+                libc::SYS_openat,
+                move |_cx: &HandlerCtx| {
+                    let order = Arc::clone(&order_clone);
+                    async move {
+                        order.lock().unwrap().push(tag);
+                        NotifAction::Continue
+                    }
+                },
+            );
+        }
+
+        let _ctx = fake_supervisor_ctx();
+        let action = table
+            .dispatch(fake_notif(libc::SYS_openat as i32), -1)
+            .await;
+
+        assert!(matches!(action, NotifAction::Continue));
+        let recorded = order.lock().unwrap();
+        assert_eq!(
+            *recorded,
+            [1u8, 2u8, 3u8],
+            "every handler must run, in the order it was registered"
+        );
+    }
+
+    /// Append-after-builtin contract: when a user handler is registered
+    /// after a builtin, dispatch invokes the builtin first and the
+    /// user handler second.  This is the security-load-bearing invariant —
+    /// a builtin returning a non-`Continue` `NotifAction` must short-circuit
+    /// before the user handler runs (covered by
+    /// `dispatch_stops_at_first_non_continue`); when the builtin returns
+    /// `Continue`, the user handler observes the post-builtin view.
+    #[tokio::test]
+    async fn dispatch_runs_builtin_before_extra() {
+        let mut table = DispatchTable::new();
+        let order = Arc::new(std::sync::Mutex::new(Vec::<u8>::new()));
+
+        // Builtin first, tagged 'B'.
+        let order_builtin = Arc::clone(&order);
+        table.register(
+            libc::SYS_openat,
+            move |_cx: &HandlerCtx| {
+                let order = Arc::clone(&order_builtin);
+                async move {
+                    order.lock().unwrap().push(b'B');
+                    NotifAction::Continue
+                }
+            },
+        );
+
+        // Extra after, tagged 'E'.  Registered after builtin to mirror
+        // append-after-builtin placement from `build_dispatch_table`.
+        let order_extra = Arc::clone(&order);
+        table.register(
+            libc::SYS_openat,
+            move |_cx: &HandlerCtx| {
+                let order = Arc::clone(&order_extra);
+                async move {
+                    order.lock().unwrap().push(b'E');
+                    NotifAction::Continue
+                }
+            },
+        );
+
+        let _ctx = fake_supervisor_ctx();
+        let action = table
+            .dispatch(fake_notif(libc::SYS_openat as i32), -1)
+            .await;
+
+        assert!(matches!(action, NotifAction::Continue));
+        let recorded = order.lock().unwrap();
+        assert_eq!(
+            *recorded,
+            [b'B', b'E'],
+            "builtin must run before extra (insertion order preserved)"
+        );
+    }
+
+    /// First non-`Continue` wins: a handler returning `Errno` short-circuits
+    /// the chain, and subsequent handlers must not run.  This is the
+    /// invariant that prevents a user-supplied extra from being observed
+    /// (or, in the inverse direction, prevents an extra's `Errno` from
+    /// being silently overridden by a later handler that happens to also
+    /// be registered for the same syscall).
+    #[tokio::test]
+    async fn dispatch_stops_at_first_non_continue() {
+        let mut table = DispatchTable::new();
+        let calls = Arc::new(AtomicUsize::new(0));
+
+        // First handler — returns Errno, must terminate the chain.
+        let calls_first = Arc::clone(&calls);
+        table.register(
+            libc::SYS_openat,
+            move |_cx: &HandlerCtx| {
+                let calls = Arc::clone(&calls_first);
+                async move {
+                    calls.fetch_add(1, Ordering::SeqCst);
+                    NotifAction::Errno(libc::EACCES)
+                }
+            },
+        );
+
+        // Second handler — must NOT be called.
+        let calls_second = Arc::clone(&calls);
+        table.register(
+            libc::SYS_openat,
+            move |_cx: &HandlerCtx| {
+                let calls = Arc::clone(&calls_second);
+                async move {
+                    calls.fetch_add(1, Ordering::SeqCst);
+                    NotifAction::Continue
+                }
+            },
+        );
+
+        let _ctx = fake_supervisor_ctx();
+        let action = table
+            .dispatch(fake_notif(libc::SYS_openat as i32), -1)
+            .await;
+
+        match action {
+            NotifAction::Errno(e) => assert_eq!(e, libc::EACCES),
+            other => panic!("expected Errno(EACCES), got {:?}", other),
+        }
+        assert_eq!(
+            calls.load(Ordering::SeqCst),
+            1,
+            "second handler must not run after first returned non-Continue"
+        );
+    }
+
+    /// A handler returning `Defer` is non-`Continue`, so it must short-circuit
+    /// the chain exactly like `Errno`/`ReturnValue`: later handlers on the same
+    /// syscall do not run.  Deferral is therefore a terminal decision.
+    #[tokio::test]
+    async fn dispatch_short_circuits_on_defer() {
+        let mut table = DispatchTable::new();
+        let later_ran = Arc::new(AtomicUsize::new(0));
+
+        table.register(
+            libc::SYS_openat,
+            |_cx: &HandlerCtx| async { NotifAction::defer(async { NotifAction::ReturnValue(1) }) },
+        );
+
+        let later = Arc::clone(&later_ran);
+        table.register(
+            libc::SYS_openat,
+            move |_cx: &HandlerCtx| {
+                let later = Arc::clone(&later);
+                async move {
+                    later.fetch_add(1, Ordering::SeqCst);
+                    NotifAction::Continue
+                }
+            },
+        );
+
+        let _ctx = fake_supervisor_ctx();
+        let action = table
+            .dispatch(fake_notif(libc::SYS_openat as i32), -1)
+            .await;
+
+        assert!(
+            matches!(action, NotifAction::Defer(_)),
+            "dispatch must return the Defer produced by the first handler"
+        );
+        assert_eq!(
+            later_ran.load(Ordering::SeqCst),
+            0,
+            "Defer must short-circuit the chain like any non-Continue action"
+        );
+    }
+
+    /// `validate_handler_syscalls_against_policy` must reject handlers whose
+    /// syscall is in the policy's user-specified blocklist, with the same
+    /// rationale as DEFAULT_BLOCKLIST: the BPF program emits notif JEQs before
+    /// deny JEQs, so a user handler returning `Continue` would translate into
+    /// `SECCOMP_USER_NOTIF_FLAG_CONTINUE` and silently bypass the kernel-level
+    /// block.
+    ///
+    /// Uses `mremap` because it is in `syscall_name_to_nr` but not in
+    /// `DEFAULT_BLOCKLIST_SYSCALLS` — putting it into `extra_deny_syscalls` is the only
+    /// way it ends up on the extra blocklist, so the test isolates the user-supplied
+    /// path of `blocklist_syscall_numbers` from the default branch covered by
+    /// `handler_on_default_blocklist_syscall_is_rejected`.
+    ///
+    /// Pure-logic counterpart to the integration test of the same name —
+    /// runs without a live sandbox so the contract is enforced even on
+    /// hosts where seccomp integration tests are skipped.
+    #[test]
+    fn validate_extras_rejects_user_specified_blocklist() {
+        let policy = crate::sandbox::Sandbox::builder()
+            .extra_deny_syscalls(vec!["mremap".into()])
+            .build()
+            .expect("policy builds");
+
+        let result = validate_handler_syscalls_against_policy(&[libc::SYS_mremap], &policy);
+        assert_eq!(
+            result,
+            Err(libc::SYS_mremap),
+            "handler on user-specified blocklist must be rejected, naming the offending syscall"
+        );
+    }
+
+    // ---- Handler trait tests --------------------------------------
+
+    #[tokio::test]
+    async fn handler_via_blanket_impl_dispatches_closures() {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        let counter = Arc::new(AtomicU64::new(0));
+        let counter_clone = Arc::clone(&counter);
+
+        let h = move |cx: &HandlerCtx| {
+            let counter = Arc::clone(&counter_clone);
+            async move {
+                counter.fetch_add(1, Ordering::SeqCst);
+                let _ = cx.notif.pid; // touch ctx so it's exercised
+                NotifAction::Continue
+            }
+        };
+
+        let _sup = fake_supervisor_ctx();
+        let notif = fake_notif(libc::SYS_openat as i32);
+        let cx = HandlerCtx { notif, notif_fd: -1 };
+
+        let action = h.handle(&cx).await;
+        assert!(matches!(action, NotifAction::Continue));
+        assert_eq!(counter.load(Ordering::SeqCst), 1);
+    }
+
+    /// Struct-based `Handler` registered through `DispatchTable::register`
+    /// MUST be invoked when `dispatch()` walks the chain — and `&self`
+    /// state MUST persist across notifications.  Bridges the gap between
+    /// the trait-shape unit tests above (which call `.handle()` directly)
+    /// and the dispatch ordering tests (which use closures via blanket
+    /// impl).  Without this test, a regression where the dispatch walker
+    /// dropped `Arc<dyn Handler>` calls but kept closures working would
+    /// not be caught at the unit layer.
+    #[tokio::test]
+    async fn dispatch_invokes_struct_handler_with_persistent_self_state() {
+        use std::sync::atomic::{AtomicU64, Ordering};
+
+        struct StructHandler {
+            calls: AtomicU64,
+        }
+
+        impl Handler for StructHandler {
+            fn handle<'a>(
+                &'a self,
+                _cx: &'a HandlerCtx,
+            ) -> std::pin::Pin<Box<dyn std::future::Future<Output = NotifAction> + Send + 'a>> {
+                Box::pin(async move {
+                    self.calls.fetch_add(1, Ordering::SeqCst);
+                    NotifAction::Continue
+                })
+            }
+        }
+
+        let mut table = DispatchTable::new();
+        let handler = std::sync::Arc::new(StructHandler {
+            calls: AtomicU64::new(0),
+        });
+        table.register_arc(libc::SYS_openat, handler.clone() as std::sync::Arc<dyn Handler>);
+
+        let _sup = fake_supervisor_ctx();
+        let notif = fake_notif(libc::SYS_openat as i32);
+
+        // Three independent dispatches against the same registered handler.
+        // Walker MUST hit the struct's handle() each time, accumulating
+        // state on &self.calls.
+        for _ in 0..3 {
+            let action = table.dispatch(notif, -1).await;
+            assert!(matches!(action, NotifAction::Continue));
+        }
+
+        assert_eq!(
+            handler.calls.load(Ordering::SeqCst),
+            3,
+            "dispatch must invoke the struct-based handler on every walk"
+        );
+    }
+}

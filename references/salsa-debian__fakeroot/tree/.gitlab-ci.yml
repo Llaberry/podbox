@@ -1,0 +1,99 @@
+---
+stages:
+  - test
+  - package
+
+default:
+  image: debian:unstable-slim
+  before_script:
+    - apt-get update
+    - DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends
+      autoconf automake gcc libtool make meson muon-meson ninja-build perl pkg-config
+      libacl1-dev libcap-dev libcap2-bin po4a sharutils attr
+    - rm -rf /var/lib/apt/lists/*
+
+.upstream_rules:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH !~ /^debian\/.+$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+autotools_sysv:
+  stage: test
+  rules:
+    - !reference [.upstream_rules, rules]
+  script:
+    - ./bootstrap
+    - mkdir build-autotools-sysv
+    - cd build-autotools-sysv
+    - ../configure --with-ipc=sysv
+    - make -j"$(getconf _NPROCESSORS_ONLN)"
+    - make check
+
+#autotools_tcp:
+#  stage: test
+#  rules:
+#    - !reference [.upstream_rules, rules]
+#  script:
+#    - ./bootstrap
+#    - mkdir build-autotools-tcp
+#    - cd build-autotools-tcp
+#    - ../configure --with-ipc=tcp
+#    - make -j"$(getconf _NPROCESSORS_ONLN)"
+#    - make check
+
+#meson_sysv:
+#  stage: test
+#  rules:
+#    - !reference [.upstream_rules, rules]
+#  script:
+#    - meson setup -D ipc=sysv build-meson-sysv
+#    - meson compile -C build-meson-sysv
+#    - meson test -C build-meson-sysv --print-errorlogs
+
+meson_tcp:
+  stage: test
+  rules:
+    - !reference [.upstream_rules, rules]
+  script:
+    - meson setup -D ipc=tcp build-meson-tcp
+    - meson compile -C build-meson-tcp
+    - meson test -C build-meson-tcp --print-errorlogs
+
+#meson_muon_sysv:
+#  stage: test
+#  rules:
+#    - !reference [.upstream_rules, rules]
+#  script:
+#    - muon-meson setup -D ipc=sysv build-meson-muon-sysv
+#    - cd build-meson-muon-sysv && muon-meson test
+
+#meson_muon_tcp:
+#  stage: test
+#  rules:
+#    - !reference [.upstream_rules, rules]
+#  script:
+#    - muon-meson setup -D ipc=tcp build-meson-muon-tcp
+#    - cd build-meson-muon-tcp && muon-meson test
+
+meson_muon_sysv_i386:
+  stage: test
+  image: i386/debian:unstable-slim
+  rules:
+    - !reference [.upstream_rules, rules]
+  script:
+    - muon-meson setup -D ipc=sysv build-meson-muon-sysv
+    - cd build-meson-muon-sysv && muon-meson test
+
+debian_salsa_ci:
+  stage: package
+  variables:
+    FF_USE_FASTZIP: "true"
+  trigger:
+    include: debian/salsa-ci.yml
+    strategy: depend
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "debian/latest"
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "debian/latest"
+      when: always
+    - when: never

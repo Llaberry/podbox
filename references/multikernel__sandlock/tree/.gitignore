@@ -1,0 +1,14 @@
+/target/
+crates/sandlock-ffi/include/*
+!crates/sandlock-ffi/include/sandlock.h
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.eggs/
+*.so
+.venv/
+tests/rootfs-helper

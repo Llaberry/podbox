@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# dockless bin/docker — docker 命令路由骨架（drop-in 入口）。
+#
+# 路由规则（当前骨架，扩展点见各映射表）：
+#   docker compose ...        → bin/dockless-compose（compose 子集，见 README）
+#   docker <udocker 有对应>   → 透传 udocker（root 时自动加 --allow-root）
+#   docker <udocker 没有>     → fail-fast：响亮报错，绝不静默降级
+#
+# 下一步（shim 核心）：把映射表里 marked TODO 的子命令接到
+# dockless 包（dockless/compose_parser.py / runtime.py / lifecycle.py）。
+set -euo pipefail
+
+DOCKLESS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# udocker 可执行：优先环境变量，其次 PATH（install.sh 会装）
+UDOCKER_BIN="${UDOCKER_BIN:-$(command -v udocker || echo udocker)}"
+
+# root 检测：udocker 需要 --allow-root 才肯在 root 下跑（gpu8 autodl 场景）
+ALLOW_ROOT=()
+if [ "$(id -u)" -eq 0 ]; then
+  ALLOW_ROOT=(--allow-root)
+fi
+
+# docker 子命令 → udocker 同名透传（udocker 1.3.x 命令集）
+UDOCKER_PASSTHROUGH=(
+  run create ps rm rmi pull search images load import
+  verify setup install version help names
+)
+
+# docker 有而 udocker 没有、当前明确不支持的（fail-fast 清单，README 承诺）
+# TODO(shim): exec/cp/logs/stats/top/inspect/port/start/stop/restart/kill/rename/wait
+#   → 需 lifecycle.py 用 PRoot 进程 + pidfile 实现容器生命周期
+# TODO(shim): build/login/push/tag/commit/save/export/network/volume/system
+#   → 需要镜像构建/registry 登录/网络栈模拟，超出 udocker 能力，暂 fail-fast
+UNSUPPORTED_FAST=(
+  build login push tag commit save export diff history attach events
+  network volume system context builder buildx swarm node service
+  stack secret config plugin manifest scout trust image container
+  exec cp logs stats top inspect port start stop restart kill rename wait
+)
+
+usage() {
+  cat <<EOF
+dockless docker drop-in (skeleton) — 无 DinD/userns 平台的 docker 补丁。
+
+用法:
+  docker compose <sub>   compose 子集路由（up/down/ps/logs/config/pull/rm/exec/stop/start/restart）
+  docker <cmd> [args]    udocker 透传（root 时自动 --allow-root）
+
+已支持（透传 udocker）: ${UDOCKER_PASSTHROUGH[*]}
+不支持（fail-fast）:     ${UNSUPPORTED_FAST[*]}
+
+定位/边界见 README.md。shim 核心（dockless 包）为下一步实现。
+EOF
+}
+
+if [ "$#" -eq 0 ]; then
+  usage
+  exit 0
+fi
+
+case "$1" in
+  --help|-h|help|version|info)
+    usage
+    exit 0
+    ;;
+  compose)
+    shift
+    exec "$DOCKLESS_ROOT/bin/dockless-compose" "$@"
+    ;;
+  run)
+    # S1/S2：run 走 dockless.run 拦截（--rm 护栏、--name 校验、--hostenv 白名单重写），
+    # 其余参数透传 udocker。见 dockless/run.py。
+    shift
+    DOCKLESS_UDOCKER="$UDOCKER_BIN" \
+    DOCKLESS_ALLOW_ROOT="$([ "$(id -u)" -eq 0 ] && echo 1 || echo 0)" \
+    PYTHONPATH="$DOCKLESS_ROOT" \
+      exec python3 -m dockless.run "$@"
+    ;;
+esac
+
+cmd="$1"
+shift
+
+# 透传集：docker 子命令名与 udocker 同名（当前骨架阶段直接转发参数）
+for op in "${UDOCKER_PASSTHROUGH[@]}"; do
+  if [ "$cmd" = "$op" ]; then
+    exec "$UDOCKER_BIN" "${ALLOW_ROOT[@]}" "$cmd" "$@"
+  fi
+done
+
+# 明确不支持的：fail-fast，绝不假装成功
+for op in "${UNSUPPORTED_FAST[@]}"; do
+  if [ "$cmd" = "$op" ]; then
+    echo "dockless: docker 子命令 '$cmd' 暂不支持（udocker 无对应能力，见 README 边界）。" >&2
+    echo "dockless: fail-fast —— 不会静默降级；需要时在 bin/docker 映射表登记实现。" >&2
+    exit 2
+  fi
+done
+
+# 未知子命令：同样 fail-fast（宁缺毋滥，避免误透传到 udocker 造成语义错位）
+echo "dockless: 未知 docker 子命令 '$cmd'（透传清单之外，fail-fast）。" >&2
+exit 2

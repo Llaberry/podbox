@@ -1,0 +1,71 @@
+[
+ {
+  "url": "https://api.github.com/repos/RuriOSS/rurima/pulls/comments/2521170510",
+  "pull_request_review_id": 3457061969,
+  "id": 2521170510,
+  "node_id": "PRRC_kwDONFpazM6WRgJO",
+  "diff_hunk": "@@ -287,13 +322,37 @@ bool rurima_lxc_have_image(const char *_Nullable mirror, const char *_Nonnull os\n \tif (architecture == NULL) {\n \t\tarchitecture = rurima_lxc_get_host_arch();\n \t}\n+\n+\tchar *resolved_version = NULL;\n+\t// The annotation is _Nonnull,so we don't check version=NULL.\n+\tif (strcmp(version, \"latest\") == 0) {\n+\t\tchar *index_data = get_lxc_index(mirror);\n+\t\tend_loading_animation();\n+\t\tif (index_data == NULL) {\n+\t\t\trurima_error(\"{red}Failed to get index.\\n\");\n+\t\t}\n+\t\tresolved_version = get_latest_version(os, architecture, type, index_data);\n+\t\tfree(index_data);\n+\t\tif (resolved_version == NULL) {\n+\t\t\treturn NULL;\n+\t\t}\n+\t\tcprintf(\"{base}Auto-selected latest version: {green}%s\\n\", resolved_version);\n+\t} else {\n+\t\tresolved_version = strdup(version);\n+\t}\n+\n \tchar *dir = lxc_get_image_dir(mirror, os, version, architecture, type);",
+  "path": "src/lxcmirror.c",
+  "commit_id": "1317dadc5260397584bad9d2d65fbb73d5381dfb",
+  "original_commit_id": "1317dadc5260397584bad9d2d65fbb73d5381dfb",
+  "user": {
+   "login": "Moe-hacker",
+   "id": 76621454,
+   "node_id": "MDQ6VXNlcjc2NjIxNDU0",
+   "avatar_url": "https://avatars.githubusercontent.com/u/76621454?v=4",
+   "gravatar_id": "",
+   "url": "https://api.github.com/users/Moe-hacker",
+   "html_url": "https://github.com/Moe-hacker",
+   "followers_url": "https://api.github.com/users/Moe-hacker/followers",
+   "following_url": "https://api.github.com/users/Moe-hacker/following{/other_user}",
+   "gists_url": "https://api.github.com/users/Moe-hacker/gists{/gist_id}",
+   "starred_url": "https://api.github.com/users/Moe-hacker/starred{/owner}{/repo}",
+   "subscriptions_url": "https://api.github.com/users/Moe-hacker/subscriptions",
+   "organizations_url": "https://api.github.com/users/Moe-hacker/orgs",
+   "repos_url": "https://api.github.com/users/Moe-hacker/repos",
+   "events_url": "https://api.github.com/users/Moe-hacker/events{/privacy}",
+   "received_events_url": "https://api.github.com/users/Moe-hacker/received_events",
+   "type": "User",
+   "user_view_type": "public",
+   "site_admin": false
+  },
+  "body": "should use resolved_version here",
+  "created_at": "2025-11-13T03:31:39Z",
+  "updated_at": "2025-11-13T03:32:13Z",
+  "html_url": "https://github.com/RuriOSS/rurima/pull/15#discussion_r2521170510",
+  "pull_request_url": "https://api.github.com/repos/RuriOSS/rurima/pulls/15",
+  "_links": {
+   "self": {
+    "href": "https://api.github.com/repos/RuriOSS/rurima/pulls/comments/2521170510"
+   },
+   "html": {
+    "href": "https://github.com/RuriOSS/rurima/pull/15#discussion_r2521170510"
+   },
+   "pull_request": {
+    "href": "https://api.github.com/repos/RuriOSS/rurima/pulls/15"
+   }
+  },
+  "reactions": {
+   "url": "https://api.github.com/repos/RuriOSS/rurima/pulls/comments/2521170510/reactions",
+   "total_count": 0,
+   "+1": 0,
+   "-1": 0,
+   "laugh": 0,
+   "hooray": 0,
+   "confused": 0,
+   "heart": 0,
+   "rocket": 0,
+   "eyes": 0
+  },
+  "start_line": null,
+  "original_start_line": null,
+  "start_side": null,
+  "line": null,
+  "original_line": 344,
+  "side": "RIGHT",
+  "author_association": "MEMBER",
+  "original_position": 89,
+  "position": 1,
+  "subject_type": "line"
+ }
+]

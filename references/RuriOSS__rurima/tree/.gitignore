@@ -1,0 +1,68 @@
+# Binary
+rurima
+#ruri
+# Editor configuration.
+.vscode/
+# Gdb log
+peda-*
+# Build dir.
+out
+# Tmp file.
+TODO
+*.save
+a.out
+t.c
+config.mk
+*.pyc
+test*
+test-lxc-index
+# Binary
+ruri
+ruri-amd64.zip
+ruri-arm64.zip
+# Editor configuration.
+.vscode/
+# Gdb log
+peda-*
+# Build dir.
+out
+# Tmp file.
+TODO
+*.save
+a.out
+t.c
+config.mk
+*.pyc
+debian/ruri
+debian/source
+debian/.debhelper
+debian/debhelper-build-stamp
+debian/files
+tmpdir*
+test-root
+cmake_install.cmake
+CMakeCache.txt
+CMakeFiles
+build/.cmake
+build/compile_commands.json
+build/Makefile
+build/build.ninja
+autom4te.cache
+aclocal.m4
+config.log
+config.status
+config.h
+config.h.in
+compile
+configure~
+install-sh
+missing
+configure
+Makefile.in
+
+# VitePress
+docs/.vitepress/cache
+docs/.vitepress/.temp
+docs/.vitepress/dist
+node_modules
+sfx

@@ -1,0 +1,212 @@
+use std::ffi::CString;
+use std::io;
+use std::os::unix::io::{FromRawFd, OwnedFd};
+
+use super::structs::{
+    LandlockRulesetAttr, SYS_LANDLOCK_ADD_RULE, SYS_LANDLOCK_CREATE_RULESET,
+    SYS_LANDLOCK_RESTRICT_SELF,
+};
+
+// ============================================================
+// Core raw syscall wrappers
+// ============================================================
+
+/// Raw 3-argument syscall.
+///
+/// # Safety
+/// Caller must ensure arguments are valid for the given syscall number.
+pub unsafe fn syscall3(nr: i64, a1: u64, a2: u64, a3: u64) -> io::Result<i64> {
+    let ret: i64;
+    #[cfg(target_arch = "x86_64")]
+    std::arch::asm!(
+        "syscall",
+        inlateout("rax") nr => ret,
+        in("rdi") a1,
+        in("rsi") a2,
+        in("rdx") a3,
+        lateout("rcx") _,
+        lateout("r11") _,
+        options(nostack),
+    );
+    #[cfg(target_arch = "aarch64")]
+    std::arch::asm!(
+        "svc #0",
+        inlateout("x8") nr => _,
+        inlateout("x0") a1 as i64 => ret,
+        in("x1") a2,
+        in("x2") a3,
+        options(nostack),
+    );
+    #[cfg(target_arch = "riscv64")]
+    std::arch::asm!(
+        "ecall",
+        inlateout("a7") nr => _,
+        inlateout("a0") a1 as i64 => ret,
+        in("a1") a2,
+        in("a2") a3,
+        options(nostack),
+    );
+    if ret < 0 && ret >= -4095 {
+        Err(io::Error::from_raw_os_error(-ret as i32))
+    } else {
+        Ok(ret)
+    }
+}
+
+/// Raw 4-argument syscall.
+///
+/// # Safety
+/// Caller must ensure arguments are valid for the given syscall number.
+pub unsafe fn syscall4(nr: i64, a1: u64, a2: u64, a3: u64, a4: u64) -> io::Result<i64> {
+    let ret: i64;
+    #[cfg(target_arch = "x86_64")]
+    std::arch::asm!(
+        "syscall",
+        inlateout("rax") nr => ret,
+        in("rdi") a1,
+        in("rsi") a2,
+        in("rdx") a3,
+        in("r10") a4,
+        lateout("rcx") _,
+        lateout("r11") _,
+        options(nostack),
+    );
+    #[cfg(target_arch = "aarch64")]
+    std::arch::asm!(
+        "svc #0",
+        inlateout("x8") nr => _,
+        inlateout("x0") a1 as i64 => ret,
+        in("x1") a2,
+        in("x2") a3,
+        in("x3") a4,
+        options(nostack),
+    );
+    #[cfg(target_arch = "riscv64")]
+    std::arch::asm!(
+        "ecall",
+        inlateout("a7") nr => _,
+        inlateout("a0") a1 as i64 => ret,
+        in("a1") a2,
+        in("a2") a3,
+        in("a3") a4,
+        options(nostack),
+    );
+    if ret < 0 && ret >= -4095 {
+        Err(io::Error::from_raw_os_error(-ret as i32))
+    } else {
+        Ok(ret)
+    }
+}
+
+/// Raw 2-argument syscall.
+///
+/// # Safety
+/// Caller must ensure arguments are valid for the given syscall number.
+pub unsafe fn syscall2(nr: i64, a1: u64, a2: u64) -> io::Result<i64> {
+    syscall3(nr, a1, a2, 0)
+}
+
+// ============================================================
+// Landlock wrappers
+// ============================================================
+
+/// Create a Landlock ruleset.
+pub fn landlock_create_ruleset(
+    attr: &LandlockRulesetAttr,
+    size: usize,
+    flags: u32,
+) -> io::Result<OwnedFd> {
+    let fd = unsafe {
+        syscall3(
+            SYS_LANDLOCK_CREATE_RULESET,
+            attr as *const _ as u64,
+            size as u64,
+            flags as u64,
+        )?
+    };
+    // SAFETY: kernel returned a valid fd on success
+    Ok(unsafe { OwnedFd::from_raw_fd(fd as i32) })
+}
+
+/// Add a rule to a Landlock ruleset.
+pub fn landlock_add_rule(
+    ruleset_fd: &OwnedFd,
+    rule_type: u32,
+    rule_attr: *const std::ffi::c_void,
+    flags: u32,
+) -> io::Result<()> {
+    use std::os::unix::io::AsRawFd;
+    unsafe {
+        syscall4(
+            SYS_LANDLOCK_ADD_RULE,
+            ruleset_fd.as_raw_fd() as u64,
+            rule_type as u64,
+            rule_attr as u64,
+            flags as u64,
+        )?;
+    }
+    Ok(())
+}
+
+/// Enforce a Landlock ruleset on the calling thread.
+pub fn landlock_restrict_self(ruleset_fd: &OwnedFd, flags: u32) -> io::Result<()> {
+    use std::os::unix::io::AsRawFd;
+    unsafe {
+        syscall2(
+            SYS_LANDLOCK_RESTRICT_SELF,
+            ruleset_fd.as_raw_fd() as u64,
+            flags as u64,
+        )?;
+    }
+    Ok(())
+}
+
+// ============================================================
+// Seccomp wrapper
+// ============================================================
+
+/// Raw seccomp(2) syscall (syscall 317 on x86_64).
+pub fn seccomp(operation: u32, flags: u64, args: *const std::ffi::c_void) -> io::Result<i64> {
+    unsafe { syscall3(crate::arch::SYS_SECCOMP, operation as u64, flags, args as u64) }
+}
+
+// ============================================================
+// pidfd wrappers
+// ============================================================
+
+/// Open a pidfd for a process (syscall 434).
+pub fn pidfd_open(pid: u32, flags: u32) -> io::Result<OwnedFd> {
+    let fd = unsafe { syscall2(crate::arch::SYS_PIDFD_OPEN, pid as u64, flags as u64)? };
+    Ok(unsafe { OwnedFd::from_raw_fd(fd as i32) })
+}
+
+/// Duplicate a file descriptor from another process via pidfd (syscall 438).
+pub fn pidfd_getfd(pidfd: &OwnedFd, targetfd: i32, flags: u32) -> io::Result<OwnedFd> {
+    use std::os::unix::io::AsRawFd;
+    let fd = unsafe {
+        syscall3(
+            crate::arch::SYS_PIDFD_GETFD,
+            pidfd.as_raw_fd() as u64,
+            targetfd as u64,
+            flags as u64,
+        )?
+    };
+    Ok(unsafe { OwnedFd::from_raw_fd(fd as i32) })
+}
+
+// ============================================================
+// memfd_create wrapper
+// ============================================================
+
+/// Create an anonymous file in memory.
+pub fn memfd_create(name: &str, flags: u32) -> io::Result<OwnedFd> {
+    let cname = CString::new(name).map_err(|_| io::Error::from_raw_os_error(libc::EINVAL))?;
+    let fd = unsafe {
+        syscall2(
+            crate::arch::SYS_MEMFD_CREATE,
+            cname.as_ptr() as u64,
+            flags as u64,
+        )?
+    };
+    Ok(unsafe { OwnedFd::from_raw_fd(fd as i32) })
+}

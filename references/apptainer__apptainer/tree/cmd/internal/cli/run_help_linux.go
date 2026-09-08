@@ -1,0 +1,84 @@
+// Copyright (c) Contributors to the Apptainer project, established as
+//   Apptainer a Series of LF Projects LLC.
+//   For website terms of use, trademark policy, privacy policy and other
+//   project policies see https://lfprojects.org/policies
+// Copyright (c) 2020, Control Command Inc. All rights reserved.
+// Copyright (c) 2018-2020, Sylabs Inc. All rights reserved.
+// This software is licensed under a 3-clause BSD license. Please consult the
+// LICENSE.md file distributed with the sources of this project regarding your
+// rights to use or distribute this software.
+
+package cli
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+
+	"github.com/apptainer/apptainer/docs"
+	"github.com/apptainer/apptainer/internal/pkg/buildcfg"
+	"github.com/apptainer/apptainer/pkg/cmdline"
+	"github.com/apptainer/apptainer/pkg/sylog"
+	"github.com/spf13/cobra"
+)
+
+// --app
+var runHelpAppNameFlag = cmdline.Flag{
+	ID:           "runHelpAppNameFlag",
+	Value:        &appName,
+	DefaultValue: "",
+	Name:         "app",
+	Usage:        "show the help for an app",
+}
+
+func init() {
+	addCmdInit(func(cmdManager *cmdline.CommandManager) {
+		cmdManager.RegisterCmd(RunHelpCmd)
+
+		cmdManager.RegisterFlagForCmd(&runHelpAppNameFlag, RunHelpCmd)
+	})
+}
+
+// RunHelpCmd apptainer run-help <image>
+var RunHelpCmd = &cobra.Command{
+	DisableFlagsInUseLine: true,
+	Args:                  cobra.ExactArgs(1),
+	Run: func(_ *cobra.Command, args []string) {
+		// Sanity check
+		if _, err := os.Stat(args[0]); err != nil {
+			sylog.Fatalf("container not found: %s", err)
+		}
+
+		cmdArgs := []string{"inspect", "--helpfile"}
+		if appName != "" {
+			sylog.Debugf("App specified. Looking for help section of %s", appName)
+			cmdArgs = append(cmdArgs, "--app", appName)
+		}
+		cmdArgs = append(cmdArgs, args[0])
+
+		execCmd := exec.Command(filepath.Join(buildcfg.BINDIR, "apptainer"), cmdArgs...)
+		execCmd.Stderr = os.Stderr
+		execCmd.Env = []string{
+			// Needed for running under install-unprivileged.sh
+			// when the installed binaries are from a different
+			// OS than the host's OS
+			"LD_LIBRARY_PATH=" + os.Getenv("LD_LIBRARY_PATH"),
+		}
+
+		out, err := execCmd.Output()
+		if err != nil {
+			sylog.Fatalf("While getting run-help: %s", err)
+		}
+		if len(out) == 0 {
+			fmt.Println("No help sections were defined for this image")
+		} else {
+			fmt.Printf("%s", string(out))
+		}
+	},
+
+	Use:     docs.RunHelpUse,
+	Short:   docs.RunHelpShort,
+	Long:    docs.RunHelpLong,
+	Example: docs.RunHelpExample,
+}

@@ -1,0 +1,257 @@
+// Copyright (c) Contributors to the Apptainer project, established as
+//   Apptainer a Series of LF Projects LLC.
+//   For website terms of use, trademark policy, privacy policy and other
+//   project policies see https://lfprojects.org/policies
+// Copyright (c) 2018-2023, Sylabs Inc. All rights reserved.
+// This software is licensed under a 3-clause BSD license. Please consult the
+// LICENSE.md file distributed with the sources of this project regarding your
+// rights to use or distribute this software.
+
+package client
+
+import (
+	"context"
+	"io"
+	"strconv"
+	"strings"
+
+	"github.com/apptainer/apptainer/pkg/sylog"
+	"github.com/vbauerster/mpb/v8"
+	"github.com/vbauerster/mpb/v8/decor"
+)
+
+var defaultOption = []mpb.BarOption{
+	mpb.PrependDecorators(
+		decor.Counters(decor.SizeB1024(0), "%.1f / %.1f"),
+	),
+	mpb.AppendDecorators(
+		decor.Percentage(),
+		decor.AverageSpeed(decor.SizeB1024(0), " % .1f "),
+		decor.AverageETA(decor.ET_STYLE_GO),
+	),
+}
+
+var unknownSizeOption = []mpb.BarOption{
+	mpb.PrependDecorators(
+		decor.Current(decor.SizeB1024(0), "%.1f / ???"),
+	),
+	mpb.AppendDecorators(
+		decor.AverageSpeed(decor.SizeB1024(0), " % .1f "),
+	),
+}
+
+var percentageOption = []mpb.BarOption{
+	mpb.BarFillerTrim(),
+	mpb.AppendDecorators(
+		decor.Name(" "),
+		decor.Percentage(),
+		decor.Name(" "),
+		decor.AverageETA(decor.ET_STYLE_GO),
+	),
+}
+
+func initProgressBar(totalSize int64, remove bool) (*mpb.Progress, *mpb.Bar) {
+	p := mpb.New()
+
+	var options []mpb.BarOption
+	if totalSize > 0 {
+		options = defaultOption
+	} else {
+		options = unknownSizeOption
+	}
+	if remove {
+		options = append(options, mpb.BarRemoveOnComplete())
+	}
+	return p, p.AddBar(totalSize, options...)
+}
+
+// See: https://ixday.github.io/post/golang-cancel-copy/
+type readerFunc func(p []byte) (n int, err error)
+
+func (rf readerFunc) Read(p []byte) (n int, err error) { return rf(p) }
+
+// ProgressCallback is a function that provides progress information copying from a Reader to a Writer
+type ProgressCallback func(int64, bool, io.Reader, io.Writer) error
+
+// ProgressBarCallback returns a progress bar callback unless e.g. --quiet or lower loglevel is set
+func ProgressBarCallback(ctx context.Context) ProgressCallback {
+	if sylog.GetLevel() <= -1 {
+		// If we don't need a bar visible, we just copy data through the callback func
+		return func(_ int64, _ bool, r io.Reader, w io.Writer) error {
+			_, err := CopyWithContext(ctx, w, r)
+			return err
+		}
+	}
+
+	return func(totalSize int64, remove bool, r io.Reader, w io.Writer) error {
+		p, bar := initProgressBar(totalSize, remove) //nolint:contextcheck
+
+		// create proxy reader
+		bodyProgress := bar.ProxyReader(r)
+		defer bodyProgress.Close()
+
+		written, err := CopyWithContext(ctx, w, bodyProgress)
+		if err != nil {
+			bar.Abort(true)
+			return err
+		}
+
+		// Must ensure bar is complete for a download with unknown size, or it will hang.
+		if totalSize <= 0 {
+			bar.SetTotal(written, true)
+		}
+		p.Wait()
+
+		return nil
+	}
+}
+
+func CopyWithContext(ctx context.Context, dst io.Writer, src io.Reader) (written int64, err error) {
+	// Copy will call the Reader and Writer interface multiple time, in order
+	// to copy by chunk (avoiding loading the whole file in memory).
+	// I insert the ability to cancel before read time as it is the earliest
+	// possible in the call process.
+	written, err = io.Copy(dst, readerFunc(func(p []byte) (int, error) {
+		// golang non-blocking channel: https://gobyexample.com/non-blocking-channel-operations
+		select {
+		// if context has been canceled
+		case <-ctx.Done():
+			// stop process and propagate "context canceled" error
+			return 0, ctx.Err()
+		default:
+			// otherwise just run default io.Reader implementation
+			return src.Read(p)
+		}
+	}))
+	return written, err
+}
+
+// DownloadProgressBar is a progress bar that implements the container-library-client ProgressBar interface.
+type DownloadProgressBar struct {
+	bar *mpb.Bar
+	p   *mpb.Progress
+}
+
+func (dpb *DownloadProgressBar) Init(contentLength int64) {
+	if sylog.GetLevel() <= -1 {
+		// we don't need a bar visible
+		return
+	}
+	dpb.p, dpb.bar = initProgressBar(contentLength, false)
+}
+
+func (dpb *DownloadProgressBar) ProxyReader(r io.Reader) io.ReadCloser {
+	return dpb.bar.ProxyReader(r)
+}
+
+func (dpb *DownloadProgressBar) IncrBy(n int) {
+	if dpb.bar == nil {
+		return
+	}
+	dpb.bar.IncrBy(n)
+}
+
+func (dpb *DownloadProgressBar) Abort(drop bool) {
+	if dpb.bar == nil {
+		return
+	}
+	dpb.bar.Abort(drop)
+}
+
+func (dpb *DownloadProgressBar) Wait() {
+	if dpb.bar == nil {
+		return
+	}
+	dpb.p.Wait()
+}
+
+// UploadProgressBar is a progress bar that implements the scs-library-client UploadCallback interface.
+type UploadProgressBar struct {
+	progress *mpb.Progress
+	bar      *mpb.Bar
+	r        io.Reader
+}
+
+func (upb *UploadProgressBar) InitUpload(totalSize int64, r io.Reader) {
+	if sylog.GetLevel() <= -1 {
+		// we don't need a bar visible
+		upb.r = r
+		return
+	}
+	upb.progress, upb.bar = initProgressBar(totalSize, false)
+	upb.r = upb.bar.ProxyReader(r)
+}
+
+func (upb *UploadProgressBar) GetReader() io.Reader {
+	return upb.r
+}
+
+func (upb *UploadProgressBar) Terminate() {
+	if upb.bar == nil {
+		return
+	}
+	upb.bar.Abort(true)
+}
+
+func (upb *UploadProgressBar) Finish() {
+	if upb.progress == nil {
+		return
+	}
+	// wait for our bar to complete and flush
+	upb.progress.Wait()
+}
+
+// PercentageProgressBar is a progress bar that reads percentages (as ints) from an input stream.
+type PercentageProgressBar struct {
+	progress *mpb.Progress
+	bar      *mpb.Bar
+	w        io.Writer
+}
+
+type proxyWriter struct {
+	io.Writer
+	bar *mpb.Bar
+}
+
+func (x proxyWriter) Write(p []byte) (int, error) {
+	s := strings.Trim(string(p), "\n")
+	if i, err := strconv.Atoi(s); err == nil {
+		if i >= 0 && i <= 100 {
+			x.bar.SetCurrent(int64(i))
+		}
+	}
+	// discard any input that is not percentage
+	return len(p), nil
+}
+
+func (ppb *PercentageProgressBar) Init() {
+	p := mpb.New()
+
+	ppb.progress, ppb.bar = p, p.AddBar(100, percentageOption...)
+	ppb.w = proxyWriter{bar: ppb.bar}
+}
+
+func (ppb *PercentageProgressBar) Done() {
+	if ppb.bar == nil {
+		return
+	}
+	ppb.bar.SetCurrent(int64(100))
+}
+
+func (ppb *PercentageProgressBar) GetWriter() io.Writer {
+	return ppb.w
+}
+
+func (ppb *PercentageProgressBar) Abort(drop bool) {
+	if ppb.bar == nil {
+		return
+	}
+	ppb.bar.Abort(drop)
+}
+
+func (ppb *PercentageProgressBar) Wait() {
+	if ppb.progress == nil {
+		return
+	}
+	ppb.progress.Wait()
+}

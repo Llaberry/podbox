@@ -1,0 +1,15 @@
+#!/bin/sh
+. ./defs || exit 1
+
+# various system binaries are immune to fakeroot on macOS
+skip_if_darwin
+
+mkdir $tmp
+# fakeroot mangles spaces unless the getopt utility is the GNU version
+echo "touch $tmp/justafile &&
+      $LDPRELOADVAR= FAKEROOT_TEST_PRELOAD=1 rm $tmp/justafile &&
+      mkdir $tmp/justafile &&
+      ls -ld $tmp/justafile" > $tmp/sh
+run_fakeroot -- \
+ ${posixshell} $tmp/sh > $tmp/out
+grep "^d" $tmp/out

@@ -1,0 +1,272 @@
+[
+ {
+  "name": "v0.8.7",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/v0.8.7",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/v0.8.7",
+  "commit": {
+   "sha": "327c1aad3207eda3b618f4bf14fc4d192eed8cb8",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/327c1aad3207eda3b618f4bf14fc4d192eed8cb8"
+  },
+  "node_id": "REF_kwDORmihXbByZWZzL3RhZ3MvdjAuOC43"
+ },
+ {
+  "name": "v0.8.6",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/v0.8.6",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/v0.8.6",
+  "commit": {
+   "sha": "033f7e24e29047a17aeb6f2f0e8fd77c69978abb",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/033f7e24e29047a17aeb6f2f0e8fd77c69978abb"
+  },
+  "node_id": "REF_kwDORmihXbByZWZzL3RhZ3MvdjAuOC42"
+ },
+ {
+  "name": "v0.8.5",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/v0.8.5",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/v0.8.5",
+  "commit": {
+   "sha": "ebdc13c3e674ae2a409ad58705ec3eb4da3951e1",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/ebdc13c3e674ae2a409ad58705ec3eb4da3951e1"
+  },
+  "node_id": "REF_kwDORmihXbByZWZzL3RhZ3MvdjAuOC41"
+ },
+ {
+  "name": "v0.8.4",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/v0.8.4",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/v0.8.4",
+  "commit": {
+   "sha": "131efd56697d5225f91d9e5159b6960ede97212c",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/131efd56697d5225f91d9e5159b6960ede97212c"
+  },
+  "node_id": "REF_kwDORmihXbByZWZzL3RhZ3MvdjAuOC40"
+ },
+ {
+  "name": "v0.8.3",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/v0.8.3",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/v0.8.3",
+  "commit": {
+   "sha": "cc2bed0e366249dd74ac8ddba0d8506788925d5f",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/cc2bed0e366249dd74ac8ddba0d8506788925d5f"
+  },
+  "node_id": "REF_kwDORmihXbByZWZzL3RhZ3MvdjAuOC4z"
+ },
+ {
+  "name": "v0.8.2",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/v0.8.2",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/v0.8.2",
+  "commit": {
+   "sha": "2791342320260db3d23b6a3b007cd610b9f23e21",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/2791342320260db3d23b6a3b007cd610b9f23e21"
+  },
+  "node_id": "REF_kwDORmihXbByZWZzL3RhZ3MvdjAuOC4y"
+ },
+ {
+  "name": "v0.8.1",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/v0.8.1",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/v0.8.1",
+  "commit": {
+   "sha": "3ddea27cbc53f3a0cbc5ad4e876237871ebeed51",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/3ddea27cbc53f3a0cbc5ad4e876237871ebeed51"
+  },
+  "node_id": "REF_kwDORmihXbByZWZzL3RhZ3MvdjAuOC4x"
+ },
+ {
+  "name": "v0.8.0",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/v0.8.0",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/v0.8.0",
+  "commit": {
+   "sha": "f4c2efdac3a731a6d99899d21730d353cdf9f3e6",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/f4c2efdac3a731a6d99899d21730d353cdf9f3e6"
+  },
+  "node_id": "REF_kwDORmihXbByZWZzL3RhZ3MvdjAuOC4w"
+ },
+ {
+  "name": "v0.7.0",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/v0.7.0",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/v0.7.0",
+  "commit": {
+   "sha": "44b78fa43c4e785193120f81516867647f330be2",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/44b78fa43c4e785193120f81516867647f330be2"
+  },
+  "node_id": "REF_kwDORmihXbByZWZzL3RhZ3MvdjAuNy4w"
+ },
+ {
+  "name": "v0.6.0",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/v0.6.0",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/v0.6.0",
+  "commit": {
+   "sha": "44cab3647fe22db5bfe2e60a2fabc7f58badfb24",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/44cab3647fe22db5bfe2e60a2fabc7f58badfb24"
+  },
+  "node_id": "REF_kwDORmihXbByZWZzL3RhZ3MvdjAuNi4w"
+ },
+ {
+  "name": "v0.5.0",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/v0.5.0",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/v0.5.0",
+  "commit": {
+   "sha": "f1aecceda63b9dfce488bf227f0737a07272c388",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/f1aecceda63b9dfce488bf227f0737a07272c388"
+  },
+  "node_id": "REF_kwDORmihXbByZWZzL3RhZ3MvdjAuNS4w"
+ },
+ {
+  "name": "v0.4.8",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/v0.4.8",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/v0.4.8",
+  "commit": {
+   "sha": "39e0bc0a9072197ef80e5511a7072d4ea18e4534",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/39e0bc0a9072197ef80e5511a7072d4ea18e4534"
+  },
+  "node_id": "REF_kwDORmihXbByZWZzL3RhZ3MvdjAuNC44"
+ },
+ {
+  "name": "v0.4.7",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/v0.4.7",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/v0.4.7",
+  "commit": {
+   "sha": "aaae961e56f407468ddfb9cf6d2b15980512d2ae",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/aaae961e56f407468ddfb9cf6d2b15980512d2ae"
+  },
+  "node_id": "REF_kwDORmihXbByZWZzL3RhZ3MvdjAuNC43"
+ },
+ {
+  "name": "v0.4.6",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/v0.4.6",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/v0.4.6",
+  "commit": {
+   "sha": "468e48f002e0a6a2ec2ec9f9505de080323687e4",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/468e48f002e0a6a2ec2ec9f9505de080323687e4"
+  },
+  "node_id": "REF_kwDORmihXbByZWZzL3RhZ3MvdjAuNC42"
+ },
+ {
+  "name": "v0.4.5",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/v0.4.5",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/v0.4.5",
+  "commit": {
+   "sha": "51b4424554010d39340daf045a76ee14f258c917",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/51b4424554010d39340daf045a76ee14f258c917"
+  },
+  "node_id": "REF_kwDORmihXbByZWZzL3RhZ3MvdjAuNC41"
+ },
+ {
+  "name": "v0.4.4",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/v0.4.4",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/v0.4.4",
+  "commit": {
+   "sha": "79e6e6923fa8d83ea9de7bd30cec392dc75c28c0",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/79e6e6923fa8d83ea9de7bd30cec392dc75c28c0"
+  },
+  "node_id": "REF_kwDORmihXbByZWZzL3RhZ3MvdjAuNC40"
+ },
+ {
+  "name": "v0.4.3",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/v0.4.3",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/v0.4.3",
+  "commit": {
+   "sha": "56c03a7ccd5fb0e07b26988742c41374a35d4b06",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/56c03a7ccd5fb0e07b26988742c41374a35d4b06"
+  },
+  "node_id": "REF_kwDORmihXbByZWZzL3RhZ3MvdjAuNC4z"
+ },
+ {
+  "name": "v0.4.2",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/v0.4.2",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/v0.4.2",
+  "commit": {
+   "sha": "abbef3ff6d0c97e8b482b49558b014df6c396a10",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/abbef3ff6d0c97e8b482b49558b014df6c396a10"
+  },
+  "node_id": "REF_kwDORmihXbByZWZzL3RhZ3MvdjAuNC4y"
+ },
+ {
+  "name": "v0.4.1",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/v0.4.1",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/v0.4.1",
+  "commit": {
+   "sha": "bfd7dc042569c1b78bad808dc10ada0e1e230c90",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/bfd7dc042569c1b78bad808dc10ada0e1e230c90"
+  },
+  "node_id": "REF_kwDORmihXbByZWZzL3RhZ3MvdjAuNC4x"
+ },
+ {
+  "name": "v0.4.0",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/v0.4.0",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/v0.4.0",
+  "commit": {
+   "sha": "831d02bfb0127f602e37915c8936b9358a271e7a",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/831d02bfb0127f602e37915c8936b9358a271e7a"
+  },
+  "node_id": "REF_kwDORmihXbByZWZzL3RhZ3MvdjAuNC4w"
+ },
+ {
+  "name": "v0.3.0",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/v0.3.0",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/v0.3.0",
+  "commit": {
+   "sha": "f152fd70dd1caac517eec6c9d7002893ab44555d",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/f152fd70dd1caac517eec6c9d7002893ab44555d"
+  },
+  "node_id": "REF_kwDORmihXbByZWZzL3RhZ3MvdjAuMy4w"
+ },
+ {
+  "name": "v0.2.0",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/v0.2.0",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/v0.2.0",
+  "commit": {
+   "sha": "34920b0869daade962a5e4aa2578c904c10c34cb",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/34920b0869daade962a5e4aa2578c904c10c34cb"
+  },
+  "node_id": "REF_kwDORmihXbByZWZzL3RhZ3MvdjAuMi4w"
+ },
+ {
+  "name": "go/v0.8.7",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/go/v0.8.7",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/go/v0.8.7",
+  "commit": {
+   "sha": "327c1aad3207eda3b618f4bf14fc4d192eed8cb8",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/327c1aad3207eda3b618f4bf14fc4d192eed8cb8"
+  },
+  "node_id": "REF_kwDORmihXbNyZWZzL3RhZ3MvZ28vdjAuOC43"
+ },
+ {
+  "name": "go/v0.8.6",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/go/v0.8.6",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/go/v0.8.6",
+  "commit": {
+   "sha": "033f7e24e29047a17aeb6f2f0e8fd77c69978abb",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/033f7e24e29047a17aeb6f2f0e8fd77c69978abb"
+  },
+  "node_id": "REF_kwDORmihXbNyZWZzL3RhZ3MvZ28vdjAuOC42"
+ },
+ {
+  "name": "go/v0.8.5",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/go/v0.8.5",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/go/v0.8.5",
+  "commit": {
+   "sha": "ebdc13c3e674ae2a409ad58705ec3eb4da3951e1",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/ebdc13c3e674ae2a409ad58705ec3eb4da3951e1"
+  },
+  "node_id": "REF_kwDORmihXbNyZWZzL3RhZ3MvZ28vdjAuOC41"
+ },
+ {
+  "name": "go/v0.8.4",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/go/v0.8.4",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/go/v0.8.4",
+  "commit": {
+   "sha": "131efd56697d5225f91d9e5159b6960ede97212c",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/131efd56697d5225f91d9e5159b6960ede97212c"
+  },
+  "node_id": "REF_kwDORmihXbNyZWZzL3RhZ3MvZ28vdjAuOC40"
+ },
+ {
+  "name": "go/v0.8.3",
+  "zipball_url": "https://api.github.com/repos/multikernel/sandlock/zipball/refs/tags/go/v0.8.3",
+  "tarball_url": "https://api.github.com/repos/multikernel/sandlock/tarball/refs/tags/go/v0.8.3",
+  "commit": {
+   "sha": "cc2bed0e366249dd74ac8ddba0d8506788925d5f",
+   "url": "https://api.github.com/repos/multikernel/sandlock/commits/cc2bed0e366249dd74ac8ddba0d8506788925d5f"
+  },
+  "node_id": "REF_kwDORmihXbNyZWZzL3RhZ3MvZ28vdjAuOC4z"
+ }
+]

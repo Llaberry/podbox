@@ -1,0 +1,70 @@
+# Binary
+ruri
+ruri-*.zip
+# Editor configuration.
+.vscode/
+# Gdb log
+peda-*
+# Build dir.
+out
+# Tmp file.
+TODO
+*.save
+a.out
+t.c
+config.mk
+*.pyc
+debian/ruri
+debian/source
+debian/.debhelper
+debian/debhelper-build-stamp
+debian/files
+tmpdir*
+test-root
+build/src
+build
+# Cmake
+cmake_install.cmake
+CMakeCache.txt
+CMakeFiles
+.cmake
+*.json
+build.ninja
+.ninja_deps
+.ninja_log
+
+# Automake
+build-aux
+autom4te.cache
+.deps
+.dirstamp
+aclocal.m4
+config.log
+config.status
+config.h
+config.h.in
+config.h.in~
+compile
+configure~
+install-sh
+missing
+configure
+Makefile.in
+depcomp
+config.guess
+config.sub
+test-driver
+*.Po
+
+*.o
+Makefile
+
+# build.c output
+build_tool
+
+# VitePress
+docs/.vitepress/cache
+docs/.vitepress/.temp
+docs/.vitepress/dist
+node_modules
+*.ce.c

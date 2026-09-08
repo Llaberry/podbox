@@ -1,0 +1,72 @@
+// Copyright (c) Contributors to the Apptainer project, established as
+//   Apptainer a Series of LF Projects LLC.
+//   For website terms of use, trademark policy, privacy policy and other
+//   project policies see https://lfprojects.org/policies
+// Copyright (c) 2018-2020, Sylabs Inc. All rights reserved.
+// This software is licensed under a 3-clause BSD license. Please consult the
+// LICENSE.md file distributed with the sources of this project regarding your
+// rights to use or distribute this software.
+
+package gpu
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"github.com/apptainer/apptainer/internal/pkg/util/paths"
+	"github.com/apptainer/apptainer/pkg/sylog"
+)
+
+// NvidiaPaths returns a list of Nvidia libraries/binaries/files that should be
+// mounted into the container in order to use Nvidia GPUs
+func NvidiaPaths(configFilePath string) ([]string, []string, []string, error) {
+	nvidiaFiles, err := gpuliblist(configFilePath)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("could not read %s: %v", filepath.Base(configFilePath), err)
+	}
+
+	return paths.Resolve(nvidiaFiles)
+}
+
+// NvidiaCompat32Paths returns a list of 32-bit Nvidia libraries that should be
+// mounted into the container's 32-bit compatibility library directory, in
+// order for 32-bit programs, e.g. Windows programs running under Wine, to use
+// Nvidia GPUs.
+func NvidiaCompat32Paths(configFilePath string) ([]string, error) {
+	return compat32Paths(configFilePath)
+}
+
+// NvidiaIpcsPath returns a list of nvidia driver ipcs.
+// Currently this is only the persistenced socket (if found).
+func NvidiaIpcsPath() ([]string, error) {
+	const persistencedSocket = "/var/run/nvidia-persistenced/socket"
+	nvidiaFiles := make([]string, 0, 1)
+	_, err := os.Stat(persistencedSocket)
+	// If it doesn't exist that's okay - probably persistenced isn't running.
+	if os.IsNotExist(err) {
+		sylog.Verbosef("persistenced socket %s not found", persistencedSocket)
+		return nil, nil
+	}
+	// If we can't stat it, we probably can't bind mount it.
+	if err != nil {
+		return nil, fmt.Errorf("could not stat %s: %v", persistencedSocket, err)
+	}
+
+	nvidiaFiles = append(nvidiaFiles, persistencedSocket)
+	return nvidiaFiles, nil
+}
+
+// NvidiaDevices return list of all non-GPU nvidia devices present on host. If withGPU
+// is true all GPUs are included in the resulting list as well.
+func NvidiaDevices(withGPU bool) ([]string, error) {
+	nvidiaGlob := "/dev/nvidia*"
+	if !withGPU {
+		nvidiaGlob = "/dev/nvidia[^0-9]*"
+	}
+	devs, err := filepath.Glob(nvidiaGlob)
+	if err != nil {
+		return nil, fmt.Errorf("could not list nvidia devices: %v", err)
+	}
+	return devs, nil
+}

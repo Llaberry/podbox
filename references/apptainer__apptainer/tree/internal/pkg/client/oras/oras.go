@@ -1,0 +1,542 @@
+// Copyright (c) Contributors to the Apptainer project, established as
+//   Apptainer a Series of LF Projects LLC.
+//   For website terms of use, trademark policy, privacy policy and other
+//   project policies see https://lfprojects.org/policies
+// Copyright (c) 2020, Control Command Inc. All rights reserved.
+// Copyright (c) 2020-2023, Sylabs Inc. All rights reserved.
+// This software is licensed under a 3-clause BSD license. Please consult the
+// LICENSE.md file distributed with the sources of this project regarding your
+// rights to use or distribute this software.
+
+package oras
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/apptainer/apptainer/internal/pkg/client"
+	"github.com/apptainer/apptainer/internal/pkg/util/ociauth"
+	"github.com/apptainer/apptainer/pkg/image"
+	"github.com/apptainer/apptainer/pkg/inspect"
+	"github.com/apptainer/apptainer/pkg/sylog"
+	useragent "github.com/apptainer/apptainer/pkg/util/user-agent"
+	"github.com/apptainer/sif/v2/pkg/sif"
+	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/name"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
+	"github.com/google/go-containerregistry/pkg/v1/layout"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"golang.org/x/term"
+)
+
+const (
+	defaultRegistry = name.DefaultRegistry
+	defaultTag      = name.DefaultTag
+)
+
+// DownloadImage downloads a SIF image specified by an oci reference to a file using the included credentials
+func DownloadImage(ctx context.Context, path, ref, arch string, ociAuth *authn.AuthConfig, noHTTPS bool, reqAuthFile string) error {
+	rt := client.NewRoundTripper(ctx, nil)
+	im, err := remoteImage(ctx, ref, arch, ociAuth, noHTTPS, rt, reqAuthFile)
+	if err != nil {
+		rt.ProgressShutdown()
+		return err
+	}
+
+	// Check manifest to ensure we have a SIF as single layer
+	//
+	// We *don't* check the image config mediaType as prior versions of
+	// Apptainer have not been consistent in setting this, and really all we
+	// care about is that we are pulling a single SIF file.
+	//
+	manifest, err := im.Manifest()
+	if err != nil {
+		rt.ProgressShutdown()
+		return err
+	}
+	if len(manifest.Layers) != 1 {
+		return fmt.Errorf("ORAS SIF image should have a single layer, found %d", len(manifest.Layers))
+	}
+	layer := manifest.Layers[0]
+	if layer.MediaType != SifLayerMediaTypeV1 &&
+		layer.MediaType != SifLayerMediaTypeProto {
+		rt.ProgressShutdown()
+		return fmt.Errorf("invalid layer mediatype: %s", layer.MediaType)
+	}
+
+	// Retrieve image to a temporary OCI layout
+	tmpDirFlag := ""
+	if v := ctx.Value(TmpDirKey); v != nil {
+		if s, ok := v.(string); ok {
+			tmpDirFlag = s
+		}
+	}
+	// if tmpDirFlag is still "", os.MkdirTemp will use the system default temp dir
+	tmpDir, err := os.MkdirTemp(tmpDirFlag, "oras-tmp-")
+	if err != nil {
+		rt.ProgressShutdown()
+		return err
+	}
+	defer func() {
+		if err := os.RemoveAll(tmpDir); err != nil {
+			sylog.Errorf("while removing %q: %v", tmpDir, err)
+		}
+	}()
+	tmpLayout, err := layout.Write(tmpDir, empty.Index)
+	if err != nil {
+		rt.ProgressShutdown()
+		return err
+	}
+	if err := tmpLayout.AppendImage(im); err != nil {
+		rt.ProgressShutdown()
+		return err
+	}
+
+	rt.ProgressComplete()
+	rt.ProgressWait()
+
+	// Copy SIF blob out from layout to final location
+	blob, err := tmpLayout.Blob(layer.Digest)
+	if err != nil {
+		return err
+	}
+	defer blob.Close()
+	outFile, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer outFile.Close()
+
+	_, err = io.Copy(outFile, blob)
+	if err != nil {
+		return err
+	}
+
+	// Ensure that we have downloaded a SIF
+	if err := ensureSIF(path); err != nil {
+		// remove whatever we downloaded if it is not a SIF
+		os.RemoveAll(path)
+		return err
+	}
+	return nil
+}
+
+// UploadImage uploads the image specified by path and pushes it to the provided oci reference,
+// it will use credentials if supplied
+func UploadImage(ctx context.Context, path, ref, arch string, ociAuth *authn.AuthConfig, noHTTPS bool, reqAuthFile string, annotations []string) error {
+	// ensure that are uploading a SIF
+	if err := ensureSIF(path); err != nil {
+		return err
+	}
+
+	ref = strings.TrimPrefix(ref, "oras://")
+	ref = strings.TrimPrefix(ref, "//")
+
+	// Get reference to image in the remote
+	opts := []name.Option{name.WithDefaultTag(name.DefaultTag), name.WithDefaultRegistry(name.DefaultRegistry)}
+	if noHTTPS {
+		opts = append(opts, name.Insecure)
+	}
+	ir, err := name.ParseReference(ref, opts...)
+	if err != nil {
+		return err
+	}
+
+	annotationsMap := map[string]string{}
+	for _, annotation := range annotations {
+		key, value, found := strings.Cut(annotation, "=")
+		if !found {
+			sylog.Warningf("Value missing for %q, not setting", key)
+			continue
+		}
+		annotationsMap[key] = value
+	}
+
+	im, err := NewImageFromSIF(path, SifConfigMediaTypeV1, SifLayerMediaTypeV1, annotationsMap) // nolint:contextcheck
+	if err != nil {
+		return err
+	}
+
+	digest, err := im.Digest()
+	if err != nil {
+		return err
+	}
+	sylog.Infof("Digest: %s\n", digest)
+
+	platform := v1.Platform{
+		Architecture: arch,
+		OS:           "linux",
+	}
+	remoteOpts := []remote.Option{
+		ociauth.AuthOptn(ociAuth, reqAuthFile),
+		remote.WithUserAgent(useragent.Value()),
+		remote.WithContext(ctx),
+		remote.WithPlatform(platform),
+	}
+	if term.IsTerminal(2) {
+		pb := &client.DownloadProgressBar{}
+		progChan := make(chan v1.Update, 1)
+		go func() {
+			var total int64
+			soFar := int64(0)
+			for {
+				// The following is concurrency-safe because this is the only
+				// goroutine that's going to be reading progChan updates.
+				update := <-progChan
+				if update.Error != nil {
+					pb.Abort(false)
+					return
+				}
+				if update.Total != total {
+					pb.Init(update.Total)
+					total = update.Total
+				}
+				pb.IncrBy(int(update.Complete - soFar))
+				soFar = update.Complete
+				if soFar >= total {
+					pb.Wait()
+					return
+				}
+			}
+		}()
+		remoteOpts = append(remoteOpts, remote.WithProgress(progChan))
+	}
+	return remote.Write(ir, im, remoteOpts...)
+}
+
+// ensureSIF checks for a SIF image at filepath and returns an error if it is not, or an error is encountered
+func ensureSIF(filepath string) error {
+	img, err := image.Init(filepath, false)
+	if err != nil {
+		return fmt.Errorf("could not open image %s for verification: %s", filepath, err)
+	}
+	defer img.File.Close()
+
+	if img.Type != image.SIF {
+		return fmt.Errorf("%q is not a SIF", filepath)
+	}
+
+	return nil
+}
+
+// RefHash returns the digest of the SIF layer of the OCI manifest for supplied ref
+func RefHash(ctx context.Context, ref, arch string, ociAuth *authn.AuthConfig, noHTTPS bool, reqAuthFile string) (v1.Hash, error) {
+	im, err := remoteImage(ctx, ref, arch, ociAuth, noHTTPS, nil, reqAuthFile)
+	if err != nil {
+		return v1.Hash{}, err
+	}
+
+	// Check manifest to ensure we have a SIF as single layer
+	manifest, err := im.Manifest()
+	if err != nil {
+		return v1.Hash{}, err
+	}
+	if len(manifest.Layers) != 1 {
+		return v1.Hash{}, fmt.Errorf("ORAS SIF image should have a single layer, found %d", len(manifest.Layers))
+	}
+	layer := manifest.Layers[0]
+	if layer.MediaType != SifLayerMediaTypeV1 &&
+		layer.MediaType != SifLayerMediaTypeProto {
+		return v1.Hash{}, fmt.Errorf("invalid layer mediatype: %s", layer.MediaType)
+	}
+
+	hash := layer.Digest
+	return hash, nil
+}
+
+// RefSize returns the size of the SIF layer of the OCI manifest for supplied ref
+func RefSize(ctx context.Context, ref, arch string, ociAuth *authn.AuthConfig, noHTTPS bool, reqAuthFile string) (int64, error) {
+	im, err := remoteImage(ctx, ref, arch, ociAuth, noHTTPS, nil, reqAuthFile)
+	if err != nil {
+		return 0, err
+	}
+
+	// Check manifest to ensure we have a SIF as single layer
+	manifest, err := im.Manifest()
+	if err != nil {
+		return 0, err
+	}
+	if len(manifest.Layers) != 1 {
+		return 0, fmt.Errorf("ORAS SIF image should have a single layer, found %d", len(manifest.Layers))
+	}
+	layer := manifest.Layers[0]
+	if layer.MediaType != SifLayerMediaTypeV1 &&
+		layer.MediaType != SifLayerMediaTypeProto {
+		return 0, fmt.Errorf("invalid layer mediatype: %s", layer.MediaType)
+	}
+
+	size := layer.Size
+	return size, nil
+}
+
+func RefDigest(ctx context.Context, ref, arch string, ociAuth *authn.AuthConfig, noHTTPS bool, reqAuthFile string) (v1.Hash, error) {
+	im, err := remoteImage(ctx, ref, arch, ociAuth, noHTTPS, nil, reqAuthFile)
+	if err != nil {
+		return v1.Hash{}, err
+	}
+	return im.Digest()
+}
+
+// ImageCreated returns the created for a file
+func ImageCreated(filePath string) (time.Time, error) {
+	f, err := sif.LoadContainerFromPath(filePath, sif.OptLoadWithFlag(os.O_RDONLY))
+	if err != nil {
+		return time.Now(), nil
+	}
+	defer f.UnloadContainer()
+
+	d, err := f.GetDescriptors(sif.WithDataType(sif.DataGenericJSON))
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	created := time.Now()
+	for _, desc := range d {
+		if desc.Name() != image.SIFDescInspectMetadataJSON {
+			continue
+		}
+
+		metadata := new(inspect.Metadata)
+		if err := json.NewDecoder(desc.GetReader()).Decode(metadata); err != nil {
+			return time.Time{}, err
+		}
+
+		createdTime := metadata.Attributes.Labels["org.opencontainers.image.created"]
+		if createdTime == "" {
+			return time.Time{}, nil
+		}
+
+		t, err := time.Parse(time.RFC3339, createdTime)
+		if err != nil {
+			return time.Time{}, err
+		}
+		created = t
+	}
+	return created, nil
+}
+
+// ImageDigest returns the digest for a file
+func ImageHash(ctx context.Context, filePath string) (v1.Hash, error) {
+	st, err := os.Stat(filePath)
+	if err != nil {
+		return v1.Hash{}, err
+	}
+	file, err := os.Open(filePath)
+	if err != nil {
+		return v1.Hash{}, err
+	}
+	defer file.Close()
+
+	sha, err := sha256sum(ctx, st.Size(), file)
+	if err != nil {
+		return v1.Hash{}, err
+	}
+
+	hash, err := v1.NewHash(sha)
+	if err != nil {
+		return v1.Hash{}, err
+	}
+
+	return hash, nil
+}
+
+// ImageSize returns the size for a file
+func ImageSize(filePath string) (int64, error) {
+	st, err := os.Stat(filePath)
+	if err != nil {
+		return 0, err
+	}
+	return st.Size(), nil
+}
+
+// sha256sum computes the sha256sum of the specified reader; caller is
+// responsible for resetting file pointer. 'nBytes' indicates number of
+// bytes to read
+func sha256sum(ctx context.Context, nBytes int64, r io.Reader) (result string, err error) {
+	hash := sha256.New()
+	pb := client.ProgressBarCallback(ctx)
+	err = pb(nBytes, true, r, hash)
+	if err != nil {
+		return "", err
+	}
+
+	return "sha256:" + hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+// remoteImage returns a v1.Image for the provided remote ref.
+func remoteImage(ctx context.Context, ref, arch string, ociAuth *authn.AuthConfig, noHTTPS bool, rt *client.RoundTripper, reqAuthFile string) (v1.Image, error) {
+	ref = strings.TrimPrefix(ref, "oras://")
+	ref = strings.TrimPrefix(ref, "//")
+
+	// Get reference to image in the remote
+	opts := []name.Option{name.WithDefaultTag(name.DefaultTag), name.WithDefaultRegistry(name.DefaultRegistry)}
+	if noHTTPS {
+		opts = append(opts, name.Insecure)
+	}
+	ir, err := name.ParseReference(ref, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("invalid reference %q: %w", ref, err)
+	}
+	platform := v1.Platform{
+		Architecture: arch,
+		OS:           "linux",
+	}
+	remoteOpts := []remote.Option{
+		ociauth.AuthOptn(ociAuth, reqAuthFile),
+		remote.WithContext(ctx),
+		remote.WithPlatform(platform),
+	}
+	if rt != nil {
+		remoteOpts = append(remoteOpts, remote.WithTransport(rt))
+	}
+	im, err := remote.Image(ir, remoteOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return im, nil
+}
+
+// SearchRegistry searches the registry and outputs results to stdout
+func SearchRegistry(ctx context.Context, ref, arch string, ociAuth *authn.AuthConfig, reqAuthFile string) error {
+	ref = strings.TrimPrefix(ref, "oras://")
+	ref = strings.TrimPrefix(ref, "//")
+
+	platform := v1.Platform{
+		Architecture: arch,
+		OS:           "linux",
+	}
+	remoteOpts := []remote.Option{
+		ociauth.AuthOptn(ociAuth, reqAuthFile),
+		remote.WithContext(ctx),
+		remote.WithPlatform(platform),
+	}
+
+	value := ref
+	results := []string{}
+	if !strings.Contains(value, "/") {
+		registry, err := name.NewRegistry(ref)
+		if err != nil {
+			return fmt.Errorf("invalid registry %q: %w", ref, err)
+		}
+		list, err := remote.Catalog(ctx, registry, remoteOpts...)
+		if err != nil {
+			return err
+		}
+		for _, repo := range list {
+			results = append(results, registry.String()+"/"+repo)
+		}
+	} else {
+		results = append(results, value)
+	}
+
+	if len(results) > 0 {
+		imageList := []string{}
+		for _, repo := range results {
+			repository, err := name.NewRepository(repo)
+			if err != nil {
+				return err
+			}
+
+			list, err := remote.List(repository, remoteOpts...)
+			if err != nil {
+				return err
+			}
+			for _, tag := range list {
+				image, err := name.NewTag(repository.String() + ":" + tag)
+				if err != nil {
+					return err
+				}
+				imageItem := fmt.Sprintf("\toras://%s", image.String())
+				imageList = append(imageList, imageItem)
+			}
+		}
+		sort.Strings(imageList)
+		numImages := len(imageList)
+		fmt.Printf("Found %d container images for %s matching %q:\n\n", numImages, arch, value)
+		fmt.Println(strings.Join(imageList, "\n\n"))
+		fmt.Printf("\n")
+	} else {
+		fmt.Printf("No container images found for %s matching %q.\n\n", arch, value)
+	}
+
+	return nil
+}
+
+func NormalizeRef(ref string) (string, error) {
+	ref = strings.TrimPrefix(ref, "oras://")
+	ref = strings.TrimPrefix(ref, "//")
+
+	opts := []name.Option{name.WithDefaultTag(name.DefaultTag), name.WithDefaultRegistry(name.DefaultRegistry)}
+	ir, err := name.ParseReference(ref, opts...)
+	if err != nil {
+		return "", fmt.Errorf("invalid reference %q: %w", ref, err)
+	}
+	return ir.Name(), nil
+}
+
+func DeleteImage(ctx context.Context, ref, arch string, ociAuth *authn.AuthConfig, noHTTPS bool, reqAuthFile string) error {
+	ref = strings.TrimPrefix(ref, "oras://")
+	ref = strings.TrimPrefix(ref, "//")
+
+	// Get reference to image in the remote
+	opts := []name.Option{name.WithDefaultTag(name.DefaultTag), name.WithDefaultRegistry(name.DefaultRegistry)}
+	if noHTTPS {
+		opts = append(opts, name.Insecure)
+	}
+	ir, err := name.ParseReference(ref, opts...)
+	if err != nil {
+		return fmt.Errorf("invalid reference %q: %w", ref, err)
+	}
+	platform := v1.Platform{
+		Architecture: arch,
+		OS:           "linux",
+	}
+	remoteOpts := []remote.Option{
+		ociauth.AuthOptn(ociAuth, reqAuthFile),
+		remote.WithContext(ctx),
+		remote.WithPlatform(platform),
+	}
+	err = remote.Delete(ir, remoteOpts...)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func TagImage(ctx context.Context, ref, tag string, ociAuth *authn.AuthConfig, noHTTPS bool, reqAuthFile string) error {
+	ref = strings.TrimPrefix(ref, "oras://")
+	ref = strings.TrimPrefix(ref, "//")
+
+	// Get reference to image in the remote
+	opts := []name.Option{name.WithDefaultTag(name.DefaultTag), name.WithDefaultRegistry(name.DefaultRegistry)}
+	if noHTTPS {
+		opts = append(opts, name.Insecure)
+	}
+	ir, err := name.ParseReference(ref, opts...)
+	if err != nil {
+		return fmt.Errorf("invalid reference %q: %w", ref, err)
+	}
+	remoteOpts := []remote.Option{
+		ociauth.AuthOptn(ociAuth, reqAuthFile),
+		remote.WithContext(ctx),
+	}
+	id, err := remote.Get(ir, remoteOpts...)
+	if err != nil {
+		return err
+	}
+	it := ir.Context().Tag(tag)
+	err = remote.Tag(it, id, remoteOpts...)
+	if err != nil {
+		return err
+	}
+	return nil
+}

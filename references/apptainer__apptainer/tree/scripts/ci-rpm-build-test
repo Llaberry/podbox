@@ -1,0 +1,92 @@
+#!/bin/bash -ex
+# Copyright (c) Contributors to the Apptainer project, established as
+#   Apptainer a Series of LF Projects LLC.
+#   For website terms of use, trademark policy, privacy policy and other
+#   project policies see https://lfprojects.org/policies
+
+# this script runs as root under docker --privileged
+
+# install dependencies
+if [[ $OS_TYPE == *suse* ]]; then
+  zypper install -y --replacefiles --allow-downgrade -t pattern devel_basis
+  zypper install -y --allow-downgrade \
+    libseccomp-devel libtalloc-devel libattr-devel libuuid-devel openssl-devel \
+    libprotobuf-c-devel fakeroot cryptsetup sysuser-tools \
+    diffutils wget which git
+  if [[ $OS_TYPE == *tumbleweed* ]]; then
+    zypper install -y --allow-downgrade libsubid-devel
+  fi
+  zypper install -y --allow-downgrade gzip fuse3-devel \
+    lzo-devel liblz4-devel xz-devel libzstd-devel
+  zypper install -y rpm-build go
+  zypper install -y sudo
+else
+  dnf groupinstall -y 'Development Tools'
+  if [ $OS_TYPE != fedora ]; then
+    dnf install -y epel-release
+    crb enable
+  fi
+  dnf install -y libseccomp-devel libtalloc-devel libattr-devel \
+    protobuf-c-devel fakeroot cryptsetup wget git
+  dnf --enablerepo=devel install -y shadow-utils-subid-devel
+  dnf install -y golang
+  dnf install -y fuse3-devel lzo-devel lz4-devel
+  dnf install -y sudo
+fi
+
+# switch to an unprivileged user with sudo privileges
+useradd -u 1000 --create-home -s /bin/bash testuser
+echo "Defaults:testuser env_keep=DOCKER_HOST" >>/etc/sudoers
+echo "testuser ALL=(ALL) NOPASSWD: ALL" >>/etc/sudoers
+mkdir -p /local
+chown -R testuser . /local
+
+# Be careful not to use unescaped single quotes in these commands
+su testuser -c '
+  set -x
+  set -e
+  ./mconfig --only-rpm
+  GOURL="$(sed -n "s/^Source1: //p" apptainer.spec)"
+  if [ -n "$GOURL" ]; then
+    GOSRC="$(basename $GOURL)"
+    curl -f -L -sS -o $GOSRC $GOURL
+    if [ -n "'$GO_ARCH'" ]; then
+      # Download and install binary too to avoid rpm having to compile the
+      #  go toolchain from source
+      GOBIN="$(echo "$GOSRC"|sed "s/\.src./.'$GO_ARCH'./")"
+      curl -f -L -sS https://golang.org/dl/$GOBIN | tar -xzf - -C /local
+      PATH=/local/go/bin:$PATH
+    fi
+    # re-do the mconfig to locate the new go
+    ./mconfig --only-rpm
+  fi
+  go version
+  ./scripts/download-dependencies
+  if [ "$HIDE_DIST" = true ]; then
+    # eliminate the "dist" part in the rpm name, for the release_assets
+    echo "%dist %{nil}" >$HOME/.rpmmacros
+  fi
+  make -C builddir '${BUILD_TYPE:-rpm}'
+  if [[ '$OS_TYPE' == *suse* ]]; then
+    sudo zypper install -y --allow-unsigned-rpm $HOME/rpmbuild/RPMS/*/*.rpm
+  else
+    sudo dnf install -y $HOME/rpmbuild/RPMS/*/*.rpm
+  fi
+  BLD="$(echo $HOME/rpmbuild/BUILD/apptainer-*)"
+  export GOPATH=$BLD/gopath
+  PATH=$GOPATH/bin:$PATH
+
+  # do a minimal test
+  apptainer exec oras://ghcr.io/apptainer/alpine:3.15.0 /bin/true
+
+  if [[ '$OS_TYPE' != *suse* ]]; then
+    # make sure an example go source file is actually in the debugsource rpm 
+    rpm2cpio $HOME/rpmbuild/RPMS/$(arch)/apptainer-debugsource*.rpm | cpio -it | grep cmd/apptainer/cli.go
+  fi
+
+  # copy the rpms into the current directory for later use
+  cp $HOME/rpmbuild/SRPMS/*.rpm $HOME/rpmbuild/RPMS/*/*.rpm .
+
+  # remove any downloaded files so tar files do not get into release assets
+  ./scripts/clean-dependencies
+'

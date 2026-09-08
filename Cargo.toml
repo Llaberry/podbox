@@ -1,0 +1,38 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/podbox-cli",
+    "crates/podbox-probe",
+    "crates/podbox-image",
+    "crates/podbox-extract",
+    "crates/podbox-complete",
+    "crates/podbox-enter",
+    "crates/podbox-supervise",
+]
+
+# ⛔ podbox-interpose is NOT a workspace member. It is a cdylib that runs inside
+# other people's processes, it must not depend on the rest of the tree
+# (TOOL.md §4.3, §6.7), and it is built separately and embedded in the launcher
+# as a byte array. A member would share this workspace's dependency unification
+# and feature resolution, which is the coupling it exists to avoid.
+exclude = ["crates/podbox-interpose"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+license = "0BSD"
+repository = "https://github.com/Llaberry/podbox"
+
+[workspace.dependencies]
+# ⛔ EMPTY, AND DELIBERATELY. TOOL.md §3.5 is a policy, not a shopping list.
+# Every dependency answers five questions and closes with a measured
+# `cargo bloat` delta before it lands here. TODO/deps.md carries one entry per
+# candidate area.
+
+[profile.release]
+lto = true
+opt-level = "z"
+codegen-units = 1
+strip = "symbols"
+panic = "abort"

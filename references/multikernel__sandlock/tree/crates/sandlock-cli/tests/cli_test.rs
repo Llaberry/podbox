@@ -1,0 +1,686 @@
+use std::process::Command;
+
+fn sandlock_bin() -> Command {
+    // Use cargo to find the binary
+    let cmd = Command::new(env!("CARGO_BIN_EXE_sandlock"));
+    cmd
+}
+
+/// Drop `-r /lib64` from a CLI argument list when the host has no `/lib64`
+/// (RISC-V glibc and musl put the loader under `/lib`, with no `/lib64` at
+/// all). `-r` maps to a mandatory `fs_read`, so requiring `/lib64` on such a
+/// host aborts confinement; this mirrors `fs_read_if_exists` at the CLI layer.
+/// On hosts that have `/lib64` (x86-64) the arguments pass through unchanged.
+fn args_for_host(args: &[&str]) -> Vec<String> {
+    let has_lib64 = std::path::Path::new("/lib64").exists();
+    let mut out: Vec<String> = Vec::with_capacity(args.len());
+    for a in args {
+        if *a == "/lib64" && !has_lib64 {
+            // Also drop the `-r` we just pushed for this now-omitted path.
+            if out.last().map(|s| s == "-r").unwrap_or(false) {
+                out.pop();
+            }
+            continue;
+        }
+        out.push((*a).to_string());
+    }
+    out
+}
+
+#[test]
+fn test_check_command() {
+    let output = sandlock_bin()
+        .args(["check"])
+        .output()
+        .expect("failed to run sandlock check");
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Landlock"), "Should mention Landlock");
+}
+
+#[test]
+fn test_run_echo() {
+    let output = sandlock_bin()
+        .args(args_for_host(&["run", "-r", "/usr", "-r", "/lib", "-r", "/lib64", "-r", "/bin", "-r", "/etc", "--", "echo", "test123"]))
+        .output()
+        .expect("failed to run sandlock");
+    assert!(output.status.success(), "Exit status: {:?}, stderr: {}", output.status, String::from_utf8_lossy(&output.stderr));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("test123"));
+}
+
+#[test]
+fn test_run_exit_code() {
+    let output = sandlock_bin()
+        .args(args_for_host(&["run", "-r", "/usr", "-r", "/lib", "-r", "/lib64", "-r", "/bin", "--", "sh", "-c", "exit 42"]))
+        .output()
+        .expect("failed to run");
+    assert_eq!(output.status.code(), Some(42));
+}
+
+#[test]
+fn test_run_denied_path() {
+    let output = sandlock_bin()
+        .args(args_for_host(&["run", "-r", "/usr", "-r", "/lib", "-r", "/lib64", "-r", "/bin", "--", "cat", "/etc/group"]))
+        .output()
+        .expect("failed to run");
+    assert!(!output.status.success(), "Should fail without /etc readable");
+}
+
+#[test]
+fn test_run_hostname_virtualized() {
+    // /etc/hostname is virtualized by the supervisor, so it should be readable
+    // even when /etc is not in fs_read, and should return the sandbox hostname
+    // (not the host's).
+    let output = sandlock_bin()
+        .args(args_for_host(&["run", "--name", "mybox", "-r", "/usr", "-r", "/lib", "-r", "/lib64", "-r", "/bin", "--", "cat", "/etc/hostname"]))
+        .output()
+        .expect("failed to run");
+    assert!(output.status.success(), "virtualized /etc/hostname should be readable: stderr={}", String::from_utf8_lossy(&output.stderr));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert_eq!(stdout.trim(), "mybox", "expected virtual hostname, got {:?}", stdout.trim());
+}
+
+#[test]
+fn test_profile_list_empty() {
+    let output = sandlock_bin()
+        .args(["profile", "list"])
+        .output()
+        .expect("failed to run");
+    assert!(output.status.success());
+}
+
+#[test]
+fn test_no_args_shows_help() {
+    let output = sandlock_bin()
+        .output()
+        .expect("failed to run");
+    // clap exits with code 2 when no subcommand given
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("Usage") || stderr.contains("sandlock"));
+}
+
+#[test]
+fn test_cpu_cores_flag_accepted() {
+    let output = sandlock_bin()
+        .args(["run", "--help"])
+        .output()
+        .expect("failed to run sandlock");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("--cpu-cores"), "help should mention --cpu-cores");
+}
+
+#[test]
+fn test_status_fd_flag_accepted() {
+    // Just verify the flag is accepted without error
+    let bin = env!("CARGO_BIN_EXE_sandlock");
+    let output = std::process::Command::new(bin)
+        .args(["run", "--help"])
+        .output()
+        .expect("failed to run sandlock");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("--status-fd"), "help should mention --status-fd");
+}
+
+#[test]
+fn test_time_start_fakes_year() {
+    let output = sandlock_bin()
+        .args(args_for_host(&[
+            "run",
+            "-r", "/usr",
+            "-r", "/lib",
+            "-r", "/lib64",
+            "-r", "/bin",
+            "-r", "/etc",
+            "--time-start", "2000-06-15T00:00:00Z",
+            "--",
+            "date", "+%Y",
+        ]))
+        .output()
+        .expect("failed to run sandlock with --time-start");
+    assert!(
+        output.status.success(),
+        "sandlock exited with failure: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.trim() == "2000",
+        "Expected year 2000, got: {:?}",
+        stdout.trim()
+    );
+}
+
+#[test]
+fn test_no_supervisor_echo() {
+    let output = sandlock_bin()
+        .args(args_for_host(&["run", "--no-supervisor", "-r", "/usr", "-r", "/lib", "-r", "/lib64", "-r", "/bin", "-r", "/etc", "--", "echo", "no-supervisor-test"]))
+        .output()
+        .expect("failed to run sandlock --no-supervisor");
+    assert!(output.status.success(), "Exit status: {:?}, stderr: {}", output.status, String::from_utf8_lossy(&output.stderr));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("no-supervisor-test"));
+}
+
+#[test]
+fn test_no_supervisor_blocks_denied_path() {
+    let output = sandlock_bin()
+        .args(args_for_host(&["run", "--no-supervisor", "-r", "/usr", "-r", "/lib", "-r", "/lib64", "-r", "/bin", "--", "cat", "/etc/hostname"]))
+        .output()
+        .expect("failed to run");
+    assert!(!output.status.success(), "Should fail without /etc readable");
+}
+
+#[test]
+fn test_no_supervisor_rejects_fs_deny() {
+    let output = sandlock_bin()
+        .args(["run", "--no-supervisor", "--fs-deny", "/etc/hostname", "-r", "/usr", "--", "echo", "hi"])
+        .output()
+        .expect("failed to run");
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("--fs-deny"), "stderr: {}", stderr);
+}
+
+#[test]
+fn test_no_supervisor_rejects_net_deny() {
+    let output = sandlock_bin()
+        .args(["run", "--no-supervisor", "--net-deny", "10.0.0.0/8", "--", "/bin/true"])
+        .output()
+        .expect("failed to run");
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("--net-deny"), "stderr: {}", stderr);
+}
+
+#[test]
+fn test_net_allow_and_net_deny_are_mutually_exclusive() {
+    // Also guards the CLI wiring: --net-deny must reach build(), otherwise
+    // the exclusivity check never fires and the flag is silently dropped.
+    let output = sandlock_bin()
+        .args(["run", "--net-allow", "github.com:443", "--net-deny", "10.0.0.0/8", "--", "/bin/true"])
+        .output()
+        .expect("failed to run");
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("mutually exclusive"), "stderr: {}", stderr);
+}
+
+#[test]
+fn test_no_supervisor_rejects_incompatible_flags() {
+    let output = sandlock_bin()
+        .args(["run", "--no-supervisor", "--max-memory", "100M", "-r", "/usr", "--", "echo", "hi"])
+        .output()
+        .expect("failed to run");
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("--no-supervisor is incompatible with"), "stderr: {}", stderr);
+}
+
+#[test]
+fn test_no_supervisor_writable_path() {
+    let output = sandlock_bin()
+        .args(args_for_host(&["run", "--no-supervisor", "-r", "/usr", "-r", "/lib", "-r", "/lib64", "-r", "/bin", "-w", "/tmp", "--",
+               "sh", "-c", "echo no-supervisor-write > /tmp/sandlock-no-supervisor-test && cat /tmp/sandlock-no-supervisor-test"]))
+        .output()
+        .expect("failed to run");
+    assert!(output.status.success(), "Exit status: {:?}, stderr: {}", output.status, String::from_utf8_lossy(&output.stderr));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("no-supervisor-write"));
+    let _ = std::fs::remove_file("/tmp/sandlock-no-supervisor-test");
+}
+
+#[test]
+fn test_no_supervisor_nested_sandbox() {
+    let sandlock_path = env!("CARGO_BIN_EXE_sandlock");
+    let sandlock_dir = std::path::Path::new(sandlock_path).parent().unwrap().to_str().unwrap();
+    let output = sandlock_bin()
+        .args(args_for_host(&["run", "--no-supervisor",
+               "-r", "/usr", "-r", "/lib", "-r", "/lib64", "-r", "/bin", "-r", "/etc",
+               "-r", "/proc", "-r", "/dev", "-w", "/tmp",
+               "-r", sandlock_dir,
+               "--", sandlock_path, "run",
+               "-r", "/usr", "-r", "/lib", "-r", "/lib64", "-r", "/bin", "-r", "/etc",
+               "--", "echo", "nested-works"]))
+        .output()
+        .expect("failed to run nested sandbox");
+    assert!(output.status.success(), "Exit status: {:?}, stderr: {}", output.status, String::from_utf8_lossy(&output.stderr));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("nested-works"));
+}
+
+#[test]
+fn test_no_supervisor_exit_code() {
+    let output = sandlock_bin()
+        .args(args_for_host(&["run", "--no-supervisor", "-r", "/usr", "-r", "/lib", "-r", "/lib64", "-r", "/bin", "--", "sh", "-c", "exit 42"]))
+        .output()
+        .expect("failed to run");
+    assert_eq!(output.status.code(), Some(42));
+}
+
+/// Regression: `Sandbox::Drop` must run when the CLI exits.
+///
+/// When `--workdir` is set, seccomp COW stages writes in an upper layer
+/// and only copies them back to the workdir on commit, which runs in
+/// `Sandbox::Drop`. A previous version of the CLI called
+/// `std::process::exit(...)` from inside the function that owned the
+/// `Sandbox`, which skipped destructors entirely. Result: the file
+/// stayed orphaned in `/tmp/sandlock-cow-*/upper/` and never appeared
+/// in the workdir, even though the default `on_exit` is `commit`.
+#[test]
+fn test_cow_commit_runs_on_cli_exit() {
+    let workdir = tempfile::tempdir().expect("tempdir");
+    let sentinel = workdir.path().join("sentinel.txt");
+    assert!(!sentinel.exists(), "precondition: sentinel should not exist");
+
+    let cmd = format!("echo committed > {}", sentinel.display());
+    let output = sandlock_bin()
+        .args(args_for_host(&[
+            "run",
+            "-r", "/usr", "-r", "/lib", "-r", "/lib64", "-r", "/bin", "-r", "/etc",
+            "-w", workdir.path().to_str().unwrap(),
+            "--workdir", workdir.path().to_str().unwrap(),
+            "--", "sh", "-c", &cmd,
+        ]))
+        .output()
+        .expect("failed to run sandlock");
+    assert!(
+        output.status.success(),
+        "sandlock exit={:?}, stderr: {}",
+        output.status.code(),
+        String::from_utf8_lossy(&output.stderr),
+    );
+
+    assert!(
+        sentinel.exists(),
+        "COW commit did not run on CLI exit: {} missing. \
+         Was process::exit called instead of returning the exit code?",
+        sentinel.display(),
+    );
+    let contents = std::fs::read_to_string(&sentinel).unwrap_or_default();
+    assert_eq!(contents.trim(), "committed");
+}
+
+/// `--user N:N` maps the sandbox to UID `N` via an unprivileged
+/// user namespace, even when the host UID is non-zero. This is the only
+/// remaining `CLONE_NEWUSER` site after the overlayfs backend removal;
+/// the test guards against accidentally tearing it out.
+#[test]
+fn test_uid_mapping_fakes_root() {
+    // `id -u` reports the in-namespace UID. Passing --user 0:0 should make
+    // the child see UID 0 (fake root) regardless of the host UID.
+    let output = sandlock_bin()
+        .args(args_for_host(&[
+            "run",
+            "--user", "0:0",
+            "-r", "/usr", "-r", "/lib", "-r", "/lib64", "-r", "/bin", "-r", "/etc",
+            "--", "id", "-u",
+        ]))
+        .output()
+        .expect("failed to run sandlock");
+    assert!(
+        output.status.success(),
+        "sandlock --user 0:0 failed: stderr={}",
+        String::from_utf8_lossy(&output.stderr),
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout).trim(),
+        "0",
+        "expected UID 0 inside sandbox; got stdout={:?}",
+        String::from_utf8_lossy(&output.stdout),
+    );
+}
+
+#[test]
+fn test_uid_mapping_arbitrary_uid() {
+    // Arbitrary --user value should also map cleanly (not just 0).
+    let output = sandlock_bin()
+        .args(args_for_host(&[
+            "run",
+            "--user", "1234:1234",
+            "-r", "/usr", "-r", "/lib", "-r", "/lib64", "-r", "/bin", "-r", "/etc",
+            "--", "id", "-u",
+        ]))
+        .output()
+        .expect("failed to run sandlock");
+    assert!(
+        output.status.success(),
+        "sandlock --user 1234:1234 failed: stderr={}",
+        String::from_utf8_lossy(&output.stderr),
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout).trim(),
+        "1234",
+    );
+}
+
+/// `sandlock run --profile-file` prints a hint to stderr suggesting
+/// `sandlock learn --merge` when the sandboxed process exits non-zero.
+#[test]
+fn test_run_denial_hint_on_nonzero_exit() {
+    let profile = tempfile::NamedTempFile::new().expect("tempfile");
+    let profile_path = profile.path().to_str().unwrap().to_owned();
+
+    // Learn a minimal profile for a command that will later fail
+    let learn = sandlock_bin()
+        .args(["learn", "-o", &profile_path, "--", "true"])
+        .output()
+        .expect("failed to run sandlock learn");
+    assert!(learn.status.success(),
+        "learn failed: {}", String::from_utf8_lossy(&learn.stderr));
+
+    // Run with the profile but have the process exit non-zero
+    let run = sandlock_bin()
+        .args(["run", "--profile-file", &profile_path, "--", "sh", "-c", "exit 1"])
+        .output()
+        .expect("failed to run sandlock run");
+    assert!(!run.status.success(), "expected non-zero exit");
+    let stderr = String::from_utf8_lossy(&run.stderr);
+    assert!(
+        stderr.contains("sandlock learn --merge"),
+        "expected denial hint in stderr, got: {stderr}",
+    );
+    assert!(
+        stderr.contains(&profile_path),
+        "hint must include the profile path, got: {stderr}",
+    );
+}
+
+// ============================================================
+// RFC #68: control socket introspection tests
+// ============================================================
+
+/// Helper: return a sandlock binary with common fs-read args for running
+/// /bin/sleep in a sandbox.
+fn sandlock_sleep_args(name: &str) -> Vec<String> {
+    let mut args: Vec<String> = vec![
+        "run".into(),
+        "--name".into(),
+        name.into(),
+        "-r".into(),
+        "/usr".into(),
+        "-r".into(),
+        "/lib".into(),
+        "-r".into(),
+        "/lib64".into(),
+        "-r".into(),
+        "/bin".into(),
+        "-r".into(),
+        "/etc".into(),
+        "-r".into(),
+        "/proc".into(),
+        "-r".into(),
+        "/dev".into(),
+        "--".into(),
+        "/bin/sleep".into(),
+        "30".into(),
+    ];
+    let has_lib64 = std::path::Path::new("/lib64").exists();
+    if !has_lib64 {
+        // Remove -r /lib64 and its value.
+        if let Some(pos) = args.iter().position(|s| s == "/lib64") {
+            args.remove(pos);
+            args.remove(pos - 1);
+        }
+    }
+    args
+}
+
+/// Start a background sandbox, wait for it to be listed by `ps`, then
+/// return its PID. The caller is responsible for killing it.
+///
+/// stderr is captured so wait_for_sandbox can report why a sandbox never
+/// appeared instead of a bare timeout.
+fn spawn_sandbox(name: &str) -> std::process::Child {
+    let bin = env!("CARGO_BIN_EXE_sandlock");
+    let args = sandlock_sleep_args(name);
+    std::process::Command::new(bin)
+        .args(&args)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn sandlock")
+}
+
+/// Kill `child` if still running and return whatever it wrote to stderr.
+fn drain_child_stderr(child: &mut std::process::Child) -> String {
+    let _ = child.kill();
+    let _ = child.wait();
+    let mut stderr = String::new();
+    if let Some(mut pipe) = child.stderr.take() {
+        use std::io::Read;
+        let _ = pipe.read_to_string(&mut stderr);
+    }
+    stderr
+}
+
+/// Wait for a sandbox to appear in `sandlock ps` output.
+///
+/// Fails fast with the child's exit status and stderr if the sandbox process
+/// dies before appearing. The 15s ceiling leaves room for slow hosts running
+/// several sandbox startups in parallel (riscv64 boards).
+fn wait_for_sandbox(child: &mut std::process::Child, name: &str) -> Result<(), String> {
+    let bin = env!("CARGO_BIN_EXE_sandlock");
+    for _ in 0..30 {
+        let out = std::process::Command::new(bin)
+            .args(["ps"])
+            .output()
+            .expect("sandlock ps");
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        if stdout.contains(name) {
+            return Ok(());
+        }
+        if let Ok(Some(status)) = child.try_wait() {
+            return Err(format!(
+                "sandbox '{}' exited ({}) before appearing in ps: {}",
+                name, status, drain_child_stderr(child)
+            ));
+        }
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }
+    Err(format!(
+        "sandbox '{}' did not appear in ps output within 15s: {}",
+        name, drain_child_stderr(child)
+    ))
+}
+
+#[test]
+fn test_ps_lists_running_sandbox() {
+    let name = format!("test-ps-cli-{}", std::process::id());
+    let mut child = spawn_sandbox(&name);
+
+    match wait_for_sandbox(&mut child, &name) {
+        Ok(()) => {
+            let out = sandlock_bin()
+                .args(["ps"])
+                .output()
+                .expect("sandlock ps");
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            assert!(
+                stdout.contains(&name),
+                "ps output should contain sandbox name '{}':\n{}",
+                name,
+                stdout
+            );
+            // Should have column headers.
+            assert!(
+                stdout.contains("NAME") && stdout.contains("PID") && stdout.contains("UPTIME"),
+                "ps output should have column headers: {}",
+                stdout
+            );
+        }
+        Err(e) => {
+            let _ = child.kill();
+            panic!("{}", e);
+        }
+    }
+
+    // Clean up.
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
+#[test]
+fn test_ps_no_sandboxes() {
+    let out = sandlock_bin()
+        .args(["ps"])
+        .output()
+        .expect("sandlock ps");
+    assert!(out.status.success());
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    // Either "No running sandboxes" or the header with no entries.
+    assert!(
+        stdout.contains("No running sandboxes") || stdout.contains("NAME"),
+        "ps should print header or 'No running sandboxes': {}",
+        stdout
+    );
+}
+
+#[test]
+fn test_inspect_returns_json_policy() {
+    let name = format!("test-config-cli-{}", std::process::id());
+    let mut child = spawn_sandbox(&name);
+
+    match wait_for_sandbox(&mut child, &name) {
+        Ok(()) => {
+            let out = sandlock_bin()
+                .args(["inspect", &name])
+                .output()
+                .expect("sandlock inspect");
+            assert!(
+                out.status.success(),
+                "inspect should succeed: stderr={}",
+                String::from_utf8_lossy(&out.stderr)
+            );
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            // JSON output should contain the filesystem section.
+            assert!(
+                stdout.contains("filesystem"),
+                "inspect JSON should contain 'filesystem': {}",
+                stdout
+            );
+            assert!(
+                stdout.contains("/usr"),
+                "inspect JSON should contain /usr in read list: {}",
+                stdout
+            );
+        }
+        Err(e) => {
+            let _ = child.kill();
+            panic!("{}", e);
+        }
+    }
+
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
+#[test]
+fn test_inspect_toml_flag_produces_toml() {
+    let name = format!("test-config-toml-cli-{}", std::process::id());
+    let mut child = spawn_sandbox(&name);
+
+    match wait_for_sandbox(&mut child, &name) {
+        Ok(()) => {
+            let out = sandlock_bin()
+                .args(["inspect", "--toml", &name])
+                .output()
+                .expect("sandlock inspect --toml");
+            assert!(
+                out.status.success(),
+                "inspect --toml should succeed: stderr={}",
+                String::from_utf8_lossy(&out.stderr)
+            );
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            // TOML output should have section headers.
+            assert!(
+                stdout.contains("[filesystem]"),
+                "inspect --toml should contain [filesystem]: {}",
+                stdout
+            );
+            assert!(
+                stdout.contains("/usr"),
+                "inspect --toml should contain /usr: {}",
+                stdout
+            );
+        }
+        Err(e) => {
+            let _ = child.kill();
+            panic!("{}", e);
+        }
+    }
+
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
+#[test]
+fn test_inspect_nonexistent_sandbox() {
+    let out = sandlock_bin()
+        .args(["inspect", "nonexistent-sandbox-xyz-99999"])
+        .output()
+        .expect("sandlock inspect");
+    assert!(!out.status.success(), "inspect for nonexistent sandbox should fail");
+}
+
+#[test]
+fn test_kill_stops_sandbox() {
+    let name = format!("test-kill-cli-{}", std::process::id());
+    let mut child = spawn_sandbox(&name);
+
+    match wait_for_sandbox(&mut child, &name) {
+        Ok(()) => {
+            let out = sandlock_bin()
+                .args(["kill", &name])
+                .output()
+                .expect("sandlock kill");
+            assert!(
+                out.status.success(),
+                "kill should succeed: stderr={}",
+                String::from_utf8_lossy(&out.stderr)
+            );
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            assert!(
+                stdout.contains("Killed"),
+                "kill output should say 'Killed': {}",
+                stdout
+            );
+
+            // The child should now exit (killed).
+            let status = child.wait().expect("wait for killed child");
+            // SIGKILL → signal 9.
+            assert!(!status.success());
+        }
+        Err(e) => {
+            let _ = child.kill();
+            panic!("{}", e);
+        }
+    }
+}
+
+#[test]
+fn test_kill_nonexistent_sandbox() {
+    let out = sandlock_bin()
+        .args(["kill", "nonexistent-sandbox-xyz-99999"])
+        .output()
+        .expect("sandlock kill");
+    assert!(!out.status.success(), "kill for nonexistent sandbox should fail");
+}
+
+#[test]
+fn test_help_shows_ps_and_inspect() {
+    let out = sandlock_bin()
+        .args(["--help"])
+        .output()
+        .expect("sandlock --help");
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("ps"), "--help should show 'ps' command");
+    assert!(stdout.contains("inspect"), "--help should show 'inspect' command");
+    assert!(stdout.contains("kill"), "--help should show 'kill' command");
+    // The old 'list' command should be gone.
+    assert!(
+        !stdout.contains("  list"),
+        "--help should NOT show 'list' command (renamed to 'ps')"
+    );
+}
