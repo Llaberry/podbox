@@ -37,7 +37,13 @@
      `experiments/results/`, which is where a measurement not yet taken will
      land, and a line carrying the `known-absent` token, which is how a document
      names something deliberately not here;
- 15. ⭐ every check above examined something. A check that runs zero assertions
+ 15. no build artefact or experiment scratch directory is tracked. An
+     experiment that stages a rootfs or builds an object writes hundreds of
+     somebody else's files next to the script, and one `git add -A` commits
+     them. Measured on 2026-09-08: about 1400 files of a debian rootfs and 23
+     cargo artefacts reached a commit this way, because `.gitignore` carried a
+     LIST of scratch directory names rather than a rule;
+ 16. ⭐ every check above examined something. A check that runs zero assertions
      and a check whose assertions all pass produce the same exit code, and the
      first is the state this repository was actually in at its first commit.
      The coverage line below is printed on every run and a zero in it is a
@@ -102,6 +108,13 @@ FORWARD_REF_PREFIX = "experiments/results/"
 # tree can be listed in one command:
 #     git grep -n 'known-absent'
 KNOWN_ABSENT = "<!-- known-absent -->"
+
+# ⛔ Check 15. Nothing under these may be tracked. `experiments/results/` is the
+# exception and is the evidence, so it is deliberately NOT a scratch prefix:
+# every scratch directory is a DOT directory under experiments/.
+SCRATCH = re.compile(
+    r"^(experiments/\.[^/]+/|crates/[^/]+/target/|target/|.*/__pycache__/)"
+)
 
 FIELDS = [
     "Source", "Category", "Priority", "Effort", "Status",
@@ -461,7 +474,14 @@ def main():
         return 2
     check_tree(files)
 
-    # -- 15. coverage --------------------------------------------------------
+    # -- 15. no artefact or scratch is tracked -------------------------------
+    for rel in sorted(files):
+        if SCRATCH.match(rel):
+            err(rel, "is a build artefact or experiment scratch and is tracked. "
+                     "Untrack it and make .gitignore carry a rule rather than a "
+                     "list of names.")
+
+    # -- 16. coverage --------------------------------------------------------
     # ⭐ A check that examined nothing reports success otherwise, which is the
     # exact state this repository shipped its first commit in.
     empty = [k for k, v in seen.items() if v == 0]

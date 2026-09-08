@@ -59,8 +59,23 @@ plants_caught=0; plants_missed=0
 controls_quiet=0; controls_fired=0
 
 backup() { for f in $FILES; do mkdir -p "$BACKUP/$(dirname "$f")"; cp "$ROOT/$f" "$BACKUP/$f"; done; }
-restore() { for f in $FILES; do cp "$BACKUP/$f" "$ROOT/$f"; done; }
-hashes() { for f in $FILES; do git hash-object "$ROOT/$f"; done | tr -d '\n'; }
+# ⛔ RESTORE UNDOES EVERY KIND OF PLANT, not only an edit to a file in the list.
+# Case 15 creates a file and stages it, so putting the listed files back is not
+# enough: an unstaged leftover makes every later case measure a dirty tree.
+SCRATCH_PLANT="experiments/.plantscratch"
+restore() {
+  for f in $FILES; do cp "$BACKUP/$f" "$ROOT/$f"; done
+  git -C "$ROOT" rm -q --cached -f --ignore-unmatch -r "$SCRATCH_PLANT" >/dev/null 2>&1
+  rm -rf "${ROOT:?}/$SCRATCH_PLANT"
+}
+
+# ⛔ HASH THE WHOLE WORKING STATE, not just the listed files. Guard 1 asserts
+# the mutation landed; a plant that creates a NEW file changes nothing in the
+# list, so a list-only hash would report "did not land" on a plant that did.
+hashes() {
+  for f in $FILES; do git hash-object "$ROOT/$f"; done
+  git -C "$ROOT" status --porcelain
+}
 
 trap 'restore; rm -rf "$BACKUP"' EXIT INT TERM
 backup
@@ -192,6 +207,12 @@ case_plant "13 a tenth dangling link" "dangling link" \
 
 case_plant "14 a bare path naming nothing" "git tracks no such file" \
   sh -c 'printf "\nThe work is in \`%s\`.\n" "$BAD_BARE" >> README.md'
+
+# ⚠ Case 15 stages a file INSIDE a scratch directory and must force-add it,
+# because .gitignore is what stops it in normal use. The plant is that the
+# ignore rule was wrong, which is how the defect actually happened.
+case_plant "15 tracked experiment scratch" "build artefact or experiment scratch" \
+  sh -c 'mkdir -p experiments/.plantscratch && : > experiments/.plantscratch/x.bin && git add -f experiments/.plantscratch/x.bin'
 
 echo
 # ⛔ SAY WHAT IS NOT COVERED. A harness that lists twelve passing cases against a

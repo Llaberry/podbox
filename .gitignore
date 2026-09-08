@@ -52,6 +52,11 @@ CLAUDE.local.md
 # ⛔ ROOTED. A bare `target/` also swallows `references/*/tree/target`, which is
 # somebody else's source directory in several of the corpus trees.
 /target/
+# ⛔ AND THE INTERPOSER HAS ITS OWN. It is excluded from the workspace, so it
+# builds into its own target directory, which the rooted rule above does not
+# reach. Measured on 2026-09-08: 23 build artefacts were committed before this
+# line existed.
+/crates/podbox-interpose/target/
 **/*.rs.bk
 *.pdb
 
@@ -59,11 +64,13 @@ CLAUDE.local.md
 # build reproducible.
 
 # -- experiment scratch ------------------------------------------------------
-# The scripts' working directories. `experiments/results/` is tracked: it is
-# the evidence.
-experiments/.stage/
-experiments/.langbuild/
-experiments/.interpose/
+# ⛔ ONE RULE, NOT A LIST. Every experiment writes to `experiments/.<name>/`,
+# and a per-directory list is a list somebody has to remember to extend.
+# Measured on 2026-09-08: `100-interpose-symbols.sh` exports a rootfs into
+# `experiments/.symbols/`, and about 1400 files of somebody else's distribution
+# were committed because the list did not have that name in it yet.
+# `experiments/results/` is tracked: it is the evidence.
+experiments/.*/
 verification/build/
 
 # ⛔ `references/` IS NOT IGNORED. docs/methodology/references.md section 4:
@@ -103,9 +110,4 @@ desktop.ini
 $RECYCLE.BIN/
 *.lnk
 
-# Experiment working directories. The results are tracked; the scratch is not.
-experiments/.whiteout/
-experiments/.langbuild/
-experiments/.interpose/
-experiments/.stage/
 __pycache__/

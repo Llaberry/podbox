@@ -1,4 +1,0 @@
-execve("/home/user/podbox/experiments/.nsswitch/q_static", ["/home/user/podbox/experiments/.n"...], 0x7ffdb3b74228 /* 137 vars */) = 0
-openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 3
-openat(AT_FDCWD, "/etc/passwd", O_RDONLY|O_CLOEXEC) = 3
-+++ exited with 1 +++
