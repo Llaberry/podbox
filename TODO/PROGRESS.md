@@ -42,7 +42,7 @@ the reconstruction cannot run here and report `SKIP`.
 | distinct `nsswitch` `passwd` shapes across those 11 | 6 | `experiments/125-across-distributions.sh` |
 | a static glibc binary on `opensuse-leap-15.6` | **SIGFPE**, rc 136 | `experiments/125-across-distributions.sh` |
 | gate coverage | ⛔ not recorded here. It is **self-referential**: writing the number down changes it | `scripts/check-todo.py`, on every run |
-| the gate's checks, planted against | 14 of 15 have a case; 14 caught, 0 missed; 3 controls quiet | `scripts/plant.sh` |
+| the gate's checks, planted against | 15 of 16 have a case; 15 caught, 0 missed; 3 controls quiet | `scripts/plant.sh` |
 | corpus | 30 trees, 152 MB in a fresh clone plus 27 MB of git objects | `scripts/common/mine-repo.sh` |
 | `alpine:3.20` `etc/shadow` ownership | uid 0, gid 42 | `experiments/70-whiteout-contract.sh` |
 | OCI layer member-name prefix | no `./` on any layer of either pinned image | `experiments/70-whiteout-contract.sh` |
@@ -55,7 +55,7 @@ $ ./scripts/check-todo.py
 check-todo: 86 rows, 86 entries, 79 open, 0 partial, 2 blocked, 5 done
 check-todo: ok
 $ ./scripts/plant.sh
-  plants   14 caught, 0 missed
+  plants   15 caught, 0 missed
   controls 3 quiet, 0 fired
 $ cargo build --release --target x86_64-unknown-linux-musl
     Finished `release` profile [optimized] target(s)
@@ -87,7 +87,7 @@ implementation code.
    `docs/conventions/docs.md`, `docs/conventions/git.md` and
    `docs/security/secrets.md` were copied in verbatim because the routing table
    names them.
-2. **The gate reaches the whole tree.** [T-1201](gate.md). Checks 11 to 14 of
+2. **The gate reaches the whole tree.** [T-1201](gate.md). Checks 11 to 15 of
    `scripts/check-todo.py` resolve citations and links across every tracked file
    this project wrote, against `git ls-files` rather than the filesystem, and
    check 14 resolves a **bare** path with no line number, which is the shape the
@@ -114,7 +114,7 @@ settled it.
 
 | claim | verdict |
 | --- | --- |
-| The gate exits 0 on an empty `TODO/` | ❌ It already exited 1 on zero rows. ✅ The vacuity underneath was real: checks 7 to 9 could examine nothing and report success. Check 15 now refuses a run where any counter is zero |
+| The gate exits 0 on an empty `TODO/` | ❌ It already exited 1 on zero rows. ✅ The vacuity underneath was real: checks 7 to 9 could examine nothing and report success. Check 16 now refuses a run where any counter is zero |
 | Citations should resolve against `git ls-files`, not the disk | ✅ Adopted. Nothing was untracked, and the check could not have told |
 | Citations in source comments and the README go unchecked | ✅ True. The scan read `TODO/` alone. T-1201 |
 | `git checkout --` restores a staged plant | ✅ Reproduced in a scratch repository: the plant survived |

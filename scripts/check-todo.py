@@ -469,7 +469,7 @@ def main():
     # -- 11 to 14. the rest of the tree --------------------------------------
     files = tracked_files()
     if files is None:
-        print("check-todo: `git ls-files` failed, so checks 11 to 14 could not "
+        print("check-todo: `git ls-files` failed, so checks 11 to 15 could not "
               "run. This is not a pass.", file=sys.stderr)
         return 2
     check_tree(files)

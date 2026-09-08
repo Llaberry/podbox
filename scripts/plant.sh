@@ -2,7 +2,7 @@
 # plant.sh - break each of the gate's checks on purpose and assert it goes red.
 #
 # ⛔ AN ASSERTION NOBODY HAS SEEN FAIL IS NOT AN ASSERTION. `check-todo.py`
-# carries fifteen checks. A check that quietly matches nothing exits 0 exactly
+# carries sixteen checks. A check that quietly matches nothing exits 0 exactly
 # like a check whose assertions all passed, and the second is what everybody
 # assumes they are looking at. This script is what tells them apart.
 #
@@ -219,7 +219,7 @@ echo
 # fifteen-check gate implies a coverage it does not have, which is the same
 # vacuity it exists to catch.
 echo "== not planted against"
-echo "  15 coverage floor    no case. Planting it means making a check examine"
+echo "  16 coverage floor    no case. Planting it means making a check examine"
 echo "                       nothing, which requires editing check-todo.py's own"
 echo "                       matchers rather than the tree. Every other check's"
 echo "                       counter is asserted non-zero on every run instead,"
