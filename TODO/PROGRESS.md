@@ -68,9 +68,21 @@ Milestone M-1 of `TOOL.md` section 5, in full. No podbox implementation code.
    Premise, Approach, Decision and Prove, and each citing the reference to read
    at the line to read it at.
 4. **The two count scripts.** `scripts/todo-count.py` writes,
-   `scripts/check-todo.py` reads and is the gate.
+   `scripts/check-todo.py` reads and is the gate. ⭐ Each of the gate's six
+   checks was verified by breaking the tree and confirming a non-zero exit: a
+   count that disagrees with the rows, a status that disagrees between the index
+   and its entry, a cited line past the end of its file, a `T-NNNN` naming
+   nothing, this file quoting a stale count, and a `Prove` that is prose rather
+   than a command.
 5. **Three measurements of this project's own**, in `experiments/`, beside the
-   five seeded from the research repository.
+   five seeded from the research repository. One of them exits 2 and is
+   committed for that reason.
+6. **One patch to a vendored file.** `scripts/common/check-markers.sh` excludes
+   `references/` and `docs/`, both verbatim third-party text. Unpatched it
+   reports 5425 problems on this tree, 5416 under `references/` and 9 under
+   `docs/`, and none in a file this project wrote. The reproduction runs the
+   pristine upstream copy out of this repository's own corpus, so it stays
+   runnable after the next upstream release.
 
 ### Six places where the corpus disagreed with the specification
 

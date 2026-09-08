@@ -141,13 +141,19 @@ TEXT_RE='\.(ts|tsx|js|mjs|cjs|jsx|json|md|sql|css|scss|html|toml|yaml|yml|sh|ps1
 #
 # This project's prose conventions do not reach somebody else's source, and
 # rewriting it to satisfy them would invalidate every citation and would
-# misrepresent what the corpus is. Unpatched, this check reports 5650 problems,
-# of which 5420 are in trees nobody here wrote.
+# misrepresent what the corpus is.
 #
-# Reproduce the defect this patch fixes:
-#   git stash && ./scripts/common/check-markers.sh; git stash pop
-# A zero exit from the unpatched script against a tree with a corpus means
-# upstream has taken an equivalent exclusion and this patch can be deleted.
+# ⭐ REPRODUCE THE DEFECT THIS PATCH FIXES, against the pristine upstream copy
+# that lives in this repository's own corpus:
+#
+#   sh references/Azathothas__TEMPLATE/tree/scripts/common/check-markers.sh
+#
+# Measured on 2026-09-08 on this tree: it exits 1 with 5425 problems, of which
+# 5416 are under references/ and 9 under docs/. None is in a file this project
+# wrote. The patched copy exits 0.
+#
+# A zero exit from that command means upstream has taken an equivalent
+# exclusion and this patch can be deleted.
 #
 # ⛔ TRACKED PLUS UNTRACKED-BUT-NOT-IGNORED. A file that has never been staged
 # is exactly when a new file is likeliest to carry the defect, and it is what

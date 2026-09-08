@@ -134,7 +134,7 @@ invalidates every citation already written.
 
 | Tree | Deleted | Why |
 | --- | --- | --- |
-| `references/containers__podman` | `tree/vendor`, `tree/test` | 104 MB of vendored Go modules and test data. podman at `7d39ce8` does not vendor `containers/storage` under `vendor/github.com/containers/storage`, so the wall-1 citation is taken against `references/containers__storage` at its own commit instead |
+| `references/containers__podman` | `tree/vendor`, `tree/test` | 104 MB of vendored Go modules and test data. podman at `7d39ce8` does not vendor `containers/storage`, so the wall-1 citation is taken against `references/containers__storage` at its own commit instead. ⚠ That is checkable without the deleted directory: `curl -sS -H 'User-Agent: curl/8.5.0' 'https://api.gh.pkgforge.dev/repos/containers/podman/contents/vendor/github.com/containers?ref=7d39ce8fe43f7d400dc3decc0c5961c18857ee55' \| jq -r '.[].name'` lists seven entries on 2026-09-08 and `storage` is not among them |
 | `references/containers__storage` | `tree/tests`, `tree/vendor` | 24 MB. Nothing here cites either |
 | `references/ylang-ylang__dockless` | `tree/vendor/udocker-englib-1.2.11.tar.gz` | a 45 MB binary tarball of udocker's fakechroot engine libraries. Nothing can be cited at a line inside a tarball. Re-fetchable from the upstream release the tree names |
 | `references/89luca89__lilipod` | `tree/vendor` | 15 MB of vendored Go modules. The cited code is in `tree/pkg/` and `tree/cmd/` |
