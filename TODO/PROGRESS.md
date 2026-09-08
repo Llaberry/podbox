@@ -4,7 +4,8 @@
 order. Rewritten every session. It carries no history: the history is the git
 log and the entries.
 
-**State: M-1 complete. No podbox code exists. M0, the probe, is next.**
+**State: M0 complete. `podbox probe` exists, is measured in both environments,
+and its acceptance runs as one command. M1, image acquisition, is next.**
 Session of 2026-09-08, on `main`.
 
 [INDEX.md](INDEX.md) is the list. [RULES.md](RULES.md) is how this repository is
@@ -15,15 +16,27 @@ reads that first and it names everything else.
 ## The measured baseline
 
 One machine, one day: kernel `6.18.44-fc-v24` (a Firecracker guest), rustc
-1.94.1, cargo 1.94.1, GNU tar 1.35, docker 29.3.1, glibc 2.39, musl 1.2.4,
+1.98.1, cargo 1.98.1, GNU tar 1.35, docker 29.3.1, glibc 2.39, musl 1.2.4,
 4 CPUs, 16 GB RAM.
 ⚠ `CONFIG_SECURITY_LANDLOCK` is unset on this kernel, so the M-mechanism rows of
 the reconstruction cannot run here and report `SKIP`.
+⚠ `CONFIG_CHECKPOINT_RESTORE` is also unset, so `kcmp(2)` answers `ENOSYS`. That
+is a control of the bogus-argument discriminator, and the consequence is
+[T-0102](probe.md)'s correction below.
 
 | what | value | taken by |
 | --- | --- | --- |
-| release binary, empty skeleton, `x86_64-unknown-linux-musl` | 389,656 bytes | `cargo build --release`, T-0910 |
-| `PT_INTERP` in that binary | none. static-pie | `readelf -l`, T-1001 |
+| release binary, M0 complete, `x86_64-unknown-linux-musl` | 496,184 bytes | `stat -c%s`, T-1101 |
+| third-party crates in that binary | **0** | `cargo tree`, and `[workspace.dependencies]` is empty |
+| release binary, empty skeleton, same target | 389,656 bytes | `cargo build --release`, T-1100 |
+| `PT_INTERP` in the M0 binary | none. static-pie | `readelf -l`, T-1001 |
+| `podbox probe` rung, unconfined on this host | `namespace` | `experiments/130-probe-parity.sh` |
+| `podbox probe` rung, inside `experiments/20-enter-target.sh` | `chroot` | `experiments/130-probe-parity.sh` |
+| attribution rows against `experiments/results/attribute.txt` | 15 matched, 1 recorded divergence, 0 differed | `experiments/130-probe-parity.sh` |
+| probes in the set | 48: 32 census, 16 attribution | `podbox probe --json` |
+| `kcmp(-1,-1,...)` control, on this host | `ENOSYS`: the control cannot answer | `experiments/results/attribute.txt` |
+| `kcmp(-1,-1,...)` control, on the target | `ESRCH`: executed | `references/Azathothas__container-research/tree/verification/real/extkernel-newapi.txt:26` |
+| writable paths obtained inside the reconstruction | 4 of 8 probed: `/tmp`, `/dev/shm`, `/workspace`, `/state` | `podbox probe --json` |
 | interposer cdylib under `+crt-static` | refused by cargo | `experiments/60-interposer-libc.sh` |
 | interposer cdylib, `-crt-static`, musl target | 14,064 bytes, and **not musl-linked** | `experiments/60-interposer-libc.sh` |
 | interposer cdylib, `-crt-static`, gnu target | 267,680 bytes | `experiments/60-interposer-libc.sh` |
@@ -53,20 +66,24 @@ Acceptance, run on 2026-09-08:
 
 ```
 $ ./scripts/check-todo.py
-check-todo: 86 rows, 86 entries, 79 open, 0 partial, 2 blocked, 5 done
+check-todo: 86 rows, 86 entries, 68 open, 2 partial, 2 blocked, 14 done
 check-todo: ok
 $ ./scripts/plant.sh
   plants   15 caught, 0 missed
   controls 3 quiet, 0 fired
+$ cargo test --workspace
+test result: ok. 37 passed; 0 failed
 $ cargo build --release --target x86_64-unknown-linux-musl
     Finished `release` profile [optimized] target(s)
 $ readelf -l target/x86_64-unknown-linux-musl/release/podbox | grep -c INTERP
 0
+$ ./experiments/130-probe-parity.sh
+  got chroot / got namespace / 15 matched, 1 recorded divergence, 0 differed, 0 missing
 ```
 
 ## Counts
 
-86 entries: 79 open, 0 partial, 2 blocked, 5 done.
+86 entries: 68 open, 2 partial, 2 blocked, 14 done.
 
 Derived by `scripts/todo-count.py` and asserted by `scripts/check-todo.py`.
 [INDEX.md](INDEX.md)'s Counts block carries the per-priority breakdown, and the
@@ -74,147 +91,115 @@ gate refuses a commit where the two disagree.
 
 ## What this session did
 
-Six issues were filed against this repository. Every claim in them was checked
-against source or a run before anything was adopted. Still no podbox
-implementation code.
+⭐ **M0, and it is the first podbox implementation code in the tree.**
+`crates/podbox-probe` and the `probe` verb of `crates/podbox-cli`, with **zero
+dependencies**: `[workspace.dependencies]` is still empty, which is the
+measurement [T-0901](deps.md) asked for before a syscall crate is considered.
 
-1. **The router.** [`../docs/AGENTS.md`](../docs/AGENTS.md) replaces the former
-   `docs/README.md`, deleted in this session, which was a third router <!-- known-absent -->
-   duplicating both the root `README.md` and the methodology it indexed.
-   `docs/conventions/docs.md` names the roles a document set has, and a
-   `README` under `docs/` is not one of them. The
-   router carries what a session with no memory needs and links the rest,
-   including the environment facts that previously lived only in scratch.
-   `docs/conventions/docs.md`, `docs/conventions/git.md` and
-   `docs/security/secrets.md` were copied in verbatim because the routing table
-   names them.
-2. **The gate reaches the whole tree.** [T-1201](gate.md). Checks 11 to 15 of
-   `scripts/check-todo.py` resolve citations and links across every tracked file
-   this project wrote, against `git ls-files` rather than the filesystem, and
-   check 14 resolves a **bare** path with no line number, which is the shape the
-   defect that opened issue 6 actually took. Before it, `tree_citations` was 1
-   and bare path citations were an unchecked class. ⚠ The counts move with every
-   commit that adds a sentence, so the current reading is whatever
-   `./scripts/check-todo.py` prints and is not copied into an entry.
-3. **The gate's checks are planted against.** [T-1202](gate.md).
-   `scripts/plant.sh` breaks each check and asserts it goes red **with that
-   check's own message**. Its first run found a case that landed its mutation
-   and never reached its subject.
-4. **Four measurements**, in `experiments/`, all committed with their results:
-   `80-interposer-abi.sh`, `90-nsswitch-contract.sh`,
-   `100-interpose-symbols.sh` and `125-across-distributions.sh`.
-5. **Two entries added** and four amended in place: [T-0709](interpose.md) and
-   [T-0410](complete.md) are new; [T-0701](interpose.md),
-   [T-0702](interpose.md), [T-0703](interpose.md) and [T-0404](complete.md)
-   took corrections underneath their premises.
+1. **The probe set.** [T-0101](probe.md), [T-0109](probe.md),
+   [T-0106](probe.md). 48 probes, each in a freshly forked child, each
+   recording the kernel's errno rather than a boolean, each verdict one of
+   three states. `crates/podbox-probe/src/sys.rs` issues the syscalls directly
+   so the errno is the kernel's and not a libc wrapper's.
+2. **The discriminator and its controls.** [T-0102](probe.md). The four
+   bogus-argument rows and both controls travel in the same run, and a control
+   that cannot answer sets `controls_answered` false and says so in the
+   evidence block.
+3. **Creation, configuration, attachment and use, as four verdicts.**
+   [T-0103](probe.md), with the `may_mount()` sentence in the output.
+4. **The write allowlist by writing**, for blocks and inodes both, reporting
+   the set obtained. [T-0104](probe.md).
+5. **The ID maps read directly.** [T-0105](probe.md), and the two sentences
+   that turn `EINVAL` and `groups=0,65534` into one explanation.
+6. **Rung selection and the strictness switch.** [T-0107](probe.md), `partial`.
+   **The banner.** [T-0108](probe.md), `partial`. Both are implemented and
+   measured; both have a half that needs `run`, which is M3.
+7. **The channel contract.** [T-0110](probe.md): the rung on stdout, the
+   evidence on stderr, `--json` and `--rows` beside it, 2 for invalid input.
+8. **[T-1101](milestones.md), the milestone, closed against a script**:
+   `experiments/130-probe-parity.sh`.
 
-### What the six issues claimed, and what the tree says
+### Three defects found in this tree, each blocking the acceptance
 
-⭐ Nothing here was adopted on the filer's word. Each row names the run that
-settled it.
+⭐ Verify, do not accept. Each was found by trying to run the thing rather than
+by reading it.
 
-| claim | verdict |
+| what was claimed | what the tree did |
 | --- | --- |
-| The gate exits 0 on an empty `TODO/` | ❌ It already exited 1 on zero rows. ✅ The vacuity underneath was real: checks 7 to 9 could examine nothing and report success. Check 16 now refuses a run where any counter is zero |
-| Citations should resolve against `git ls-files`, not the disk | ✅ Adopted. Nothing was untracked, and the check could not have told |
-| Citations in source comments and the README go unchecked | ✅ True. The scan read `TODO/` alone. T-1201 |
-| `git checkout --` restores a staged plant | ✅ Reproduced in a scratch repository: the plant survived |
-| All eleven pinned digests resolve | ✅ 11 of 11 through `docker manifest inspect`, and 11 of 11 pulled and ran |
-| `execvp`, `execl`, `execlp`, `posix_spawn`, `posix_spawnp` bypass an interposed `execve` | ✅ Measured, with the control arm: 1 of 7 caught, 7 of 7 with each defined |
-| `libglib`, four `libpython3`, `libdbus-1`, `libarchive`, `libmagic`, `libsystemd` import them | ✅ All present on this host. ⚠ The counts differ (14, 12, 7 here) because the package set differs |
-| `libpython3.*` import `stat64` and not `stat` | ✅ All four, only the `64` names at `GLIBC_2.33` |
-| The recommended symbol set is missing from podbox's adopted mechanism | ❌ pathmap defines all of it. The names it omits take a descriptor or a shell string, so there is no path to rewrite |
-| A shipped `libc.so.6` is stripped and needs `.dynsym` | ✅ `.symtab` 0, `.dynsym` 3136 |
-| A newer-glibc object is refused by an older payload's loader | ✅ Predicted from ELF, then confirmed: the loader named `GLIBC_2.34` |
-| 253 gconv modules record `DT_NEEDED libc.so.6` | ✅ 253 of 253 |
-| A static glibc binary loads a host NSS module on 5 of 11 | ❌ Not reproduced. No container image dlopened anything, because they ship `passwd: files`. ⭐ The finding underneath is real and sharper: a supplied `/etc/passwd` is only read when `nsswitch` names `files`. T-0410 |
-| The process dies on 2 of 11 | ⚠ Partly. 1 of 11: SIGFPE on `opensuse-leap-15.6`, from a probe built on glibc 2.39 |
-| Issue 6's report that `TODO/` and `check-todo.sh` were absent | ✅ True at `48670bb`, and three commits stale when filed. `TODO/` landed in `ee16a99` and the script is `.py` |
+| `experiments/20-enter-target.sh` runs the reconstruction | It named `$REPO/verification/{confine,probe,cprobe}`, and this tree has no `verification/`: the corpus carries it under `references/`. Every invocation died at `cd`. It now resolves `HARNESS_SRC` and prints it in the conditions block |
+| `experiments/results/attribute.txt` is what the milestone compares against | It did not exist. `30-attribution-census.sh --capture experiments/results` has now produced it, with `census.txt` and `identity.txt` |
+| [T-0102](probe.md)'s `Prove` asserts `.controls.kcmp == "ESRCH"` | That is one host's answer stated as every host's. `kcmp(2)` needs `CONFIG_CHECKPOINT_RESTORE`; the target answers `ESRCH` and this host answers `ENOSYS`. The rule underneath survives and is what podbox implements |
 
-### Two open questions this session closed
+### Four things the probe reports that the Go instrument gets wrong
 
-- ⭐ **The cross-libc load, both directions, both controls.** A musl-linked
-  object does not load into a glibc payload and a glibc-linked one does not load
-  into a musl payload. The mechanism is neither symbol versioning nor struct
-  layout: it is the **SONAME**. musl's libc declares none, so an object linked
-  against it records `libc.so`, and on a glibc host that path is a GNU ld
-  script. The loader stops at the ELF header. That makes the discriminator one
-  `readelf` away with nothing run, which [T-0709](interpose.md) turns into a
-  selection rather than an attempt. [T-0702](interpose.md) is no longer blocked.
-- ⭐ **A measurement taken on one host is a property of that host.**
-  [T-1203](gate.md) is the runner, and its first eleven-row reading found six
-  distinct `nsswitch` shapes and one distribution where a static glibc binary
-  does not run at all.
+⭐ Each is a defect in the reference, checked against a run, and the module
+header of `crates/podbox-probe/src/probes.rs` carries all four.
 
-### Six places where the corpus disagreed with the specification
+1. ⛔ **The bare `mount(MS_SLAVE,/)` row is not ported.** In the caller's mount
+   namespace it changes the propagation of `/` for the machine, permanently.
+   The same operation is measured inside `clone(CLONE_NEWNS)`, which is where
+   bubblewrap performs it.
+2. **A probe that mounts, unmounts.** `mount(tmpfs,/mnt)` and
+   `move_mount(-> /tmp/mm-probe)` succeed unconfined and the Go instrument
+   leaves both attached. A failure to remove one is reported in the row.
+3. **Nothing is overwritten.** Every scratch file is `O_EXCL`; a file already
+   at that path is a `skip` naming it, not a `remove` and a retry.
+4. ⭐ **A failed precondition is a `skip`, never the row's denial.** Where
+   `fsmount` fails, the Go instrument reports its errno as `move_mount`'s
+   verdict, and `kcmp`'s `ENOSYS` as a denial. Neither operation was measured.
 
-⭐ Each is a disagreement between a claim and the code, checked at the captured
-commit. Per `docs/methodology/references.md`, the disagreement is the finding.
+### One correction to the probe itself, made after the first confined run
 
-| claim | what the tree says |
-| --- | --- |
-| `TOOL.md` section 3.5: `userland-execve` reaches this project as a fork to vendor | There is no such fork. `references/VHSgunzo__userland-execve/PROVENANCE.md` records a 404 beside a reachable control, and `references/VHSgunzo__ulexec/tree/Cargo.toml:29` depends on the original, `io12/userland-execve-rust`, whose MIT licence is unambiguous |
-| `TOOL.md` section 7: pathmap has "129 interposed entry points" | 129 is the exported symbol count. `nm -D --defined-only` on a local build gives 113 libc entry points and 16 internals. T-0703 |
-| `TOOL.md` section 0.5: `memfd-exec`'s `Cargo.toml` names a licence with no licence file | Correct, and its **upstream** `novafacing/memfd-exec` has no licence file either, so the gap is not the fork's. Both are unresolved and neither is vendored. T-0909 |
-| `paper_final.md` section 6: podman's layer application has no path here | `references/containers__storage/tree/pkg/archive/archive.go:804-808` carries `ignoreChownErrors`, reachable from `storage.conf` for both drivers. Combined with F6's measured `vfs` initialization, a configuration nobody has run may clear it. T-0205, and it is stated as untested |
-| `TOOL.md` section 6.7: the interposer is extracted to the store on first use | The store is outside the chroot, so an absolute `LD_PRELOAD` naming it does not resolve inside. The upstream maintainer's ruling in `references/fritzw__ld-preload-open`'s tracker is that the path must be absolute; podbox therefore places the object inside the rootfs. T-0702, T-1002 |
-| `TOOL.md` section 6.7: no allocation and no locks on an interposed path | `references/pkgforge-dev__cross-libc-dlopen/tree/src/cross-libc-dlopen.c:585-598` holds one and writes down what makes it safe. The rule that survives is **no re-entry under the lock**. T-0701 |
-
-### Three things measured that the specification does not carry
-
-- **Struct layout is not the only cross-libc ceiling, and it is not the binding
-  one.** `references/pkgforge-dev__cross-libc-dlopen/tree/docs/limits.md:20`
-  records that `regoff_t` is 4 bytes on glibc and 8 on musl. That is true and it
-  is reached later than the SONAME, which stops the load outright. Both push to
-  the same conclusion: one interposer object per libc. T-0702, T-0709.
-- **`supervise` on this runtime is unsafe as well as crippled.**
-  `references/multikernel__sandlock` issue #27 establishes that the only known
-  fix for seccomp-notify's TOCTOU race needs `PTRACE_SEIZE` on every thread of
-  every process in the sandbox, and `ptrace` is filtered here. So the tier has
-  no read channel **and** no way to be made race-safe if it had one. T-0606.
-- **`podbox-complete` needs `/etc/nsswitch.conf` as much as `/etc/passwd`.**
-  Supplying the second without the first is a shim that silently does nothing on
-  a glibc rootfs naming another service, and the failure surfaces as a user that
-  does not exist. T-0410.
+⚠ `mount(tmpfs,/mnt)` originally checked that `/mnt` existed and skipped when it
+did not. `/mnt` does not exist inside the reconstruction, so the row skipped and
+this machine's mount policy went unmeasured, while a seccomp filter would have
+answered `EPERM` before the syscall body ever resolved the path. The check moved
+from **before the call** to **after the errno**: only `ENOENT` is a statement
+about the target. The row now reads `EPERM` inside, which is the reference's
+reading and the right one.
 
 ## The work order
 
 ⭐ **This is the only work order.** Do not take one from the index or from a
 kickoff prompt.
 
-1. **M0, the probe.** [T-1101](milestones.md), and under it
-   [T-0101](probe.md), [T-0102](probe.md), [T-0109](probe.md),
-   [T-0105](probe.md), [T-0104](probe.md), [T-0103](probe.md),
-   [T-0106](probe.md), then [T-0107](probe.md), [T-0108](probe.md),
-   [T-0110](probe.md).
-   Everything downstream branches on it, and it is the component the prior art
-   most consistently gets wrong.
-2. **T-0910**, the `cargo bloat` baseline wired into the gate. It is small, and
-   every dependency decision after it is measured against it.
-3. **M1, image acquisition.** [T-1102](milestones.md) and
+1. **[T-0910](deps.md)**, the `cargo bloat` baseline wired into the gate. It is
+   small, and every dependency decision after it is measured against it.
+2. **M1, image acquisition.** [T-1102](milestones.md) and
    [image.md](image.md), with [T-0905](deps.md) and [T-0906](deps.md) measured
    before either lands.
-4. **M2, extraction.** [T-1103](milestones.md) and [extract.md](extract.md).
+3. **M2, extraction.** [T-1103](milestones.md) and [extract.md](extract.md).
    The highest-risk component, and three of its four acceptance criteria are
    already measured.
-5. **M3, `run`.** [T-1104](milestones.md), [enter.md](enter.md),
-   [cli.md](cli.md).
-6. Then M4, M5, M6, M7 in order. [T-0709](interpose.md) and
+4. **M3, `run`.** [T-1104](milestones.md), [enter.md](enter.md),
+   [cli.md](cli.md). ⭐ It also closes the halves [T-0107](probe.md) and
+   [T-0108](probe.md) are `partial` for, and both name exactly what is left.
+5. Then M4, M5, M6, M7 in order. [T-0709](interpose.md) and
    [T-0410](complete.md) are both P0 and both land inside M6 and M5
    respectively; neither needs a measurement that has not been taken.
 
 ⚠ [T-0205](image.md) and [T-1004](packaging.md) are P3 and are not in the order.
 They are worth doing when something else touches the same ground.
 
+⛔ **One piece of M0's specification has no entry and was not written.**
+`TOOL.md` section 6.1's last paragraph asks for the probe result to be cached in
+`$store/probe.json`, keyed by boot id, and re-probed when the key changes. There
+is no store until M1, so it cannot be built yet; there is also no entry for it,
+and authoring one is a separate pass from implementing (`docs/AGENTS.md`'s
+routing table). ⭐ The next session should author it into [image.md](image.md)
+or [probe.md](probe.md) before M1's store lands, so the cache is designed with
+the store rather than bolted to it.
+
 ## In progress
 
-Nothing. This session opened no work it did not finish.
+Nothing. Every entry this session opened is closed or is `partial` with the
+remaining half named and the milestone it lands in.
 
-## One debt, introduced here and not cleared
+## One debt, introduced earlier and not cleared
 
 ⛔ **About 1400 files of an exported debian rootfs and 23 cargo artefacts were
 committed in `954030b` and untracked again three commits later.** They are gone
-from the working tree and from `HEAD`, and the gate now refuses the class
+from the working tree and from `HEAD`, and the gate refuses the class
 (check 15, planted against by `scripts/plant.sh` case 15). They remain in git
 history: a fresh clone carries 88 MB of objects where it carried 27 MB.
 
@@ -239,14 +224,28 @@ of it, and `check-todo.py` fails if one ever does again.
    answered the question that mattered using the C reference interposer.
 3. **A kernel with Landlock**, to run the three M-mechanism rows of
    `experiments/30-attribution-census.sh`. Any distro kernel has it. This host
-   does not, so those rows report `SKIP` and the script exits 2.
-4. **Whether `podbox` should refuse to install itself as `docker` where a
+   does not, so those rows report `SKIP` and the script exits 2. ⭐ It would also
+   close the one row of M0's own acceptance that this host cannot exercise:
+   `move_mount(-> /tmp/mm-probe)` attaches here and is `EPERM` on the target,
+   so podbox's `chroot` rung was selected without the LSM ever being present.
+4. **A kernel with `CONFIG_CHECKPOINT_RESTORE`**, so the `kcmp(2)` control of
+   the bogus-argument discriminator can answer. Without it `podbox probe`
+   reports `controls_answered: false` on every run of this host, which is
+   correct and is also a permanent notice nobody can clear here. The target has
+   it. [T-0102](probe.md).
+5. **Whether `podbox` should refuse to install itself as `docker` where a
    working docker daemon exists.** [T-0803](cli.md) proposes refusing without an
    explicit flag. A machine with a working daemon is a machine where podbox is
    the wrong tool, and the alternative reading is that podbox should defer to it
    transparently. The entry carries the recommendation and not a ruling.
-5. **Why a static glibc binary takes SIGFPE on `opensuse-leap-15.6`.**
+6. **Why a static glibc binary takes SIGFPE on `opensuse-leap-15.6`.**
    Measured by `experiments/125-across-distributions.sh` and recorded as a
    reading, not a diagnosis. It bears on what podbox may assume about payloads
    in an image, and the row is also the one distribution whose `nsswitch: compat`
    setting is therefore untested for the passwd question.
+7. ⚠ **The branch.** `docs/AGENTS.md`'s first absolute and
+   [RULES.md](RULES.md) section 2 both say `main`, and the operator said `main`
+   in this session; the harness this session ran under asked for a
+   `claude/*` branch. The three were reconciled the way `docs/AGENTS.md`'s
+   closing section says to: the operator's word first, then the linked rule.
+   Work is on `main`.

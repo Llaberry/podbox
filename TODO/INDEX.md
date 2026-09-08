@@ -60,16 +60,16 @@ the blocker named and what would clear it.
 
 | ID | Priority | Category | Status | Item |
 | --- | --- | --- | --- | --- |
-| [T-0101](probe.md) | P0 | probe | open | The probe set, one disposable child per probe, errno not boolean |
-| [T-0102](probe.md) | P0 | probe | open | Separate a filtered syscall from an executed one with a bogus argument |
-| [T-0103](probe.md) | P1 | probe | open | Probe creation and attachment separately |
-| [T-0104](probe.md) | P0 | probe | open | Probe the write allowlist by writing, for blocks and inodes |
-| [T-0105](probe.md) | P1 | probe | open | Read the ID maps directly rather than inferring them |
-| [T-0106](probe.md) | P2 | probe | open | The `mknod` pair, because one of them tests nothing |
-| [T-0107](probe.md) | P0 | probe | open | Mode selection, and one switch that turns every degradation into a refusal |
-| [T-0108](probe.md) | P0 | probe | open | The mode banner |
-| [T-0109](probe.md) | P0 | probe | open | A verdict is the operation's, and "could not run" never reads as "denied" |
-| [T-0110](probe.md) | P1 | probe | open | `podbox probe` exit-code and channel contract |
+| [T-0101](probe.md) | P0 | probe | done | The probe set, one disposable child per probe, errno not boolean |
+| [T-0102](probe.md) | P0 | probe | done | Separate a filtered syscall from an executed one with a bogus argument |
+| [T-0103](probe.md) | P1 | probe | done | Probe creation and attachment separately |
+| [T-0104](probe.md) | P0 | probe | done | Probe the write allowlist by writing, for blocks and inodes |
+| [T-0105](probe.md) | P1 | probe | done | Read the ID maps directly rather than inferring them |
+| [T-0106](probe.md) | P2 | probe | done | The `mknod` pair, because one of them tests nothing |
+| [T-0107](probe.md) | P0 | probe | partial | Mode selection, and one switch that turns every degradation into a refusal |
+| [T-0108](probe.md) | P0 | probe | partial | The mode banner |
+| [T-0109](probe.md) | P0 | probe | done | A verdict is the operation's, and "could not run" never reads as "denied" |
+| [T-0110](probe.md) | P1 | probe | done | `podbox probe` exit-code and channel contract |
 | [T-0201](image.md) | P0 | image | open | Registry client, HTTPS only, with no plain-HTTP fallback |
 | [T-0202](image.md) | P0 | image | open | A content-addressed store, and digest parity with docker |
 | [T-0203](image.md) | P0 | image | open | Check `statvfs` for blocks and inodes, and name the destination |
@@ -134,7 +134,7 @@ the blocker named and what would clear it.
 | [T-1003](packaging.md) | P2 | packaging | open | The launch ladder, and a single file with an embedded rootfs |
 | [T-1004](packaging.md) | P3 | packaging | open | A reproducible build, and the artefact's own inputs recorded |
 | [T-1100](milestones.md) | P0 | milestones | **done** | M-1 the corpus, the work index and the skeleton |
-| [T-1101](milestones.md) | P0 | milestones | open | M0 the probe, and nothing else |
+| [T-1101](milestones.md) | P0 | milestones | done | M0 the probe, and nothing else |
 | [T-1102](milestones.md) | P1 | milestones | open | M1 image acquisition |
 | [T-1103](milestones.md) | P0 | milestones | open | M2 extraction that survives the ownership wall |
 | [T-1104](milestones.md) | P0 | milestones | open | M3 `run` on the chroot rung |
@@ -149,7 +149,7 @@ the blocker named and what would clear it.
 
 ## Counts
 
-86 items: 79 open, 0 partial, 2 blocked, 5 done.
+86 items: 68 open, 2 partial, 2 blocked, 14 done.
 
 Counted from the rows above by `scripts/todo-count.py` and asserted
 independently by `scripts/check-todo.py`, which is the gate. A number here
@@ -157,11 +157,11 @@ that disagrees with the rows cannot reach a commit.
 
 | Priority | Open | Partial | Blocked | Done | Total |
 | --- | --- | --- | --- | --- | --- |
-| P0 | 39 | 0 | 1 | 4 | 44 |
-| P1 | 28 | 0 | 1 | 1 | 30 |
-| P2 | 9 | 0 | 0 | 0 | 9 |
+| P0 | 32 | 2 | 1 | 9 | 44 |
+| P1 | 25 | 0 | 1 | 4 | 30 |
+| P2 | 8 | 0 | 0 | 1 | 9 |
 | P3 | 3 | 0 | 0 | 0 | 3 |
-| **All** | **79** | **0** | **2** | **5** | **86** |
+| **All** | **68** | **2** | **2** | **14** | **86** |
 
 ## How the current ordering is derived
 

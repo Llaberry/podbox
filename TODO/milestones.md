@@ -61,7 +61,7 @@ Source:      `TOOL.md` section 5 M0
 Category:    milestones
 Priority:    P0
 Effort:      M
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     Everything downstream branches on the probe, and it is the
              component the prior art most consistently gets wrong.
@@ -72,7 +72,56 @@ Decision:    The probe before the store, before extraction, before `run`.
              Reversing it means every later component carries an assumption
              about the machine that the probe would have replaced with a
              measurement.
-Prove:       `./experiments/20-enter-target.sh --stage ./target/x86_64-unknown-linux-musl/release/podbox -- /workspace/podbox probe` selects `chroot`, and the same binary run unconfined selects `namespace`, and every per-probe verdict matches `experiments/results/attribute.txt` row for row
+Prove:       `./experiments/130-probe-parity.sh` exits 0. It runs the three clauses of the acceptance in one command: `chroot` inside `./experiments/20-enter-target.sh --stage ./target/x86_64-unknown-linux-musl/release/podbox`, `namespace` unconfined, and every attribution row against `experiments/results/attribute.txt`
+
+**Done 2026-09-08.** `./experiments/130-probe-parity.sh` exits 0. Its transcript
+is `experiments/results/probe-parity.txt`:
+
+```
+== 1. inside the reconstruction, the rung must be chroot
+  got chroot
+== 2. unconfined, the rung must be namespace
+  got namespace
+== 3. the attribution rows ...
+  15 matched, 1 recorded divergence, 0 differed, 0 missing
+```
+
+⭐ **The acceptance is a script rather than three commands somebody re-types.**
+The wording above was amended to name it: the three clauses are unchanged, and
+`docs/AGENTS.md`'s fourth absolute requires the measurement to ship with the
+script that took it. `experiments/130-probe-parity.sh` is that script.
+
+⛔ **Two blockers were in the way and both were defects in this tree, not in the
+probe.**
+
+1. `experiments/20-enter-target.sh` named `$REPO/verification/{confine,probe,cprobe}`
+   for its harness sources, and this tree has no `verification/`: podbox tracks
+   that repository under `references/`. Every invocation had been failing at
+   `cd`, so the reconstruction had never run here. It now resolves
+   `HARNESS_SRC` to
+   `references/Azathothas__container-research/tree/verification` and prints it
+   in the conditions block. **A citation that does not resolve, wearing a shell
+   error message.**
+2. `experiments/results/attribute.txt` did not exist. The acceptance names it,
+   and nothing had produced it. `./experiments/30-attribution-census.sh --capture
+   experiments/results` now has, alongside `census.txt` and `identity.txt`. It
+   exits 2 on this host: the three Landlock rows cannot run here and are
+   reported as skipped rather than passed.
+
+⭐ **The one recorded divergence is the reference being wrong, not podbox.** The
+Go instrument records `kcmp(-1,-1,...) [control] FAIL errno=38 ENOSYS`. `ENOSYS`
+is this kernel saying `kcmp(2)` was not built in, which is the control being
+absent rather than the control answering; podbox reports it as `skip`.
+[T-0109](probe.md) is exactly that rule and [T-0102](probe.md) carries the
+reading from both hosts. The parity script allows that one substitution, only
+for that row, only when the errno numbers agree, and prints it in full on every
+run; anything else is a mismatch.
+
+⚠ **What M0 does NOT include, stated so the next milestone is not surprised.**
+`run`, `exec` and the store are M3 and M1. [T-0107](probe.md) and
+[T-0108](probe.md) are `partial` for that reason and each names the half that is
+left. `TOOL.md` section 6.1's `$store/probe.json` cache keyed by boot id has no
+entry yet and is not implemented; it belongs beside the store.
 
 ---
 

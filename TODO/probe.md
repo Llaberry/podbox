@@ -22,7 +22,7 @@ Source:      `TOOL.md` section 6.1, `paper_final.md` section 10.2
 Category:    probe
 Priority:    P0
 Effort:      M
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     Without this nothing downstream can branch. Every mode the ladder
              offers has prerequisites that differ per machine, and a runtime
@@ -52,6 +52,38 @@ Decision:    Fork per probe rather than a thread per probe. A thread cannot be
              because several of them have no undo.
 Prove:       `podbox probe --json | jq -e '.probes | length >= 24 and (map(select(.errno == null and .verdict != "ok")) | length == 0)'`
 
+**Done 2026-09-08.** The `Prove` command was run and exits 0: **48 probes**, and
+no probe reports a verdict other than `ok` without an errno beside it.
+`crates/podbox-probe/src/probes.rs` is the set and
+`crates/podbox-probe/src/child.rs` is the child.
+
+⭐ **The fork is `clone(2)`, not `std::process::Command`**, because the minimum
+set needs `clone(CLONE_NEWNS)` and `clone(CLONE_NEWUSER)` attempted *with those
+flags* and the standard library cannot set them. One spawn path serves both
+kinds of probe: a `Kind::Clone` row's verdict is the clone's own errno, and a
+`Kind::Child` row re-executes `/proc/self/exe --probe-child <name>` with the
+namespace flags that row needs.
+
+⭐ **The multithreaded rule is checked, not assumed.**
+`crates/podbox-probe/src/probes.rs`'s `unshare(CLONE_NEWUSER)` body reads
+`/proc/self/status`'s `Threads:` line first and reports a `skip` where it is
+above one, because the kernel refuses that call to any multithreaded caller
+with `EINVAL` whatever the policy. That is what makes the rule survive the day
+somebody adds a thread pool rather than being a comment nobody re-reads.
+
+⚠ **The errno comes from the raw syscall, not from a libc wrapper.**
+`crates/podbox-probe/src/sys.rs` issues `syscall` directly, so the value in
+`-4095..=-1` *is* `-errno` with no thread-local in between. glibc's `setuid(3)`
+runs a multi-threaded id-change dance and musl's runs another; either answer
+would be the library's rather than the kernel's.
+
+⚠ **Four probes of the Go instrument were changed on purpose**, and the module
+header of `crates/podbox-probe/src/probes.rs` carries all four with the reason.
+The one worth naming here: the bare `mount(MS_SLAVE,/)` row is not ported,
+because in the caller's mount namespace it changes the propagation of `/` for
+the machine, permanently. The same operation is measured inside
+`clone(CLONE_NEWNS)`, which is also where bubblewrap performs it.
+
 ---
 
 ### T-0102 Separate a filtered syscall from an executed one with a bogus argument
@@ -60,7 +92,7 @@ Source:      `TOOL.md` section 2.1 and section 6.1 rule 7, `paper_final.md` sect
 Category:    probe
 Priority:    P0
 Effort:      S
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     Two mechanisms return the same errno for the same call. A seccomp
              filter and a path-scoped LSM both answer `EPERM`, and a runtime
@@ -94,7 +126,41 @@ Approach:    Implement the four rows above plus their controls. The controls
 Decision:    Carry the controls in the same probe run rather than in a separate
              self-test. A control that runs at a different time answers about a
              different machine state.
-Prove:       `./experiments/30-attribution-census.sh` exits 0 or 2, never 1, and `podbox probe --json | jq -e '.controls.pidfd_getfd == "EBADF" and .controls.kcmp == "ESRCH"'`
+Prove:       `./experiments/30-attribution-census.sh` exits 0 or 2, never 1, and `podbox probe --json | jq -e '.controls.pidfd_getfd == "EBADF" and (.controls.kcmp == "ESRCH" or (.controls.kcmp == null and .controls_answered == false))'`
+
+**Done 2026-09-08.** `./experiments/30-attribution-census.sh` exits **2** (34 ok,
+0 failed, 3 skipped: the Landlock rows this kernel cannot run), and the `jq`
+above exits 0. `crates/podbox-probe/src/select.rs`'s `Selection::controls`
+evaluates the controls in the same run as the rows they qualify.
+
+⛔ **The `Prove` line above was amended, and the amendment is the finding.** It
+read `.controls.kcmp == "ESRCH"`, which asserts one host's answer as a property
+of every host. `kcmp(2)` exists only where the kernel was built with
+`CONFIG_CHECKPOINT_RESTORE`. Two readings settle it and they disagree with each
+other, which is the point:
+
+| where | `kcmp(-1,-1,...)` | source |
+| --- | --- | --- |
+| the target | `errno=3 ESRCH`, executed | `references/Azathothas__container-research/tree/verification/real/extkernel-newapi.txt:26` |
+| the host this repository is worked on | `errno=38 ENOSYS` | `experiments/results/attribute.txt`, and the corpus' own capture agrees |
+
+So the entry's own premise holds on the target and the `Prove` did not. ⭐ The
+rule underneath it is unchanged and is what podbox implements: **a control that
+cannot answer must say so rather than letting the rows beside it read as
+attributions.** `ENOSYS` is the kernel saying the control is absent, which is
+not the control answering, so podbox records it as `skip` and sets
+`controls_answered` false. `podbox probe`'s evidence block then says, in as many
+words, that the mechanism attributions beneath it are unconfirmed.
+
+⚠ **`controls_answered` does not move the exit code**, and that is deliberate.
+Folding it into `--strict` would fail every kernel without
+`CONFIG_CHECKPOINT_RESTORE` where podbox is otherwise fully capable, and one
+exit code cannot then carry two different statements.
+`crates/podbox-probe/src/select.rs`'s `Selection::exit_code` says so at the site.
+
+⚠ A control that answers the **wrong** errno is caught as well as an absent one:
+that is the subtler failure, and it is the one where the rows around it silently
+stop being attributions.
 
 ---
 
@@ -104,7 +170,7 @@ Source:      `TOOL.md` section 6.1 rule 8, `paper_final.md` section 9.4 and F13
 Category:    probe
 Priority:    P1
 Effort:      S
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     A runtime that asks only "does `mount(2)` work" learns less than
              one syscall's worth more effort would have told it, and then
@@ -129,6 +195,21 @@ Decision:    Report four verdicts rather than one `mounts: no`. The four-way
              extra syscalls.
 Prove:       `podbox probe --json | jq -e '.mounts | has("create") and has("configure") and has("attach") and has("use")'`
 
+**Done 2026-09-08.** The `Prove` command was run and exits 0.
+`crates/podbox-probe/src/mounts.rs` derives the four from the attribution rows
+that already ran, rather than issuing a second set of calls that would answer
+about a different moment.
+
+⭐ **The `may_mount()` sentence is in the output**, not only in this entry:
+where `fsmount` succeeded and the attach did not, the evidence block prints that
+no capability will clear the denial. That is the line that stops the next reader
+hunting for one.
+
+⚠ On the reconstruction of 2026-09-08 all four read `ok`, because this host has
+no Landlock and `move_mount` therefore attaches. On the target the attach half
+is `EPERM` from the LSM. The reading is the machine's, and the four-way shape is
+what makes the difference legible instead of collapsing to `mounts: no`.
+
 ---
 
 ### T-0104 Probe the write allowlist by writing, for blocks and inodes
@@ -137,7 +218,7 @@ Source:      `TOOL.md` section 6.1 rule 10 and section 2.0
 Category:    probe
 Priority:    P0
 Effort:      S
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     `{/tmp, /dev/shm, /workspace, /state}` is one machine's allowlist.
              A runtime that hard-codes it has hard-coded that machine, and on
@@ -157,6 +238,22 @@ Decision:    Write a real file and remove it, rather than `access(W_OK)`.
              and answers the wrong question.
 Prove:       `podbox probe --json | jq -e '.writable | type == "array" and length > 0 and all(has("path") and has("blocks_free") and has("inodes_free"))'`
 
+**Done 2026-09-08.** The `Prove` command was run and exits 0.
+`crates/podbox-probe/src/writable.rs` creates a real file `O_EXCL`, writes bytes
+to it, removes it, then `statfs(2)`s the directory for blocks **and** inodes.
+
+⭐ **The set reported is the set obtained.** Every candidate carries its own
+verdict and errno, and `writable: true` marks the ones that answered. Six of
+eight on this host unconfined; four of eight inside the reconstruction, and
+those four are `/tmp`, `/dev/shm`, `/workspace` and `/state`, obtained rather
+than assumed. `/var/tmp`, `/run` and `$HOME` are `skip (ENOENT)` there, which is the
+absence of a directory and not a denial.
+
+⚠ The candidates are the fixed list plus `$PODBOX_STORE`, `$XDG_RUNTIME_DIR`,
+`$XDG_DATA_HOME`, `$TMPDIR`, `$HOME` and the working directory, and each row
+says which named it. A path is probed because something would use it, not
+because a specification listed it.
+
 ---
 
 ### T-0105 Read the ID maps directly rather than inferring them
@@ -165,7 +262,7 @@ Source:      `TOOL.md` section 6.1 rule 6, `paper_final.md` section 3.1
 Category:    probe
 Priority:    P1
 Effort:      S
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     A dozen probes infer what one read answers, and the inference is
              wrong in the case that matters: `groups=0,65534` looks like a
@@ -185,6 +282,20 @@ Decision:    Read the maps even where every probe already ran. They cost one
              `open` each and they are what the section 6.9 diagnostic quotes.
 Prove:       `podbox probe --json | jq -e '.identity.uid_map != null and .identity.setgroups != null and .identity.cap_eff != null'`
 
+**Done 2026-09-08.** The `Prove` command was run and exits 0.
+`crates/podbox-probe/src/identity.rs` reads the three files and selects the
+`/proc/self/status` lines **by name**, never by position.
+
+⭐ **Two sentences in the diagnostic are the whole reason for the entry**, and
+both fired inside the reconstruction: that a single-range uid map is what
+explains every `EINVAL` from `chown(2)` and `setuid(2)`, and that gid 65534 is
+`overflowgid` rather than a supplementary group. Reading
+`/proc/self/uid_map: 0 1000 1` beside `groups=[0, 65534]` is what turns two
+confusing errnos into one explanation.
+
+⚠ A file that could not be read is `null` with the reason in
+`.identity.unreadable`, never an empty string that would read like a value.
+
 ---
 
 ### T-0106 The `mknod` pair, because one of them tests nothing
@@ -193,7 +304,7 @@ Source:      `TOOL.md` section 6.1 rule 4, `paper_final.md` section 3.5 and F11
 Category:    probe
 Priority:    P2
 Effort:      S
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     `mknod(path, S_IFCHR|0600, 0)` is in common use as a `CAP_MKNOD`
              probe and it tests nothing: `makedev(0,0)` is `WHITEOUT_DEV` and
@@ -210,6 +321,19 @@ Decision:    Keep both rows in the reported output rather than collapsing them
              away the attribution that makes it useful.
 Prove:       `podbox probe --json | jq -e '.probes | map(select(.name | startswith("mknod"))) | length == 2'`
 
+**Done 2026-09-08.** The `Prove` command was run and exits 0. Both rows are in
+the reported output and neither is collapsed.
+
+⭐ **The pair did its job inside the reconstruction on the first run**:
+`mknod(chr 1:3 /tmp/nodprobe)` answers `EPERM` and `mknod(chr 0:0 = whiteout)`
+answers `OK`, at the same path in the same directory. No path-scoped policy can
+tell two device numbers apart at one path, so the denial is capability-based.
+That is one syscall's worth of extra effort for a mechanism attribution.
+
+⚠ Neither row deletes a file that is already at its path. An existing
+`/tmp/nodprobe` is a `skip` naming the file, because an errno about a node this
+probe created says nothing about the one that was there.
+
 ---
 
 ### T-0107 Mode selection, and one switch that turns every degradation into a refusal
@@ -218,7 +342,7 @@ Source:      `TOOL.md` section 4.1, section 6.1; `paper_final.md` section 10.1
 Category:    probe
 Priority:    P0
 Effort:      M
-Status:      open
+Status:      partial 2026-09-08
 
 Problem:     A weaker mode must never satisfy a stronger request. A user who
              believes they have namespaces when they have a `chroot` is worse
@@ -259,6 +383,31 @@ Decision:    Take `ruri`'s inversion and `udocker`'s precedence chain, and take
              is the distinction the ladder exists for.
 Prove:       `podbox run --network=none --rm alpine true; test $? -ne 0` and `podbox probe --strict` exits non-zero on any degraded rung
 
+**Partial, 2026-09-08.** The selection and the switch are implemented and
+measured; the first half of the `Prove` above cannot be earned at this
+milestone and is not claimed.
+
+**What holds now.** `crates/podbox-probe/src/select.rs` derives the rung from
+the probe rows and nothing else. Measured on 2026-09-08: `namespace` unconfined
+and `chroot` inside `./experiments/20-enter-target.sh`, which is
+[T-1101](milestones.md)'s acceptance. `podbox probe --strict` exits **1** inside
+the reconstruction and **0** unconfined, and `Rung`'s ordering is what enforces
+that a weaker mode never satisfies a stronger request.
+
+⭐ **`supervise` is refused on this runtime for a reason `TOOL.md` section 4.1
+does not carry**, and the refusal is at the tier rather than per call:
+[T-0606](supervise.md) establishes from `references/multikernel__sandlock` issue
+#27 that a race-safe `Continue` needs `PTRACE_SEIZE` on every thread of every
+process in the sandbox, and `ptrace` is filtered here. So the third leg is
+`ptrace(PTRACE_TRACEME)`, and the reconstruction is rejected on it with the
+errno printed.
+
+⛔ **What is NOT done, and it is not out of scope.** The `podbox run` half needs
+`run`, which is [T-1104](milestones.md), M3. ⚠ Running it today exits 125
+because every verb but `probe` is unimplemented, so the command would *pass
+vacuously*; that is not evidence and is not recorded as any. This entry closes
+when M3 lands and the first half is run against a real `run`.
+
 ---
 
 ### T-0108 The mode banner
@@ -267,7 +416,7 @@ Source:      `TOOL.md` section 6.1 and section 6.8, `paper_final.md` section 10.
 Category:    probe
 Priority:    P0
 Effort:      S
-Status:      open
+Status:      partial 2026-09-08
 
 Problem:     An agent cannot notice that its "container" was a `chroot`. The
              banner is the product, not a disclaimer.
@@ -291,6 +440,39 @@ Decision:    stderr, not stdout. A payload's stdout is data to whatever
              `references/compforge__pathshim/tree/src/main.rs:134-138`.
 Prove:       `podbox run --rm alpine:latest /bin/echo hi 2>banner.txt >out.txt && grep -q '^hi$' out.txt && grep -q 'mode=' banner.txt`
 
+**Partial, 2026-09-08.** The banner exists, is on stderr, and is derived; the
+`Prove` above needs `run` and is not claimed.
+
+**What holds now.** `crates/podbox-probe/src/report.rs` emits it, and
+`podbox probe` prints it on stderr while stdout carries the rung alone. Inside
+the reconstruction it reads:
+
+```
+podbox 0.1.0: mode=chroot (namespaces: uts-only; mounts: none; devices: shimmed;
+ownership: virtualized+sidecar; network: host-shared; pids: host-shared)
+probes: clone(NEWNS)=ok mount=EPERM fsmount=ok move_mount=ok
+        clone(NEWUTS)=ok sethostname=ok chroot=ok ptrace=EPERM
+this mode does NOT provide: process, network, IPC or mount isolation
+```
+
+⭐ **Every field is derived from a row that ran**, which is why
+`clone(CLONE_NEWUTS)` and `sethostname(in NEWUTS)` were added to the probe set:
+the specification's banner names `sethostname=ok` and the Go instrument has no
+such row, so `namespaces: uts-only` would otherwise have been an assertion.
+`move_mount=ok` where the specification's example shows `EPERM` is the measured
+difference: this reconstruction has no Landlock.
+
+⚠ **`mounts:` and `network:` state what the RUNG provides, not what the machine
+permits.** On 2026-09-08 the reconstruction attaches mounts and the machine's
+own four verdicts all read `ok`, and the banner still says `mounts: none`,
+because the `chroot` rung mounts nothing. The machine's reading is in the
+evidence block underneath, where it is a measurement rather than a claim about
+the mode.
+
+⛔ **What is NOT done, and it is not out of scope.** "Once per `run` and `exec`"
+needs `run` and `exec`, which are [T-1104](milestones.md), M3. The config switch
+that suppresses it needs the configuration surface of [cli.md](cli.md).
+
 ---
 
 ### T-0109 A verdict is the operation's, and "could not run" never reads as "denied"
@@ -299,7 +481,7 @@ Source:      `TOOL.md` section 6.1 rule 9, `paper_final.md` section 3.7 and F17
 Category:    probe
 Priority:    P0
 Effort:      S
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     Both mistakes were live in the research harness this project
              inherits its `experiments/` from, and both produced a published
@@ -325,6 +507,34 @@ Decision:    Model the verdict as a three-variant enum rather than a boolean
              instance of this defect in the corpus is a boolean that had to.
 Prove:       `./experiments/30-attribution-census.sh; test $? -ne 1` and `podbox probe --json | jq -e '[.probes[].verdict] | all(. == "ok" or . == "denied" or . == "skip")'`
 
+**Done 2026-09-08.** Both were run: the census exits **2**, never 1, and the
+`jq` exits 0.
+
+⭐ **Rule 1 is enforced by the parent, not by review.** A probe child writes its
+verdict on stdout *and* sets its exit status from the operation, and
+`crates/podbox-probe/src/child.rs`'s `interpret` refuses the pair when they
+disagree. A child that contradicts itself has established nothing, so that is a
+`skip`. A child that says nothing, or dies on a signal, is the same. There is no
+path by which an exit code alone becomes a verdict.
+
+⭐ **Rule 2 fired four times on the first real runs**, which is what a third
+state is for: the missing squash fixture, `kcmp(2)` absent from this kernel,
+`/mnt` absent (before the mount probe was corrected to read its own errno), and
+`$HOME` absent inside the reconstruction. None of them printed as a denial and
+none of them was counted as one when the rung was chosen; `podbox probe` lists
+them under a heading that says so.
+
+⭐ **Rule 3 is the type, not a convention.** `Verdict::exit_code` and
+`Verdict::from_exit_code` are one another's inverse, so 0, 1 and 2 mean the same
+thing in the child, in the parent and in every script in `experiments/`.
+
+⚠ The corrected mount probe is worth naming: it used to `stat` `/mnt` first and
+report a `skip` when it was absent. That is a precondition check in the wrong
+place: a seccomp filter answers `EPERM` before the syscall body, so on the
+reconstruction the policy would have gone unmeasured. It now runs the call and
+separates the precondition from the **errno**: only `ENOENT` is a statement
+about the target.
+
 ---
 
 ### T-0110 `podbox probe` exit-code and channel contract
@@ -333,7 +543,7 @@ Source:      `TOOL.md` section 5 M0; `references/compforge__pathshim/tree/README
 Category:    probe
 Priority:    P1
 Effort:      S
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     A probe whose result has to be parsed out of prose is not a gate.
              The audience is automated and needs one line on stdout and an exit
@@ -360,3 +570,19 @@ Decision:    Add `--json` beside the one-word stdout line rather than replacing
              it. The word is what a shell branches on; the JSON is what a
              harness diffs against `experiments/results/`.
 Prove:       `test "$(podbox probe)" = chroot && podbox probe >/dev/null; test $? -eq 0`
+
+**Done 2026-09-08.** Run inside `./experiments/20-enter-target.sh`, where the
+selected rung is `chroot`: stdout is the single word `chroot` and the exit code
+is 0. Unconfined the same command prints `namespace` and exits 0, which is the
+other half of [T-1101](milestones.md)'s acceptance.
+
+⭐ **Three stdout formats, one per flag, and the evidence never shares the
+channel.** Bare prints the rung; `--json` prints one document; `--rows` prints
+every probe row in the format `verification/probe` emits, which is what makes
+the milestone's row-for-row comparison a mechanical diff rather than a reading.
+`--json` and `--rows` together are refused with exit 2 rather than interleaved.
+
+⚠ Invalid input exits **2**, adopting `pathshim`'s contract at
+`references/compforge__pathshim/tree/README.md:65`. The divergence this entry
+names is unchanged and is not yet reachable: podbox refuses rather than
+degrading into a passthrough, and that decision lands with `run` at M3.

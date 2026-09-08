@@ -48,12 +48,29 @@ docker image inspect "$IMAGE" >/dev/null 2>&1 || {
 # because inside the reconstruction /workspace is one of only four writable
 # paths and the toolchain there must not be needed to bootstrap the tools that
 # measure it.
+#
+# ⛔ The harness sources live in the CORPUS, not at the top of this tree. This
+# script arrived seeded from `Azathothas/container-research`, where they sit at
+# `verification/`, and the three `$REPO/verification/...` paths it carried do
+# not exist here: podbox tracks that repository under `references/` instead.
+# Every invocation therefore failed with `cd: no such file or directory`, which
+# is a citation that does not resolve wearing a shell error message.
+# `HARNESS_SRC` names the one place they are, and the check below says so
+# rather than letting `cd` say it.
+HARNESS_SRC="${HARNESS_SRC:-$REPO/references/Azathothas__container-research/tree/verification}"
 command -v go >/dev/null 2>&1 || { echo "SKIP: go is required to build the harness" >&2; exit 2; }
+for d in confine probe; do
+	[ -d "$HARNESS_SRC/$d" ] || {
+		echo "SKIP: $HARNESS_SRC/$d does not exist. Set HARNESS_SRC to the tree" >&2
+		echo "      carrying verification/{confine,probe}." >&2
+		exit 2
+	}
+done
 mkdir -p "$STAGE/.harness"
-( cd "$REPO/verification/confine" && CGO_ENABLED=0 go build -o "$STAGE/.harness/confine" . )
-( cd "$REPO/verification/probe"   && CGO_ENABLED=0 go build -o "$STAGE/.harness/probe" . )
-if command -v gcc >/dev/null 2>&1; then
-	gcc -O2 -static -o "$STAGE/.harness/cprobe" "$REPO/verification/cprobe/cprobe.c"
+( cd "$HARNESS_SRC/confine" && CGO_ENABLED=0 go build -o "$STAGE/.harness/confine" . )
+( cd "$HARNESS_SRC/probe"   && CGO_ENABLED=0 go build -o "$STAGE/.harness/probe" . )
+if command -v gcc >/dev/null 2>&1 && [ -f "$HARNESS_SRC/cprobe/cprobe.c" ]; then
+	gcc -O2 -static -o "$STAGE/.harness/cprobe" "$HARNESS_SRC/cprobe/cprobe.c"
 fi
 
 # enter.sh runs as the last step of targetfs.sh, inside the pivoted root. It
@@ -121,5 +138,6 @@ echo "== reconstruction conditions" >&2
 printf 'date              %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >&2
 printf 'host kernel       %s\n' "$(uname -r)" >&2
 printf 'image             %s\n' "$(docker image inspect -f '{{.Id}}' "$IMAGE")" >&2
+printf 'harness sources   %s\n' "$HARNESS_SRC" >&2
 
 exec docker run "${DOCKER_ARGS[@]}" "$IMAGE" "${ARGS[@]}"

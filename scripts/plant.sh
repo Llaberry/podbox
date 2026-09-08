@@ -164,8 +164,15 @@ case_plant "1 row without an entry" "has a row and no entry" \
 case_plant "2 entry without a row" "has an entry and no row" \
   sh -c 'printf "\n---\n\n### T-9998 An entry no row names\n\nStatus:      open\n" >> TODO/probe.md'
 
+# ⚠ STATUS-AGNOSTIC, for the same reason cases 4 and 10 are count-agnostic.
+# This case named `open` literally and rotted the moment probe.md had no open
+# entry left, which is what closing M0 did: guard 1 reported "the mutation did
+# not land" rather than a silent green, and that is the whole reason guard 1
+# exists. A plant must mutate whatever is there.
 case_plant "3 status disagreement" "disagrees with the index" \
-  sh -c 'sed -i "0,/^Status:      open$/s//Status:      blocked/" TODO/probe.md'
+  sh -c 'from=$(grep -m1 -oE "^Status:      [a-z]+" TODO/probe.md | awk "{print \$2}");
+         to=blocked; [ "$from" = blocked ] && to=open;
+         sed -i -E "0,/^Status:      $from/s//Status:      $to/" TODO/probe.md'
 
 # ⚠ COUNT-AGNOSTIC. These two cases named the counts literally and rotted the
 # first time the counts moved: guard 1 reported "the mutation did not land"
