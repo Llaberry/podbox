@@ -60,14 +60,11 @@ normalise() {
 		| grep -E '\|(ok|denied|skip)\|'
 }
 
-# podbox reports every row it has; keep the ones attribute.txt names.
-attr_names() { cut -d'|' -f1 < "$WORK/ref.txt"; }
-
 echo "== conditions"
 printf 'date              %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 printf 'host kernel       %s\n' "$(uname -r)"
 printf 'podbox            %s\n' "$("$BIN" version)"
-printf 'binary            %s, %s bytes\n' "$BIN" "$(stat -c%s "$BIN")"
+printf 'binary            %s bytes\n' "$(stat -c%s "$BIN")"
 printf 'reference rows    %s\n' "$REF"
 echo
 
@@ -95,7 +92,8 @@ printf '  got %s\n' "$unconfined_rung"
 [ "$unconfined_rung" = "namespace" ] || { echo "  FAIL: expected namespace"; fail=1; }
 
 echo
-echo "== 3. the attribution rows, inside the reconstruction, against $REF"
+echo "== 3. the attribution rows, inside the reconstruction, against"
+echo "        experiments/results/attribute.txt"
 "$HERE/20-enter-target.sh" --stage "$BIN" -- /workspace/podbox probe --rows \
 	2>/dev/null | normalise > "$WORK/all.txt"
 [ -s "$WORK/all.txt" ] || { echo "SKIP: podbox produced no rows inside the reconstruction" >&2; exit 2; }
@@ -137,10 +135,17 @@ done < "$WORK/ref.txt"
 echo
 printf '  %d matched, %d recorded divergence, %d differed, %d missing\n' \
 	"$matched" "$recorded" "$differed" "$missing"
-[ "$differed" -gt 0 ] || [ "$missing" -gt 0 ] && fail=1
+# ⚠ Spelled out rather than `[ a ] || [ b ] && fail=1`, which parses as
+# `(a || b) && c` and is one precedence rule away from never firing.
+if [ "$differed" -gt 0 ] || [ "$missing" -gt 0 ]; then
+	fail=1
+fi
 
 {
-	printf '# podbox probe against %s\n' "$REF"
+	# ⚠ Repo-relative. This file is tracked evidence, and an absolute path in
+	# it is one machine's directory layout recorded as though it were a fact
+	# about the measurement.
+	printf '# podbox probe against %s\n' "experiments/results/attribute.txt"
 	printf '# taken %s on kernel %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(uname -r)"
 	printf '# TODO/milestones.md T-1101. Verdict and errno, never raw text.\n'
 	printf 'confined_rung     %s\n' "$confined_rung"
