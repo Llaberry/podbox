@@ -67,9 +67,11 @@ two seccomp fields, and the confined run named all six that moved and re-probed.
 ⛔ A cache keyed on the boot id alone serves the host's `namespace` to a
 `chroot` process, which is the exact lie podbox exists to refuse.
 
-## Six defects found by driving things rather than reading them
+## Ten defects found by driving things rather than reading them
 
-Four are in podbox's own code and two are in the harness.
+Four are in podbox's own code. The other six are in the harness this session
+wrote, and five of those came out of re-running each script against its own
+committed reading rather than looking at it once.
 
 1. ⛔ `hex.bytes().all(|b| b.is_ascii_lowercase() && b.is_ascii_hexdigit())`
    refused **every real digest**: `0`-`9` are not lowercase letters. Caught by
@@ -92,6 +94,19 @@ Four are in podbox's own code and two are in the harness.
    `dest/store/store`, so the second run reads the first run's copy. The clause
    passed for a reason that had nothing to do with what it was testing. Staging
    a FILE overwrites, which hid it for as long as only files were staged.
+7. `150-`'s committed reading recorded `http_refused_rc 125` against code that
+   exits **2**. Evidence taken before a change, disagreeing with the code it is
+   evidence for. `result-diff.sh` caught it, from a **fresh clone**.
+8. ⛔ `grep -c 'Pull complete' || echo 0` wrote **two** lines. `grep -c` prints
+   0 and exits 1 on zero matches, so the fallback fired beside the real value.
+   That is the trap `docs/AGENTS.md` names twice, written into a new script by
+   the session that had just read it.
+9. ⛔ A registry answering `HTTP 429` made `140-` report **FAIL** for a clause
+   that never ran, and `160-` report **SUCCESS** for the same. Both discriminate
+   and exit 2 now; `150-` already did.
+10. `140-` recorded the `mktemp` directory into its transcript, so the file
+    could **never** reproduce, and its inode clause was not deterministic. Both
+    fixed, and all four scripts now reproduce their committed readings.
 
 ## The toolchain, which stopped being inert
 
@@ -122,6 +137,17 @@ is needed after editing that wrapper.
 - ⚠ [T-0203](image.md)'s `Prove` named `90-space-precheck.sh`, and 90 is
   `experiments/90-nsswitch-contract.sh`. `experiments/README.md` rules that a
   number is never reused. The entry carries the correction.
+
+## Docker Hub's rate limit
+
+⚠ `HTTP 429: TOOMANYREQUESTS` arrives after enough anonymous pulls from one
+address, and this session's own runs reached it. `150-` must ask docker about
+the same tag and cannot leave the Hub, so it exits **2** and says so when the
+quota is spent, which is correct rather than a failure. `140-` and `160-`
+compare nothing against docker and now default to
+`public.ecr.aws/docker/library/alpine:latest`. Establishing that drove the
+challenge-driven auth against **four registries** rather than one: Docker Hub,
+`public.ecr.aws`, `ghcr.io` and `quay.io`.
 
 ## What did not move
 

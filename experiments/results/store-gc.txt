@@ -1,5 +1,5 @@
 # podbox store GC under a holder, TODO/image.md T-0204
-# taken 2026-09-08T16:54:22Z on kernel 6.18.44-fc-v24
+# taken 2026-09-08T16:54:55Z on kernel 6.18.44-fc-v24
 # ⚠ The holder is flock(1). podbox run -d is M3 and is the other half.
 reference         public.ecr.aws/docker/library/alpine:latest
 blobs_after_tag   4

@@ -43,7 +43,8 @@ is a control of the bogus-argument discriminator, and the consequence is
 | a second pull of the same tag | 0 layers fetched, every one `Already exists` | the same script |
 | `podbox pull http://…` | exit **2**, "podbox speaks HTTPS only", under a 30 s timeout | the same script |
 | a pull into a 1 MiB tmpfs | refused, 0 blobs written, message names all four things | `experiments/140-space-precheck.sh` |
-| a pull into a 12-inode tmpfs with 256 MiB free | refused, and the message names inodes | the same script |
+| a pull with 6 free inodes and 256 MiB free | refused, and the message names inodes | the same script |
+| registries the challenge-driven auth answers | 4: Docker Hub, `public.ecr.aws`, `ghcr.io`, `quay.io` | driven by hand, and `140-`/`160-` now default to the second |
 | `rmi` while something holds the image | exit 125, "is in use by a running container" | `experiments/160-store-gc.sh` |
 | `image prune -af` under the same holder | exit 0, `skipped:` names it, image kept | the same script |
 | a blob path resolving outside the store | refused by name; the canary survived | the same script |
@@ -107,6 +108,7 @@ $ ./experiments/140-space-precheck.sh
   refused on blocks and on inodes, 0 blobs written
 $ ./experiments/150-image-acquisition.sh
   podbox and docker report the same digest; 4 blobs, 0 mismatched
+  ⚠ a later re-run exited 2: Docker Hub's anonymous pull rate limit. See below
 $ ./experiments/160-store-gc.sh
   rmi refused under a holder, prune named what it skipped, the canary survived
 $ ./experiments/170-probe-cache.sh
@@ -165,10 +167,12 @@ Equal ids, different verdicts, because the boot id is the **kernel's**. podbox
 keys on the boot id, the mount-namespace inode, the three ID-map files and the
 two seccomp fields, and the confined run named all six that moved and re-probed.
 
-### Six defects found by driving the thing rather than reading it
+### Ten defects found by driving the thing rather than reading it
 
-⭐ Each was found by running something, and four of them are in podbox's own
-code rather than in a harness.
+⭐ Each was found by running something. Four are in podbox's own code; the rest
+are in the harness this session wrote, and every one of those came out of
+re-running a script against its own committed reading rather than looking at it
+once.
 
 | what looked right | what it did |
 | --- | --- |
@@ -178,6 +182,11 @@ code rather than in a harness.
 | the pull transcript | printed the **config blob** as a third `Pull complete` beside two layers, which reads as an image with three layers. docker names layers only |
 | `flock FILE -c 'sleep N'` as a lock holder | the sleep is a **child** and inherits the locked fd, so killing `flock` left the lock held. That is T-0204's mechanism working exactly as designed, arriving as a defect in the harness |
 | ⛔ `20-enter-target.sh --stage <dir>` | **nests on a re-run.** `cp -a src/store dest/store` with `dest/store` present produces `dest/store/store`, so a second run reads the first run's copy. The clause passed for a reason that had nothing to do with what it was testing. Staging a FILE overwrites, which hid it for as long as only files were staged |
+| `150-`'s committed reading | recorded `http_refused_rc 125` against code that exits **2**. Evidence taken before a change, disagreeing with the code it is evidence for. `result-diff.sh` caught it from a FRESH CLONE |
+| ⛔ `grep -c 'Pull complete' \|\| echo 0` | wrote **two** lines. `grep -c` prints 0 and exits 1 on zero matches, so the fallback fired beside the real value. That is the trap `docs/AGENTS.md` names twice, written into a new script by the session that had just read it |
+| ⛔ a registry answering `HTTP 429` | `140-` reported **FAIL** for a clause that never ran and `160-` reported **SUCCESS** for the same. Both discriminate and exit 2 now. `150-` already did |
+| `140-`'s inode clause | was not deterministic: a 12-inode tmpfs may or may not fit the store's own directories, so the record flipped between two honest values on re-runs |
+| `140-`'s recorded transcript | carried the `mktemp` directory, so the file could **never** reproduce. Redacted, as `130-` already does |
 
 ### `zig cc` stopped being inert, and cost one measurement to wire up
 
@@ -200,6 +209,21 @@ release profile the artefact actually is, and `ZIG_SANITIZE=1` restores it.
 
 ⚠ **Changing that wrapper does not rebuild `ring`.** cargo does not track the
 contents of a `CC` program, so `cargo clean -p ring` is needed after editing it.
+
+### Docker Hub's rate limit, and what it changed
+
+⚠ **`HTTP 429: TOOMANYREQUESTS: You have reached your unauthenticated pull rate
+limit`** arrives after enough anonymous pulls from one address, and this
+session's own runs reached it. It is a condition of re-running `150-`, which
+must ask docker about the same tag and therefore cannot leave the Hub; the
+script exits **2** and says so, which is correct and is not a failure of
+anything it measures.
+
+⭐ `140-` and `160-` compare nothing against docker, so they need a registry
+rather than THE registry, and their default is now
+`public.ecr.aws/docker/library/alpine:latest`. `PODBOX_TEST_IMAGE` overrides all
+three. Establishing that also drove the challenge-driven auth against four
+registries rather than one.
 
 ### One reading in the test output that is not a failure
 

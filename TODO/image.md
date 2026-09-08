@@ -68,6 +68,13 @@ unknown length and [RULES.md](RULES.md) section 8 forbids one.
 ahead of `read_to_end`, so a registry that streams forever cannot exhaust
 memory.
 
+⭐ **Three registries, not one.** The challenge-driven auth was driven against
+`public.ecr.aws`, `ghcr.io` and `quay.io` as well as Docker Hub, and all four
+answer. That is what a table of hosts would not have survived, and it is why
+`experiments/140-space-precheck.sh` and `experiments/160-store-gc.sh` could be
+moved off the Hub when its anonymous rate limit turned a check about disk space
+into a check about somebody else's quota.
+
 ---
 
 ### T-0202 A content-addressed store, and digest parity with docker
@@ -205,6 +212,19 @@ M2. The check is a function with one caller today and gains the second in
 ⚠ **`f_files == 0` means inodes are not counted**, not that there are none.
 tmpfs allocates them dynamically, and a check reading `f_ffree` as zero there
 would refuse every write on a filesystem with room.
+
+⚠ **"Before any download" means before any LAYER.** The manifest is fetched
+first, because the manifest is what says how large the layers are, and it is a
+few kilobytes against their megabytes. The consequence is visible in the script:
+every clause needs the registry to answer once, so a registry that refuses is a
+`SKIP` with exit 2 rather than a failed check.
+
+⚠ **The inode clause had to be made deterministic.** Mounting straight into a
+12-inode tmpfs may or may not leave room for the store's own five directories,
+so the refusal came sometimes from this check and sometimes from `mkdir`. Both
+are honest, and the record flipped between two values on re-runs. The store is
+now built while inodes are plentiful and the remainder consumed afterwards, and
+the free count at the moment of the pull is recorded beside the verdict.
 
 ---
 

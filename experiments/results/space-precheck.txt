@@ -1,5 +1,5 @@
 # podbox space precheck, TODO/image.md T-0203
-# taken 2026-09-08T16:54:09Z on kernel 6.18.44-fc-v24
+# taken 2026-09-08T16:54:48Z on kernel 6.18.44-fc-v24
 # A 1 MiB tmpfs, and a roomy one filled until few inodes remain. Both
 # are mounted by this script rather than being fixtures.
 tmpfs_mounted     1
