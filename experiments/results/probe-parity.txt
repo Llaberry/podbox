@@ -1,5 +1,5 @@
 # podbox probe against experiments/results/attribute.txt
-# taken 2026-09-08T12:22:00Z on kernel 6.18.44-fc-v24
+# taken 2026-09-08T12:26:22Z on kernel 6.18.44-fc-v24
 # TODO/milestones.md T-1101. Verdict and errno, never raw text.
 confined_rung     chroot
 unconfined_rung   namespace
