@@ -11,8 +11,8 @@ mid-session: the rest of the dependency sweep, and the git-object debt.
 
 | row | before | after | from |
 | --- | --- | --- | --- |
-| Commits | `e8ed921` | 13 commits, and a history rewrite | `git log e8ed921..HEAD` |
-| Changes | | 62 files, about +7,800 / -350 | `git diff --shortstat e8ed921..HEAD` |
+| Commits | `e8ed921` | 15 commits, and a history rewrite | `git log e8ed921..HEAD` |
+| Changes | | 60 files, +7,512 / -320 | `git diff --shortstat e8ed921..HEAD` |
 | podbox implementation code | ⛔ **none existed** | 4,116 lines of Rust across 11 files | `wc -l crates/podbox-probe/src/*.rs crates/podbox-cli/src/main.rs` |
 | Release binary | 389,656 bytes (empty skeleton) | 496,184 bytes, **0 third-party crates** | `experiments/110-bloat-delta.sh baseline` |
 | TODO entries | 86 | 87, one authored and not implemented | `check-todo.py` |
