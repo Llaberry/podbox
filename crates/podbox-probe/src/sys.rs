@@ -142,6 +142,7 @@ pub const SIGCHLD: u64 = 17;
 pub const MS_REC: u64 = 0x4000;
 pub const MS_SLAVE: u64 = 0x0008_0000;
 
+pub const S_IFMT: u32 = 0o170000;
 pub const S_IFCHR: u64 = 0o0020000;
 /// `makedev(1, 3)`, that is `/dev/null`. A real device number, unlike
 /// `makedev(0, 0)`, which is `WHITEOUT_DEV` and is exempt from the capability
@@ -156,6 +157,10 @@ pub const O_CREAT: u64 = 0o100;
 /// overwrites whatever is in its way has destroyed data to measure a
 /// permission, and the errno it then reports is about its own file.
 pub const O_EXCL: u64 = 0o200;
+/// ⛔ Every probe that opens a terminal-shaped device passes this. Without it
+/// an `open` of a tty can make it the prober's controlling terminal, which is
+/// a mutation of the process doing the measuring.
+pub const O_NOCTTY: u64 = 0o400;
 pub const O_DIRECTORY: u64 = 0o200000;
 pub const O_CLOEXEC: u64 = 0o2000000;
 
@@ -372,6 +377,67 @@ pub fn statfs(path: &CBuf) -> Result<Statfs, Errno> {
     Ok(out)
 }
 
+/// `struct stat` on x86_64, in the kernel's layout. Only the four fields this
+/// project reads are named; the rest is a size, so the buffer is right.
+#[repr(C)]
+#[derive(Default, Clone, Copy)]
+pub struct Stat {
+    pub st_dev: u64,
+    pub st_ino: u64,
+    pub st_nlink: u64,
+    pub st_mode: u32,
+    pub st_uid: u32,
+    pub st_gid: u32,
+    _pad0: u32,
+    pub st_rdev: u64,
+    pub st_size: i64,
+    pub st_blksize: i64,
+    pub st_blocks: i64,
+    _times: [i64; 6],
+    _unused: [i64; 3],
+}
+
+impl Stat {
+    /// The file type, as the word `ls -l` would put in column one.
+    pub fn kind(&self) -> &'static str {
+        match self.st_mode & S_IFMT {
+            0o140000 => "socket",
+            0o120000 => "symlink",
+            0o100000 => "file",
+            0o060000 => "blockdev",
+            0o040000 => "directory",
+            0o020000 => "chardev",
+            0o010000 => "fifo",
+            _ => "unknown",
+        }
+    }
+
+    pub fn is_chardev(&self) -> bool {
+        self.st_mode & S_IFMT == S_IFCHR as u32
+    }
+
+    /// The glibc encoding, which is what the kernel writes: the major and minor
+    /// are interleaved rather than a simple high and low half.
+    pub fn rdev_major(&self) -> u64 {
+        ((self.st_rdev >> 8) & 0xfff) | ((self.st_rdev >> 32) & !0xfff)
+    }
+
+    pub fn rdev_minor(&self) -> u64 {
+        (self.st_rdev & 0xff) | ((self.st_rdev >> 12) & !0xff)
+    }
+}
+
+pub fn stat(path: &CBuf) -> Result<Stat, Errno> {
+    let mut out = Stat::default();
+    unsafe {
+        sys(
+            SYS_STAT,
+            [path.ptr(), &mut out as *mut Stat as u64, 0, 0, 0, 0],
+        )?
+    };
+    Ok(out)
+}
+
 pub fn getgroups() -> Result<Vec<i32>, Errno> {
     // NGROUPS_MAX is 65536; ask for the count first so the buffer is the size
     // the kernel says rather than a ceiling this file picked.
@@ -432,6 +498,30 @@ mod tests {
     fn a_path_with_an_interior_nul_is_refused_rather_than_truncated() {
         assert!(CBuf::new("/tmp/a\0b").is_none());
         assert!(CBuf::new("/tmp/ab").is_some());
+    }
+
+    #[test]
+    fn the_stat_buffer_is_the_size_the_kernel_writes() {
+        // ⛔ A short buffer is a kernel write past the end of it. 144 bytes on
+        // x86_64, and the assertion is here rather than in a comment because a
+        // field added above without a matching removal below is silent.
+        assert_eq!(core::mem::size_of::<Stat>(), 144);
+    }
+
+    #[test]
+    fn a_char_device_reads_as_one_and_its_numbers_come_back() {
+        // /dev/null is char 1:3 on every Linux, which is also DEV_1_3 above.
+        let st = stat(&CBuf::new("/dev/null").unwrap()).expect("/dev/null");
+        assert!(st.is_chardev(), "mode {:o}", st.st_mode);
+        assert_eq!(st.kind(), "chardev");
+        assert_eq!((st.rdev_major(), st.rdev_minor()), (1, 3));
+    }
+
+    #[test]
+    fn a_directory_is_not_mistaken_for_a_device() {
+        let st = stat(&CBuf::new("/tmp").unwrap()).expect("/tmp");
+        assert_eq!(st.kind(), "directory");
+        assert!(!st.is_chardev());
     }
 
     #[test]

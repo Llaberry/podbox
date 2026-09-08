@@ -247,6 +247,35 @@ pub fn document(f: &Findings, sel: &Selection) -> String {
         }
     });
 
+    // ⭐ TODO/enter.md T-0503's `has("ptmx")`. Derived from the two rows that
+    // ran, never a second pair of calls: `usable` is the OPEN, not the stat,
+    // because a device node that exists and cannot be opened is exactly the
+    // degraded `-t` the entry refuses.
+    let ptmx_stat = f.get("stat(/dev/ptmx)");
+    let ptmx_open = f.get("open(/dev/ptmx, O_RDWR)");
+    o.obj("ptmx", |x| {
+        x.str("path", crate::probes::PTMX);
+        x.bool(
+            "present",
+            ptmx_stat.map(|s| s.verdict == Verdict::Ok) == Some(true),
+        );
+        x.bool(
+            "usable",
+            ptmx_open.map(|s| s.verdict == Verdict::Ok) == Some(true),
+        );
+        x.opt_str("stat_verdict", ptmx_stat.map(|s| s.verdict.word()));
+        x.opt_str("stat_detail", ptmx_stat.map(|s| s.reason.as_str()));
+        x.opt_str(
+            "stat_errno_name",
+            ptmx_stat.and_then(|s| s.errno_name()).as_deref(),
+        );
+        x.opt_str("open_verdict", ptmx_open.map(|s| s.verdict.word()));
+        x.opt_str(
+            "open_errno_name",
+            ptmx_open.and_then(|s| s.errno_name()).as_deref(),
+        );
+    });
+
     let m = Mounts::of(f);
     o.obj("mounts", |mo| {
         for (half, out) in m.rows() {

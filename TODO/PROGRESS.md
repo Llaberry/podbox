@@ -35,7 +35,9 @@ is a control of the bogus-argument discriminator, and the consequence is
 | `podbox probe` rung, unconfined on this host | `namespace` | `experiments/130-probe-parity.sh` |
 | `podbox probe` rung, inside `experiments/20-enter-target.sh` | `chroot` | `experiments/130-probe-parity.sh` |
 | attribution rows against `experiments/results/attribute.txt` | 15 matched, 1 recorded divergence, 0 differed | `experiments/130-probe-parity.sh` |
-| probes in the set | 48: 32 census, 16 attribution | `podbox probe --json` |
+| probes in the set | 50: 34 census, 16 attribution | `podbox probe --json` |
+| `/dev/ptmx` here, unconfined | present and openable: chardev 5:2, mode 666 | `podbox probe --json \| jq .ptmx`, T-0503 |
+| `/dev/ptmx` inside the reconstruction | `ENOENT` to both `stat` and `open`. ⛔ Not an answer about the target: see below | the same |
 | `kcmp(-1,-1,...)` control, on this host | `ENOSYS`: the control cannot answer | `experiments/results/attribute.txt` |
 | `kcmp(-1,-1,...)` control, on the target | `ESRCH`: executed | `references/Azathothas__container-research/tree/verification/real/extkernel-newapi.txt:26` |
 | writable paths obtained inside the reconstruction | 4 of 8 probed: `/tmp`, `/dev/shm`, `/workspace`, `/state` | `podbox probe --json` |
@@ -70,7 +72,7 @@ Acceptance, run on 2026-09-08:
 
 ```
 $ ./scripts/check-todo.py
-check-todo: 86 rows, 86 entries, 59 open, 2 partial, 2 blocked, 23 done
+check-todo: 86 rows, 86 entries, 58 open, 3 partial, 2 blocked, 23 done
 check-todo: ok
 $ ./scripts/plant.sh
   plants   18 caught, 0 missed
@@ -89,7 +91,7 @@ $ ./experiments/130-probe-parity.sh
 
 ## Counts
 
-86 entries: 59 open, 2 partial, 2 blocked, 23 done.
+86 entries: 58 open, 3 partial, 2 blocked, 23 done.
 
 Derived by `scripts/todo-count.py` and asserted by `scripts/check-todo.py`.
 [INDEX.md](INDEX.md)'s Counts block carries the per-priority breakdown, and the
@@ -197,6 +199,18 @@ lands, so `Cargo.lock` is unchanged and
    it from a candidate genuinely below the instrument's resolution by
    **running the scaffold**: if the scaffold speaks, a zero delta is a reading;
    if it does not, the run failed to measure. Both halves were driven.
+
+### `/dev/ptmx` is a command now, not a research task
+
+[T-0503](enter.md) puts `stat("/dev/ptmx")` in T-0101's probe set, and that half
+is implemented: two rows, `stat` and `open`, because existence is not function
+and a node that stats and will not open is exactly the degraded `-t` the entry
+refuses. `podbox probe --json | jq .ptmx` answers it on any machine.
+
+⛔ **It does not answer it for the target yet, and the reconstruction cannot.**
+The reconstruction builds `/dev` from the same mount table the entry says
+cannot settle the question, so its `ENOENT` is that table repeated back rather
+than an independent reading. What is still needed is one run on the target.
 
 ### New infrastructure this session
 
@@ -316,11 +330,13 @@ here, not quantified wrongly.
 
 ## Open questions for the operator
 
-1. **`/dev/ptmx` on the target.** One `stat("/dev/ptmx")` settles whether `-t`
-   can ever work, and nobody has run one. The corpus disagrees with itself: the
-   mount table shows six device nodes and no `ptmx`, and an earlier account
-   asserts the host `/dev/ptmx` works and published no capture. podbox probes
-   and refuses by name until it is settled. [T-0503](enter.md).
+1. **`/dev/ptmx` on the target**, and it is now ⭐ **one command rather than a
+   research task**: `podbox probe --json | jq .ptmx`, run on the target by
+   anyone who can reach it. The probe half of [T-0503](enter.md) is implemented
+   and reads `present: true, usable: true` on this host and `ENOENT` inside the
+   reconstruction. ⛔ **The reconstruction does not settle it**: it builds
+   `/dev` from the same mount table the question doubts, so its answer is that
+   table repeated back. What is still needed is a run on the target itself.
 2. ⭐ **ANSWERED, and no longer a question for the operator.** It asked for a
    musl cross toolchain carrying its own `libgcc_s`, because `musl-tools`
    ships none and rustc passes `-lgcc_s` on that target even under

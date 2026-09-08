@@ -84,7 +84,7 @@ Source:      `TOOL.md` section 0, section 6.5, section 6.8; `paper_final.md` sec
 Category:    enter
 Priority:    P1
 Effort:      S
-Status:      open
+Status:      partial 2026-09-08
 
 Problem:     `-t` either works or it does not, and the corpus disagrees with
              itself about which. A degraded PTY that cannot open a terminal is
@@ -108,6 +108,32 @@ Decision:    Refuse rather than degrade. `-t` is a request for a terminal, and a
              terminal that is not there cannot be approximated by a pipe without
              changing what every interactive program does.
 Prove:       `podbox probe --json | jq -e 'has("ptmx")' && { podbox run --rm -t alpine:latest true || podbox run --rm -t alpine:latest true 2>&1 | grep -q 'ptmx'; }`
+
+**Partial, 2026-09-08.** The probe half is implemented and measured; the refusal
+half needs `run`, which is M3.
+
+**What holds now.** Two rows in T-0101's set, in the outer environment, before
+any chroot: `stat(/dev/ptmx)` and `open(/dev/ptmx, O_RDWR)`. The first half of
+the `Prove` runs and exits 0. Readings taken on 2026-09-08:
+
+| where | `.ptmx` |
+| --- | --- |
+| this host, unconfined | `present: true, usable: true`, chardev 5:2 mode 666 |
+| inside `experiments/20-enter-target.sh` | `present: false, usable: false`, `ENOENT` both |
+
+⭐ **Existence is not function, so there are two rows and not one.** A device
+node that stats and will not open is exactly the degraded `-t` this entry
+refuses, and `.ptmx.usable` is the OPEN. ⚠ The open passes `O_NOCTTY`: without
+it, opening a terminal can make it the prober's controlling terminal, which is
+a mutation of the process doing the measuring.
+
+⛔ **THE RECONSTRUCTION DOES NOT SETTLE THE PREMISE, AND MUST NOT BE READ AS
+HAVING DONE SO.** It reproduces the target's `/dev` from the same mount table
+this entry says cannot answer the question, so its `ENOENT` is that mount table
+repeated back, not an independent measurement. ⭐ What HAS changed is that the
+question is now one command on the machine that matters: `podbox probe --json |
+jq .ptmx` on the target, by anyone who can reach it. Until somebody runs it
+there, the premise stays unresolved and is stated as unresolved.
 
 ---
 

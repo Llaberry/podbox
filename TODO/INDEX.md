@@ -94,7 +94,7 @@ the blocker named and what would clear it.
 | [T-0410](complete.md) | P0 | complete | open | Supply `/etc/nsswitch.conf`, or the supplied `/etc/passwd` is a no-op |
 | [T-0501](enter.md) | P0 | enter | open | Open every descriptor before the root changes |
 | [T-0502](enter.md) | P0 | enter | open | Resolve the program inside the new root, in the process that changed it |
-| [T-0503](enter.md) | P1 | enter | open | Probe `/dev/ptmx`, and refuse `-t` by name where it is absent |
+| [T-0503](enter.md) | P1 | enter | partial | Probe `/dev/ptmx`, and refuse `-t` by name where it is absent |
 | [T-0504](enter.md) | P1 | enter | open | Refuse a rootfs path that is a symlink |
 | [T-0505](enter.md) | P1 | enter | open | `exec` is a fresh chroot, and `inspect` says so |
 | [T-0601](supervise.md) | P0 | supervise | open | One pidfd per direct child, `waitid` for status |
@@ -149,7 +149,7 @@ the blocker named and what would clear it.
 
 ## Counts
 
-86 items: 59 open, 2 partial, 2 blocked, 23 done.
+86 items: 58 open, 3 partial, 2 blocked, 23 done.
 
 Counted from the rows above by `scripts/todo-count.py` and asserted
 independently by `scripts/check-todo.py`, which is the gate. A number here
@@ -158,10 +158,10 @@ that disagrees with the rows cannot reach a commit.
 | Priority | Open | Partial | Blocked | Done | Total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 29 | 2 | 1 | 12 | 44 |
-| P1 | 21 | 0 | 1 | 8 | 30 |
+| P1 | 20 | 1 | 1 | 8 | 30 |
 | P2 | 7 | 0 | 0 | 2 | 9 |
 | P3 | 2 | 0 | 0 | 1 | 3 |
-| **All** | **59** | **2** | **2** | **23** | **86** |
+| **All** | **58** | **3** | **2** | **23** | **86** |
 
 ## How the current ordering is derived
 

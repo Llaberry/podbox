@@ -148,6 +148,18 @@ pub static PROBES: &[Probe] = &[
             kind: Kind::Child { ns_flags: 0, body: p_write_etc } },
     Probe { name: "write into uid-1000-owned dir", group: Group::Census,
             kind: Kind::Child { ns_flags: 0, body: p_write_squash } },
+    // ⭐ TODO/enter.md T-0503 puts these two in THIS set, in the OUTER
+    // environment, before any chroot. `-t` either works or it does not, and
+    // the corpus disagrees with itself about which: the target's mount table
+    // shows six device nodes and no `ptmx`, and an earlier account asserts the
+    // host's works and published no capture. A mount table does not list plain
+    // files, so neither settles it and one stat does. The open is the second
+    // row because existence is not function: rule 1 of TOOL.md section 6.1 is
+    // to probe the operation you need.
+    Probe { name: "stat(/dev/ptmx)", group: Group::Census,
+            kind: Kind::Child { ns_flags: 0, body: p_stat_ptmx } },
+    Probe { name: "open(/dev/ptmx, O_RDWR)", group: Group::Census,
+            kind: Kind::Child { ns_flags: 0, body: p_open_ptmx } },
 
     // -------------------------------------------------------- attribution
     // TODO/probe.md T-0102. A seccomp filter sees the syscall number and six
@@ -649,6 +661,39 @@ fn p_write_squash() -> Outcome {
             Outcome::ok_with(format!("wrote into {dir}"))
         }
         Err(sys::EEXIST) => already_there(&path),
+        Err(e) => Outcome::denied(e),
+    }
+}
+
+pub const PTMX: &str = "/dev/ptmx";
+
+fn p_stat_ptmx() -> Outcome {
+    match sys::stat(&c(PTMX)) {
+        Ok(st) => Outcome::ok_with(format!(
+            "{} {}:{} mode {:o}",
+            st.kind(),
+            st.rdev_major(),
+            st.rdev_minor(),
+            st.st_mode & 0o7777
+        )),
+        // ⛔ ENOENT here is the answer, not a missing precondition: the
+        // question this row exists for is whether the file is there.
+        Err(e) => Outcome::denied(e),
+    }
+}
+
+fn p_open_ptmx() -> Outcome {
+    // ⚠ O_NOCTTY. Opening a terminal without it can make it the prober's
+    // controlling terminal, which mutates the process doing the measuring.
+    // The child is disposable either way; the flag is what makes the row a
+    // measurement rather than a side effect.
+    match sys::open(&c(PTMX), sys::O_RDWR | sys::O_NOCTTY, 0) {
+        Ok(fd) => {
+            // A successful open of a working ptmx allocates a pty pair. Closing
+            // it releases the slave, so the probe leaves no pty behind.
+            let _ = sys::close(fd);
+            Outcome::ok()
+        }
         Err(e) => Outcome::denied(e),
     }
 }

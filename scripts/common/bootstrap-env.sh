@@ -110,14 +110,30 @@ if [ -n "$avail_inodes" ] && [ "$avail_inodes" -lt "$NEED_INODES" ]; then
 	disk_short=1
 fi
 
+# ⚠ NOT EVERY MACHINE THIS RUNS ON IS ROOT. A GitHub runner is not, and
+# `apt-get` there needs `sudo`; this container is root and has no `sudo` at
+# all. Choosing once, out loud, beats every call site guessing.
+SUDO=""
+if [ "$(id -u)" -ne 0 ]; then
+	if command -v sudo >/dev/null 2>&1; then
+		SUDO="sudo -n"
+	else
+		echo "⚠ not root and no sudo: anything needing a package install will be" >&2
+		echo "  reported as FAILED rather than attempted." >&2
+	fi
+fi
+
 apt_updated=0
 apt_install() {
 	# One update for the whole run, and only if something is actually missing.
+	if [ "$(id -u)" -ne 0 ] && [ -z "$SUDO" ]; then
+		return 1
+	fi
 	if [ "$apt_updated" -eq 0 ]; then
-		DEBIAN_FRONTEND=noninteractive timeout 300 apt-get -qq update >/dev/null 2>&1
+		DEBIAN_FRONTEND=noninteractive timeout 300 $SUDO apt-get -qq update >/dev/null 2>&1
 		apt_updated=1
 	fi
-	DEBIAN_FRONTEND=noninteractive timeout 600 apt-get install -y -qq "$@" \
+	DEBIAN_FRONTEND=noninteractive timeout 600 $SUDO apt-get install -y -qq "$@" \
 		>/dev/null 2>&1 </dev/null
 }
 
@@ -226,9 +242,9 @@ if want zig; then
            ⛔ NOT unpacked. Re-pin the checksum in this script from
            https://ziglang.org/download/index.json if the version moved."
 			elif timeout 300 tar -xf "$tmp/zig.tar.xz" -C "$tmp" &&
-				rm -rf "${ZIG_PREFIX:?}" &&
-				mv "$tmp/zig-x86_64-linux-$ZIG_VERSION" "$ZIG_PREFIX" &&
-				ln -sf "$ZIG_PREFIX/zig" /usr/local/bin/zig &&
+				$SUDO rm -rf "${ZIG_PREFIX:?}" &&
+				$SUDO mv "$tmp/zig-x86_64-linux-$ZIG_VERSION" "$ZIG_PREFIX" &&
+				$SUDO ln -sf "$ZIG_PREFIX/zig" /usr/local/bin/zig &&
 				[ "$(zig version 2>/dev/null)" = "$ZIG_VERSION" ]; then
 				did "zig: $ZIG_VERSION at $ZIG_PREFIX, linked as /usr/local/bin/zig"
 			else
@@ -263,7 +279,7 @@ if want docker; then
 		else
 			# ⚠ Bounded wait on a condition, never a bare sleep and never
 			# unbounded: TODO/RULES.md section 8.
-			nohup dockerd >/tmp/dockerd.log 2>&1 &
+			nohup $SUDO dockerd >/tmp/dockerd.log 2>&1 &
 			for _ in $(seq 1 20); do
 				timeout 5 docker info >/dev/null 2>&1 && break
 				sleep 2
