@@ -33,6 +33,26 @@ usage: podbox pull <image>
   amount, the required amount and the unit.
 ";
 
+pub const EXTRACT_USAGE: &str = "\
+usage: podbox extract [--force] <image>
+
+  Unpack a pulled image's layers into a rootfs in the store, and write the
+  ownership sidecar beside it. Prints the rootfs path.
+
+  ⛔ Ownership is NEVER restored. chown to an id this machine's user namespace
+  does not map returns EINVAL, and that is where five other tools stop. What
+  the image intended is recorded in .meta.jsonl beside the rootfs, keyed by
+  path; it changes no kernel permission check and is not presented as if it
+  does.
+
+  An entry that resolves outside the destination, including through a symlink
+  an earlier entry of the same layer created, is refused and the extraction
+  fails. A repaired layer cannot be told from a clean one, so podbox does not
+  repair one.
+
+  --force          extract again over an existing rootfs
+";
+
 pub const IMAGES_USAGE: &str = "\
 usage: podbox images [options] [image]
 
@@ -80,7 +100,10 @@ pub const INSPECT_USAGE: &str = "\
 usage: podbox inspect [--format T] <image> [image...]
 
   Fields: .Id .Digest .RepoTags .RepoDigests .Architecture .Os .Created
-          .Platform .Size .Store .Layers
+          .Platform .Size .Store .Layers .RootfsPath .Extracted
+
+  ⚠ .RootfsPath is where the rootfs WOULD be. .Extracted says whether it is
+    there; `podbox extract` is what puts it there.
 
   Without --format, one JSON array, as docker prints.
 ";
@@ -364,6 +387,140 @@ pub fn prune(args: &[String]) -> i32 {
 }
 
 /// `podbox inspect`, for images. Containers are M3.
+/// `podbox extract <image>`: `TODO/extract.md` T-0301 to T-0307, milestone M2.
+///
+/// ⛔ **This is the verb M2 can drive.** [`TODO/milestones.md`](../../../TODO/milestones.md)
+/// T-1103's acceptance runs `podbox run --rm`, which is M3, so extraction would
+/// otherwise be implemented with nothing able to exercise it until another
+/// milestone lands. That is how a component ships untested.
+pub fn extract(args: &[String]) -> i32 {
+    let mut want: Option<&str> = None;
+    let mut force = false;
+    for a in args {
+        match a.as_str() {
+            "-h" | "--help" => {
+                print!("{EXTRACT_USAGE}");
+                return 0;
+            }
+            "--force" => force = true,
+            other if other.starts_with('-') => return unknown("extract", other, EXTRACT_USAGE),
+            other if want.is_none() => want = Some(other),
+            other => {
+                eprintln!("podbox extract: {other:?}: extract takes one image");
+                return EXIT_USAGE;
+            }
+        }
+    }
+    let Some(want) = want else {
+        eprint!("{EXTRACT_USAGE}");
+        return EXIT_USAGE;
+    };
+
+    let store = match podbox_image::open_store() {
+        Ok(s) => s,
+        Err(e) => return fail(e),
+    };
+    let record = match store.find_one(want) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("podbox extract: {e}");
+            return e.exit_code();
+        }
+    };
+
+    if podbox_extract::is_extracted(&store, &record.manifest_digest) && !force {
+        // ⚠ Already done is not an error, and the path is still printed: a
+        // caller pipes this into `run`, and a second invocation must answer the
+        // same thing as the first.
+        let (rootfs, _) = podbox_extract::paths(&store, &record.manifest_digest);
+        println!("{}", rootfs.display());
+        return 0;
+    }
+    if force {
+        if let Err(e) = podbox_extract::remove_extracted(&store, &record.manifest_digest) {
+            eprintln!("podbox extract: {e}");
+            return podbox_image::error::EXIT_RUNTIME_ERROR;
+        }
+    }
+
+    let manifest_digest = match podbox_image::digest::Digest::parse(&record.manifest_digest) {
+        Ok(d) => d,
+        Err(e) => return fail(e),
+    };
+    let bytes = match store.read_blob(&manifest_digest) {
+        Ok(b) => b,
+        Err(e) => return fail(e),
+    };
+    let manifest: podbox_image::oci::Manifest = match serde_json::from_slice(&bytes) {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!(
+                "podbox extract: the stored manifest for {want} does not parse: {e}. \
+                 Re-pull the image; the blob is present and is not a manifest."
+            );
+            return podbox_image::error::EXIT_RUNTIME_ERROR;
+        }
+    };
+
+    // ⛔ A GC must not delete the blobs out from under an extraction in flight,
+    // and T-0204's lock is what stops it.
+    let _held = match store.hold(&record) {
+        Ok(l) => Some(l),
+        Err(e) => {
+            eprintln!("podbox extract: {e}");
+            return podbox_image::error::EXIT_RUNTIME_ERROR;
+        }
+    };
+
+    let mut out = std::io::stderr().lock();
+    match podbox_extract::extract(&store, &manifest, &record.manifest_digest, &mut out) {
+        Ok(done) => {
+            // ⚠ The estimate flag travels with the number, every time.
+            let sized = if done.uncompressed_estimated {
+                format!("{} (estimated)", space::mib(done.uncompressed_bytes))
+            } else {
+                space::mib(done.uncompressed_bytes)
+            };
+            let _ = writeln!(
+                out,
+                "podbox: {} layers, {} entries, {} removed by whiteouts, {sized} uncompressed",
+                done.layers, done.entries, done.removed
+            );
+            if done.ownership_dropped > 0 {
+                // ⛔ Said out loud. A tree whose ownership differs from the
+                // image's in 900 places and says nothing is the dishonesty this
+                // project exists to refuse.
+                let _ = writeln!(
+                    out,
+                    "podbox: {} of {} entries carry an id this machine cannot apply; \
+                     what the image intended is in {}",
+                    done.ownership_dropped,
+                    done.sidecar_rows,
+                    done.sidecar.display()
+                );
+            }
+            if done.skipped > 0 {
+                let _ = writeln!(
+                    out,
+                    "podbox: {} entries were not materialised ({}). podbox cannot \
+                     mknod on this class of runtime, which is the premise of the \
+                     whole tool rather than a defect here",
+                    done.skipped,
+                    done.skipped_kinds.join(", ")
+                );
+            }
+            // ⛔ stdout carries the answer and nothing else, so this verb
+            // composes. T-0110 settled that channel contract.
+            println!("{}", done.rootfs.display());
+            0
+        }
+        Err(e) => {
+            eprintln!("podbox extract: {e}");
+            podbox_image::error::EXIT_RUNTIME_ERROR
+        }
+    }
+}
+
 pub fn inspect(args: &[String]) -> i32 {
     let mut template: Option<String> = None;
     let mut wanted: Vec<&str> = Vec::new();
@@ -469,6 +626,11 @@ pub const INSPECT_FIELDS: &[&str] = &[
     "Size",
     "Store",
     "Layers",
+    // ⭐ M2. `TODO/extract.md` T-0302's Prove reads the sidecar at
+    // `<RootfsPath>/../.meta.jsonl`, so this field is what makes that command
+    // writable at all.
+    "RootfsPath",
+    "Extracted",
 ];
 
 fn image_fields(r: &Record, store: &Store, no_trunc: bool) -> Vec<(&'static str, String)> {
@@ -516,6 +678,17 @@ fn inspect_fields(r: &Record, store: &Store) -> Vec<(&'static str, String)> {
         ("Size", r.stored_bytes.to_string()),
         ("Store", store.root().display().to_string()),
         ("Layers", r.layers.join(" ")),
+        ("RootfsPath", {
+            let (rootfs, _) = podbox_extract::paths(store, &r.manifest_digest);
+            rootfs.display().to_string()
+        }),
+        // ⚠ Whether the rootfs is THERE, which is a different question from
+        // where it would be. `inspect` on a pulled-but-unextracted image must
+        // not imply a tree that does not exist.
+        (
+            "Extracted",
+            podbox_extract::is_extracted(store, &r.manifest_digest).to_string(),
+        ),
     ]
 }
 

@@ -33,6 +33,7 @@ usage: podbox <command> [options]
 
   probe        report what this machine permits, and the rung podbox selects
   pull         fetch an image into the content-addressed store
+  extract      unpack a pulled image's layers into a rootfs
   images       list what the store holds
   rmi          remove images, and every blob no image reaches
   tag          point a second name at one manifest digest
@@ -86,6 +87,7 @@ fn main() -> std::process::ExitCode {
     match argv.get(1).map(String::as_str) {
         Some("probe") => exit(probe(rest)),
         Some("pull") => exit(images::pull(rest)),
+        Some("extract") => exit(images::extract(rest)),
         Some("images") => exit(images::images(rest)),
         Some("rmi") => exit(images::rmi(rest)),
         Some("tag") => exit(images::tag(rest)),
@@ -104,7 +106,8 @@ fn main() -> std::process::ExitCode {
             let _ = writeln!(
                 err,
                 "podbox: {}: not implemented yet (milestones M0 and M1 implement \
-                 probe, pull, images, rmi, tag, image and inspect; TOOL.md section 5)",
+                 probe, pull, extract, images, rmi, tag, image and inspect; \
+                 TOOL.md section 5)",
                 other.unwrap_or("no command given")
             );
             let _ = writeln!(err, "podbox: invoked as {argv0}");
@@ -124,6 +127,7 @@ fn image_group(args: &[String]) -> i32 {
         Some("tag") => images::tag(rest),
         Some("inspect") => images::inspect(rest),
         Some("pull") => images::pull(rest),
+        Some("extract") => images::extract(rest),
         Some("-h") | Some("--help") | None => {
             println!("usage: podbox image ls | rm | prune | tag | inspect | pull");
             0

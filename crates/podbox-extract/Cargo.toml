@@ -6,4 +6,18 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
+# ⛔ EVERY PIN HERE WAS RULED BY A MEASURED `cargo bloat` DELTA in
+# TODO/deps.md T-0907 and T-0908, and `experiments/110-bloat-delta.sh` is the
+# instrument. `tar` is taken for its ENTRY-LEVEL api and never for `unpack()`,
+# which is the whole of TODO/extract.md T-0301: `unpack()` makes the ownership,
+# permission and path decisions this crate exists to make.
+# ⚠ `flate2`'s default backend is C. `rust_backend` is named rather than
+# defaulted, because a C backend complicates `crt-static` for no measured gain.
 [dependencies]
+podbox-probe = { path = "../podbox-probe" }
+podbox-image = { path = "../podbox-image" }
+tar.workspace = true
+flate2.workspace = true
+ruzstd.workspace = true
+serde.workspace = true
+serde_json.workspace = true

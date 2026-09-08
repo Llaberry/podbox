@@ -139,6 +139,26 @@ pub const SYS_FSMOUNT: i64 = 432;
 pub const SYS_PIDFD_GETFD: i64 = 438;
 pub const SYS_LANDLOCK_CREATE_RULESET: i64 = 444;
 
+// ⭐ The `*at` family, taken by `crates/podbox-extract` (TODO/extract.md
+// T-0304). Extraction resolves every entry against a directory FILE
+// DESCRIPTOR rather than against a path, because a path is re-resolved by the
+// kernel on every call and the tree is being written to between calls.
+pub const SYS_FCHMOD: i64 = 91;
+pub const SYS_GETDENTS64: i64 = 217;
+pub const SYS_MKDIRAT: i64 = 258;
+pub const SYS_FCHOWNAT: i64 = 260;
+pub const SYS_NEWFSTATAT: i64 = 262;
+pub const SYS_UNLINKAT: i64 = 263;
+pub const SYS_LINKAT: i64 = 265;
+pub const SYS_SYMLINKAT: i64 = 266;
+pub const SYS_READLINKAT: i64 = 267;
+pub const SYS_FCHMODAT: i64 = 268;
+pub const SYS_UTIMENSAT: i64 = 280;
+/// ⚠ Linux 5.6. A kernel without it answers `ENOSYS`, which is why
+/// `podbox-extract` carries an `O_NOFOLLOW` walk beside it rather than
+/// requiring it.
+pub const SYS_OPENAT2: i64 = 437;
+
 // ---------------------------------------------------------------- constants
 pub const CLONE_NEWNS: u64 = 0x0002_0000;
 pub const CLONE_NEWUTS: u64 = 0x0400_0000;
@@ -170,6 +190,39 @@ pub const O_EXCL: u64 = 0o200;
 pub const O_NOCTTY: u64 = 0o400;
 pub const O_DIRECTORY: u64 = 0o200000;
 pub const O_CLOEXEC: u64 = 0o2000000;
+pub const O_TRUNC: u64 = 0o1000;
+/// ⛔ The one flag that makes an `open` of a path component a statement about
+/// that component rather than about wherever a symlink pointed. Every directory
+/// descent in `crates/podbox-extract` carries it.
+pub const O_NOFOLLOW: u64 = 0o400000;
+pub const O_PATH: u64 = 0o10000000;
+
+/// `openat2(2)`'s `struct open_how`. Three `u64`s, in this order, and the
+/// kernel is told the size so it can reject a struct it does not know.
+#[repr(C)]
+#[derive(Default, Clone, Copy)]
+pub struct OpenHow {
+    pub flags: u64,
+    pub mode: u64,
+    pub resolve: u64,
+}
+
+/// ⛔ Refuse a symlink anywhere in the walk, including a trailing one. This is
+/// what makes the check immune to a symlink the same layer created a moment
+/// ago, which is the defect `TODO/extract.md` T-0304 exists for.
+pub const RESOLVE_NO_SYMLINKS: u64 = 0x04;
+/// ⛔ Refuse anything resolving outside the directory the descriptor names,
+/// `..` and an absolute path included. The kernel enforces it; a lexical check
+/// alone can be defeated by a component created between the check and the use.
+pub const RESOLVE_BENEATH: u64 = 0x08;
+
+pub const AT_SYMLINK_NOFOLLOW: u64 = 0x100;
+pub const AT_REMOVEDIR: u64 = 0x200;
+pub const AT_EMPTY_PATH: u64 = 0x1000;
+
+pub const S_IFDIR: u32 = 0o040000;
+pub const S_IFREG: u32 = 0o100000;
+pub const S_IFLNK: u32 = 0o120000;
 
 /// `flock(2)` operations. ⚠ `LOCK_NB` is not optional anywhere in this tree:
 /// `RULES.md` section 8 forbids an unbounded wait, and a blocking `flock` on a
@@ -311,6 +364,202 @@ pub fn unlink(path: &CBuf) -> Sysres {
 
 pub fn mkdir(path: &CBuf, mode: u64) -> Sysres {
     unsafe { sys(SYS_MKDIR, [path.ptr(), mode, 0, 0, 0, 0]) }
+}
+
+// ------------------------------------------------------- the `*at` wrappers
+//
+// ⛔ Each resolves against a directory DESCRIPTOR. `crates/podbox-extract`
+// holds one open on the destination for the whole of a layer, so no path it
+// writes is ever re-resolved from the root through components another entry
+// may have replaced in between (TODO/extract.md T-0304).
+
+pub fn openat(dirfd: i64, path: &CBuf, flags: u64, mode: u64) -> Sysres {
+    unsafe { sys(SYS_OPENAT, [dirfd as u64, path.ptr(), flags, mode, 0, 0]) }
+}
+
+/// `openat2(2)`, whose `resolve` mask is enforced by the kernel rather than by
+/// the caller.
+///
+/// ⚠ Returns `ENOSYS` before Linux 5.6, and `E2BIG` where the kernel is older
+/// than this `OpenHow`. Both mean "this kernel cannot answer", not "refused":
+/// the caller falls back to the `O_NOFOLLOW` walk rather than treating either
+/// as a denial.
+pub fn openat2(dirfd: i64, path: &CBuf, how: &OpenHow) -> Sysres {
+    unsafe {
+        sys(
+            SYS_OPENAT2,
+            [
+                dirfd as u64,
+                path.ptr(),
+                how as *const OpenHow as u64,
+                std::mem::size_of::<OpenHow>() as u64,
+                0,
+                0,
+            ],
+        )
+    }
+}
+
+pub fn mkdirat(dirfd: i64, path: &CBuf, mode: u64) -> Sysres {
+    unsafe { sys(SYS_MKDIRAT, [dirfd as u64, path.ptr(), mode, 0, 0, 0]) }
+}
+
+pub fn unlinkat(dirfd: i64, path: &CBuf, flags: u64) -> Sysres {
+    unsafe { sys(SYS_UNLINKAT, [dirfd as u64, path.ptr(), flags, 0, 0, 0]) }
+}
+
+pub fn symlinkat(target: &CBuf, dirfd: i64, path: &CBuf) -> Sysres {
+    unsafe { sys(SYS_SYMLINKAT, [target.ptr(), dirfd as u64, path.ptr(), 0, 0, 0]) }
+}
+
+pub fn linkat(olddirfd: i64, old: &CBuf, newdirfd: i64, new: &CBuf, flags: u64) -> Sysres {
+    unsafe {
+        sys(
+            SYS_LINKAT,
+            [
+                olddirfd as u64,
+                old.ptr(),
+                newdirfd as u64,
+                new.ptr(),
+                flags,
+                0,
+            ],
+        )
+    }
+}
+
+pub fn fchmod(fd: i64, mode: u64) -> Sysres {
+    unsafe { sys(SYS_FCHMOD, [fd as u64, mode, 0, 0, 0, 0]) }
+}
+
+/// ⚠ `AT_SYMLINK_NOFOLLOW` is accepted by the libc wrapper and **rejected by
+/// the kernel** with `EINVAL` on Linux: there is no `lchmod`. A caller that
+/// wants to avoid following a symlink opens it `O_PATH|O_NOFOLLOW` and uses
+/// `fchmod` on the descriptor, or does not chmod a symlink at all, which is
+/// what extraction does because a symlink's own mode is not used.
+pub fn fchmodat(dirfd: i64, path: &CBuf, mode: u64, flags: u64) -> Sysres {
+    unsafe { sys(SYS_FCHMODAT, [dirfd as u64, path.ptr(), mode, flags, 0, 0]) }
+}
+
+pub fn fchownat(dirfd: i64, path: &CBuf, uid: u32, gid: u32, flags: u64) -> Sysres {
+    unsafe {
+        sys(
+            SYS_FCHOWNAT,
+            [
+                dirfd as u64,
+                path.ptr(),
+                uid as u64,
+                gid as u64,
+                flags,
+                0,
+            ],
+        )
+    }
+}
+
+/// `newfstatat(2)` into the same `Stat` [`stat`] fills.
+///
+/// ⚠ Pass `AT_SYMLINK_NOFOLLOW` to ask about a symlink rather than about what
+/// it points at. Extraction always does: the question it asks is "what is
+/// already at this name", and a symlink that answers for its target is the
+/// whole of `TODO/extract.md` T-0304's defect.
+pub fn fstatat(dirfd: i64, path: &CBuf, flags: u64) -> Result<Stat, Errno> {
+    let mut out = Stat::default();
+    unsafe {
+        sys(
+            SYS_NEWFSTATAT,
+            [
+                dirfd as u64,
+                path.ptr(),
+                &mut out as *mut Stat as u64,
+                flags,
+                0,
+                0,
+            ],
+        )?
+    };
+    Ok(out)
+}
+
+/// `DT_*`, the file type `getdents64` reports without a `stat`.
+/// ⚠ `DT_UNKNOWN` is legal on any filesystem and is not "not a directory": a
+/// caller that needs certainty stats.
+pub const DT_UNKNOWN: u8 = 0;
+pub const DT_DIR: u8 = 4;
+pub const DT_LNK: u8 = 10;
+
+/// One directory entry, as `getdents64(2)` reports it.
+pub struct Dirent {
+    pub name: Vec<u8>,
+    pub d_type: u8,
+}
+
+/// Read a whole directory through a descriptor.
+///
+/// ⛔ Through the descriptor, never by path. The tree being listed is one this
+/// process is writing to, and a path is re-resolved by the kernel on every
+/// call.
+///
+/// ⚠ `.` and `..` are dropped here. Every caller wants the contents, and a
+/// caller that removed what this returned without dropping them would try to
+/// remove the directory it is standing in.
+pub fn getdents64(fd: i64) -> Result<Vec<Dirent>, Errno> {
+    let mut out = Vec::new();
+    let mut buf = vec![0u8; 32 * 1024];
+    loop {
+        let n = unsafe {
+            sys(
+                SYS_GETDENTS64,
+                [fd as u64, buf.as_mut_ptr() as u64, buf.len() as u64, 0, 0, 0],
+            )?
+        } as usize;
+        if n == 0 {
+            break;
+        }
+        let mut off = 0usize;
+        while off + 19 <= n {
+            let reclen = u16::from_ne_bytes([buf[off + 16], buf[off + 17]]) as usize;
+            if reclen == 0 || off + reclen > n {
+                break;
+            }
+            let d_type = buf[off + 18];
+            let name_bytes = &buf[off + 19..off + reclen];
+            let end = name_bytes.iter().position(|b| *b == 0).unwrap_or(0);
+            let name = name_bytes[..end].to_vec();
+            if name != b"." && name != b".." {
+                out.push(Dirent { name, d_type });
+            }
+            off += reclen;
+        }
+    }
+    Ok(out)
+}
+
+/// `readlinkat(2)`. Returns the target as bytes, because a link target in an
+/// image is not guaranteed to be UTF-8.
+pub fn readlinkat(dirfd: i64, path: &CBuf) -> Result<Vec<u8>, Errno> {
+    let mut buf = vec![0u8; 4096];
+    let n = unsafe {
+        sys(
+            SYS_READLINKAT,
+            [
+                dirfd as u64,
+                path.ptr(),
+                buf.as_mut_ptr() as u64,
+                buf.len() as u64,
+                0,
+                0,
+            ],
+        )?
+    } as usize;
+    // ⚠ readlink(2) truncates silently and does not NUL-terminate. A target
+    // that exactly filled the buffer may have been longer, so it is refused
+    // rather than returned short.
+    if n >= buf.len() {
+        return Err(ENAMETOOLONG);
+    }
+    buf.truncate(n);
+    Ok(buf)
 }
 
 /// Never returns. Used only in a probe child.
