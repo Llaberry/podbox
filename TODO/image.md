@@ -600,3 +600,71 @@ Decision:    A stress experiment rather than a unit test. The failure is a race,
              imagined. ⚠ The suite keeps its deterministic tests for the pieces;
              the contract is proved against real concurrent processes.
 Prove:       `./experiments/210-store-concurrency.sh` exits 0 with 8 concurrent workers over 3 references, and the store verifies afterwards
+
+---
+
+### T-0211 An image lock outlives its holder whenever anything forks
+
+Source:      Found by `cargo test --workspace` failing intermittently at the close of M2, then reproduced deliberately
+Category:    image
+Priority:    P1
+Effort:      S
+Status:      open
+
+Problem:     `Store::hold` opens the image lock **without** `O_CLOEXEC`, which
+             is [T-0204](image.md)'s mechanism and is right: the guard has to
+             survive the exec so a concurrent GC cannot delete a rootfs a
+             running payload is using. ⛔ The consequence nothing accounts for
+             is that the fd is inherited by **every** child forked while the
+             lock is held, not only by the payload it was opened for. Any such
+             child keeps the `flock` alive for its whole lifetime, so
+             `Store::in_use` reports an image as held after its holder has
+             released it, and `rmi` and `prune` refuse an image nothing is
+             using.
+Premise:     ⭐ **Measured on 2026-09-08, twice: once by accident and once on
+             purpose.**
+
+             It first appeared as an intermittent failure of
+             `store::tests::an_image_a_container_holds_is_refused_by_rmi_and_skipped_by_prune`
+             at `crates/podbox-image/src/store.rs:792`, the assertion
+             `!s.in_use(&r).unwrap()` immediately after `drop(held)`. It did not
+             reproduce in eleven consecutive runs of that test alone or of the
+             whole `podbox-image` suite, which is what a race looks like: the
+             other thread has to fork inside the window.
+
+             ⛔ **"Flake" is not a root cause**, so it was reproduced
+             deliberately: hold the lock, `clone_fork` a child that sleeps,
+             drop the lock, and ask.
+
+             | when | `in_use` |
+             | --- | --- |
+             | after `drop(held)`, forked child alive | **true** |
+             | after that child exits | **false** |
+
+             ⚠ The forking thread in the test binary is the probe: M0's design
+             is one freshly forked child per probe, and `cargo test` runs tests
+             in parallel threads of one process.
+             ⛔ **It is not confined to tests.** `probe_cache::measure` forks
+             the same way, so any future call that measures the probe while an
+             image lock is held leaks that lock into 50 short-lived children.
+             Today's `pull` takes the probe answer before it holds anything,
+             which is why this has never been seen outside the suite.
+Approach:    Keep the fd inheritable **only across the exec it exists for**, and
+             not across every unrelated fork. Open the lock `O_CLOEXEC` like
+             every other fd in this tree, and clear `FD_CLOEXEC` with
+             `fcntl(F_SETFD, 0)` on that one descriptor immediately before the
+             `execve` that hands the container its rootfs, which is where
+             [enter.md](enter.md) M3 does the exec.
+             ⚠ That inverts the default rather than adding a special case: an
+             fd that escapes into an unrelated child is the accident, and the
+             payload's inheritance is the deliberate act.
+             ⛔ The test that found this is the plant: it has to be made to fail
+             on demand rather than once a week. A case that forks a child while
+             the lock is held, asserts `in_use` is false after the drop, and is
+             therefore red before the fix and green after.
+Decision:    Fix the inheritance, not the test. Marking the test `#[serial]` or
+             giving it its own process would hide a defect that is real outside
+             the suite; the suite found something and the finding is the point.
+             ⚠ `fcntl(2)` is not yet in `crates/podbox-probe/src/sys.rs` and is
+             two lines there.
+Prove:       `cargo test -p podbox-image a_fork_while_the_lock_is_held_does_not_extend_it` passes, and it fails with `O_CLOEXEC` removed from `Store::hold`

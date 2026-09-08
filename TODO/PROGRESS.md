@@ -142,7 +142,7 @@ correction [T-1103](milestones.md)'s own `Prove` needed.
 
 ## Counts
 
-95 entries: 51 open, 5 partial, 2 blocked, 37 done.
+96 entries: 52 open, 5 partial, 2 blocked, 37 done.
 
 ⚠ Eight entries were **authored and not implemented** this session, in their own
 pass per `docs/AGENTS.md`'s routing table: [T-0206](image.md) to
@@ -199,6 +199,31 @@ written last** covers the `SIGKILL`-between-two-entries case that cleanup
 cannot. ⚠ Reverting the marker leaves the cleanup test green and turns only the
 kill test red, which is how it was confirmed the two are independent rather
 than one mechanism written twice.
+
+### ⛔ An intermittent test failure, run to ground rather than re-run
+
+⭐ **`cargo test --workspace` failed once, at the very end, in M1's code.** It
+did not reproduce in eleven consecutive runs. "Flake" is not a root cause, so it
+was reproduced on purpose: hold an image lock, fork a child that outlives the
+drop, release the lock, and ask.
+
+| when | `Store::in_use` |
+| --- | --- |
+| after the holder dropped the lock, forked child alive | **true** |
+| after that child exits | **false** |
+
+⛔ **`Store::hold` opens the lock without `O_CLOEXEC` deliberately** , which is
+[T-0204](image.md)'s mechanism and is right: the guard has to survive the exec
+so a GC cannot delete a rootfs a running payload is using. The consequence
+nothing accounted for is that **every** child forked while the lock is held
+inherits it, not only the payload. In the suite the forking thread is the
+probe, which is one fresh child per probe. Outside the suite,
+`probe_cache::measure` forks the same way.
+
+⚠ **It is authored, not fixed**, per `docs/AGENTS.md`'s routing table:
+[T-0211](image.md), P1, `S`, with the reproduction, the mechanism, the fix
+(`O_CLOEXEC` by default and clear `FD_CLOEXEC` immediately before the one exec
+that wants it) and the test that has to go red before it.
 
 ### Three guards mutation-proved, and one dead code path found
 

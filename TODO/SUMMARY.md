@@ -23,8 +23,8 @@ whose collision blocks M2's own acceptance script on its first day.
 | Headroom under the ceiling | 5,869,328 | 5,717,776 of 8,000,000 | the same |
 | `PT_INTERP` | none | **still none** | `readelf -l`, the same script |
 | Third-party crates in the artefact | 88 | 95 (`tar`, `flate2`, `ruzstd` and their trees) | `cargo tree`, the same script |
-| TODO entries | 95 | 95, none authored this session | `check-todo.py` |
-| Entry statuses | 60 open, 5 partial, 2 blocked, 28 done | **51 open, 5 partial, 2 blocked, 37 done** | `check-todo.py` |
+| TODO entries | 95 | **96**, one authored from a defect found at the close | `check-todo.py` |
+| Entry statuses | 60 open, 5 partial, 2 blocked, 28 done | **52 open, 5 partial, 2 blocked, 37 done** | `check-todo.py` |
 | ⭐ Gate checks | 17 | **18** | `scripts/check-todo.py` |
 | ⭐ Plant cases | 18 caught, 0 missed | **20 caught, 0 missed**, 3 controls quiet | `scripts/plant.sh` |
 | Rust tests | 127 | **173** (10 cli, 67 image, 50 probe, **46 extract**) | `cargo test --workspace` |
@@ -73,6 +73,12 @@ extracting rather than by being told.
 4. ⚠ **A premise of this tree was wrong.** docker's `.Size` here is the
    compressed content, not the uncompressed layers, and equals podbox's blob
    total to the byte. [T-0202](image.md) carries the correction.
-5. ⚠ **`main` is two milestones stale.** See [PROGRESS.md](PROGRESS.md) open
+5. ⛔ **An intermittent test failure was run to ground, not re-run.**
+   `Store::hold` opens the image lock without `O_CLOEXEC` on purpose, so
+   **every** child forked while it is held inherits it, not only the payload it
+   was opened for, and the lock outlives its holder. Reproduced deliberately
+   after eleven clean runs. Authored as [T-0211](image.md), not fixed, because
+   authoring is its own pass.
+6. ⚠ **`main` is two milestones stale.** See [PROGRESS.md](PROGRESS.md) open
    question 6: it is the first time the branch contradiction has had a
    measurable cost, and one sentence from the operator ends it.
