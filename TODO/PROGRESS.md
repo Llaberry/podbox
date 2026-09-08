@@ -223,6 +223,15 @@ than an independent reading. What is still needed is one run on the target.
   everything, and refuses a download whose checksum does not match. All three
   behaviours were driven: the checksum guard on a deliberate mismatch (nothing
   was unpacked), the real install, and a stopped docker daemon being restarted.
+- ⭐ **`scripts/common/result-diff.sh`.** ⚠ Every result file carries the date
+  it was taken, so re-running an experiment always dirties the tree by one
+  line, and a session then has to decide whether two changed lines are a
+  finding. Guessing wrong costs either way: a regression committed as an
+  "update", or a real change discarded as "just the timestamp". This compares
+  the working copy against git's, ignoring the clock lines only, and says
+  which. `experiments/110-` and `130-` print it at the end. ⛔ It never moves
+  their exit codes, which belong to the ceiling and to the three acceptance
+  clauses.
 - ⭐ **`scripts/zig-cc.sh` and `scripts/zig-ar.sh`**, wired into
   `.cargo/config.toml`. `zig cc` carries its own `compiler-rt` and its own musl
   sources, so it is both a pinned input and the answer to the `-lgcc_s`

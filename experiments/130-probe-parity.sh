@@ -160,5 +160,14 @@ fi
 } > "$OUT"
 echo "  written to $OUT"
 
+# ⭐ As in 110-: say whether the re-run reproduced, so a dirty tree carrying
+# only a new date is not mistaken for a finding, or the reverse.
+# ⚠ Never moves the exit code, which belongs to the three acceptance clauses.
+if [ -x "$REPO/scripts/common/result-diff.sh" ]; then
+	echo
+	echo "== against the committed reading"
+	"$REPO/scripts/common/result-diff.sh" "$OUT" || true
+fi
+
 [ "$fail" -eq 0 ] || exit 1
 exit 0

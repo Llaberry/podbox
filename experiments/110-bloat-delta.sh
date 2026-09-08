@@ -226,6 +226,18 @@ fi
 echo
 echo "written to $OUT"
 
+# ⭐ Did this run reproduce the committed reading, or change it? A result file
+# carries the date it was taken, so a re-run always dirties the tree by one
+# line and a caller has to decide whether that is a finding. This says which.
+# ⚠ It never moves the exit code: this script's codes are about the ceiling and
+# the measurement, and overloading them with "the number moved" would make one
+# number carry two statements.
+if [ -x "$REPO/scripts/common/result-diff.sh" ]; then
+	echo
+	echo "== against the committed reading"
+	"$REPO/scripts/common/result-diff.sh" "$OUT" || true
+fi
+
 if [ "$total" -ge "$CEILING_BYTES" ]; then
 	echo
 	echo "FAIL: $total bytes is at or over the ceiling declared in this script." >&2

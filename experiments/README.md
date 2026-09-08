@@ -23,6 +23,14 @@ because a number here is a citation somebody may write down:
 | `targetfs.sh` | the image's ENTRYPOINT. It shapes the filesystem inside the container and then execs `/workspace/.harness/enter.sh`, which is written by `20-`. It is never run from a host |
 | `src/` | the small programs the language comparison of `40-` builds and measures |
 
+⭐ **Re-running an experiment dirties the tree by its date line.**
+`110-` and `130-` end by saying whether every *measured* value reproduced the
+committed one, so that diff is never guesswork:
+
+```sh
+./scripts/common/result-diff.sh experiments/results/bloat-baseline.txt
+```
+
 ## Exit codes
 
 Uniform across all three, per this repository's convention:
