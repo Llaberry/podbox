@@ -126,10 +126,41 @@ re-hashes on the way out, which fires when something outside podbox has edited
 the store, and a test drives that by overwriting a stored blob.
 
 ⚠ **`{{.Size}}` is the compressed bytes podbox holds, and the column says
-`SIZE (STORED)`.** docker's `SIZE` is the sum of the uncompressed layers; M1
-does not extract, so that number has not been measured here and printing
-docker's heading over a different quantity would be a number that was not
-measured. It becomes the extracted size when [extract.md](extract.md) lands.
+`SIZE (STORED)`.** M1 did not extract, so the uncompressed number had not been
+measured here, and printing docker's heading over a different quantity would be
+a number that was not measured.
+
+⭐ **CORRECTED 2026-09-08 BY M2, AND THE PREMISE WAS WRONG.** This paragraph
+said "docker's `SIZE` is the sum of the uncompressed layers". **Measured on
+this host, against the same image by the same digest, it is not.**
+
+| | bytes |
+| --- | --- |
+| `docker image inspect alpine:latest --format '{{.Size}}'` | 3,857,242 |
+| every blob podbox holds for it, summed | **3,857,242** |
+| podbox `{{.Size}}` (layers and config, no manifests) | 3,847,002 |
+| the layer's real uncompressed length, from gzip `ISIZE` | 8,697,856 |
+| `docker history` for the same layer | ~9.07 MB |
+
+docker 29.3.1 here runs the **containerd** image store
+(`io.containerd.snapshotter.v1`), and its `.Size` is the size of the content in
+the content store, which is compressed. It matches podbox's blob total **to the
+byte**; the 10,240 difference against podbox's own `{{.Size}}` is the manifest
+and index blobs, which podbox does not count as image payload.
+
+⛔ **So the divergence this entry documented does not exist on this docker, and
+the open question that asked what to do about it was asking about a claim
+rather than a reading.** ⚠ It is one host and one docker: the classic (non
+containerd) image store reports the uncompressed total, and this is recorded as
+a reading from this machine rather than as docker's definition.
+
+⚠ **And "uncompressed size" is three different numbers**, which is why podbox
+names which one it prints. The tar STREAM length (8,697,856 here, read exactly
+from gzip's trailer) is what `podbox extract` reports and what the space
+precheck needs; the APPLIED filesystem size is what `docker history` shows; and
+`du` over the extracted tree is a third. Reporting any of them as "the"
+uncompressed size without saying which would be the same defect this paragraph
+was written to avoid.
 
 ⚠ **The store is one shared directory with a version discriminator**,
 `store.json`'s `podbox_store: 1`. A store a later podbox wrote is refused by
@@ -146,7 +177,7 @@ Source:      `TOOL.md` section 6.2, section 8; `paper_final.md` section 8.2 and 
 Category:    image
 Priority:    P0
 Effort:      S
-Status:      partial 2026-09-08
+Status:      done 2026-09-08
 
 Problem:     A payload that overshoots the default temporary directory produces
              an error naming neither space nor the directory. On the studied
@@ -176,8 +207,9 @@ Decision:    Refuse up front rather than streaming until `ENOSPC`. A partial
              full, which is the state in which cleanup is least likely to work.
 Prove:       `./experiments/140-space-precheck.sh` exits 0
 
-**Partial, 2026-09-08.** `crates/podbox-image/src/space.rs`, called before any
-download from `crates/podbox-image/src/pull.rs`.
+**Done, 2026-09-08.** `crates/podbox-image/src/space.rs`, called before any
+download from `crates/podbox-image/src/pull.rs` and before any extraction from
+`crates/podbox-extract/src/lib.rs`.
 `experiments/140-space-precheck.sh` exits 0, on two real tmpfs mounts rather
 than fixtures, and the two refusals it drove are:
 
@@ -192,10 +224,28 @@ Destination, free amount, required amount and unit, in both. **0 blobs** were
 written before either refusal, which is the whole point of a precheck: a
 partial store has to be cleaned up on a filesystem that is already full.
 
-⛔ **The remaining half is the second call site.** The entry says "before any
-download **and again before any extraction**", and there is no extraction until
-M2. The check is a function with one caller today and gains the second in
-[extract.md](extract.md) T-0301. That is the only reason this is `partial`.
+⭐ **CLOSED, 2026-09-08, by M2.** The second call site exists:
+`crates/podbox-extract/src/lib.rs` calls the same `space::require` before the
+first layer is read. That was the only reason this was `partial`.
+
+⛔ **It is before the layer LOOP, not inside it, and the placement is the
+point.** An image with no layers, or one whose layers are all already present,
+runs that loop zero times, and a guard inside it would never be reached by the
+caller who has nothing. The same rule caught a real defect in M1's
+`--format` validation, where a template checked inside the loop over records
+was never checked at all against an empty store.
+
+⚠ **What the precheck needs is the UNCOMPRESSED size, and the manifest carries
+the compressed one.** gzip's trailer carries `ISIZE`, the uncompressed length
+modulo 2^32, so a gzip layer's figure is **read rather than guessed**: measured
+on 2026-09-08, alpine's single layer is 3,846,391 bytes compressed and
+8,697,856 uncompressed. A zstd layer, or a gzip trailer that has plainly
+wrapped, falls back to a multiplier, and `Extracted::uncompressed_estimated`
+carries which of the two it was so a caller printing the number can label it.
+⛔ The inode figure IS an estimate in every case, and says so: the real count
+is the number of entries across every layer, which is not known until the
+layers have been read, and reading them is what this check exists to happen
+before.
 
 ⚠ **Two corrections to the entry, both found by writing it.**
 

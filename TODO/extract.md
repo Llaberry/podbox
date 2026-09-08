@@ -22,7 +22,7 @@ Source:      `TOOL.md` section 6.3, `paper_final.md` section 10.4
 Category:    extract
 Priority:    P0
 Effort:      M
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     Shelling out to `tar` inherits its ownership semantics, its exit
              codes and its path behaviour. That is how the ownership wall
@@ -44,7 +44,27 @@ Decision:    In-process over a Rust tar reader, rather than a vendored C
              (T-0203), it is a C dependency that complicates `crt-static`, and
              the entry-level API podbox needs is the smaller half of what it
              offers.
-Prove:       `! ldd target/x86_64-unknown-linux-musl/release/podbox 2>/dev/null | grep -q archive` and `strace -f -e trace=execve podbox pull alpine:latest 2>&1 | grep -c 'execve.*"tar"' | grep -qx 0`
+Prove:       `./experiments/220-extract-path-safety.sh` exits 0, and
+             `strace -f -e trace=execve -o /tmp/e.txt podbox extract --force alpine:latest; grep -c 'execve.*"tar"' /tmp/e.txt` prints 0
+
+**Done, 2026-09-08.** `crates/podbox-extract/src/apply.rs` drives
+`tar::Archive::entries()` and makes every decision itself. 515 entries out of a
+real `alpine`, 4,664 out of a two-layer `voidlinux-musl`.
+
+⭐ **Measured on 2026-09-08, both halves.** The shipped binary reports
+`statically linked` and carries no `archive` anything; a full extraction issues
+**one** `execve`, which is podbox itself. The `Prove` above is rewritten because
+the original piped `grep -c` into `grep -qx 0`, and `docs/AGENTS.md` names that
+exact trap twice: `grep -c` exits 1 on zero matches, so the pipeline's status
+was `grep`'s and the clause could not fail the way it was written.
+
+⚠ **A finding about the crate, not about podbox.** `tar::Builder` REFUSES to
+write a member whose path contains `..` ("paths in archives must not have
+`..`"), and `tar::Archive`'s reader hands that same member straight to the
+caller. The writer's validation is not the reader's, so the hostile archives in
+`experiments/220-extract-path-safety.sh` and in the crate's own tests are built
+at the header level. Taking a Rust tar crate does not make this safe by itself,
+which is what [T-0304](extract.md) is for.
 
 ---
 
@@ -54,7 +74,7 @@ Source:      `TOOL.md` section 6.3, `paper_final.md` section 9.1 and section 10.
 Category:    extract
 Priority:    P0
 Effort:      M
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     `chown` and `lchown` to an unmapped id return **`EINVAL`**, not
              `EPERM`, and that is where GNU tar, containers/storage's layer
@@ -98,7 +118,32 @@ Decision:    A sidecar, not `--no-same-owner` semantics alone. The alternative
              `references/containers__storage/tree/drivers/vfs/driver.go:59-62`.
              That does not change podbox's design and it does change a claim
              about podman, which is T-0205.
-Prove:       `podbox pull alpine:latest && podbox run --rm alpine:latest test -f /etc/shadow && jq -e 'select(.path=="etc/shadow") | .uid==0 and .gid==42 and .applied.gid==0' "$(podbox inspect --format '{{.RootfsPath}}' alpine:latest)/../.meta.jsonl"`
+Prove:       `podbox pull alpine:latest && podbox extract alpine:latest && jq -e 'select(.path=="etc/shadow") | .uid==0 and .gid==42 and .applied.gid==0' "$(podbox inspect --format '{{.RootfsPath}}' alpine:latest)/../.meta.jsonl"`
+
+**Done, 2026-09-08.** `crates/podbox-extract/src/sidecar.rs`, written per entry
+by `crates/podbox-extract/src/apply.rs`. The `Prove` above runs and exits 0
+against a real `alpine`, and the row it reads is, verbatim:
+
+```
+{"path":"etc/shadow","uid":0,"gid":42,"mode":"0640","applied":{"uid":0,"gid":0},"reason":"gid 42 unmapped"}
+```
+
+⭐ **One entry of 515 carried an id this machine could not apply, and it is
+`etc/shadow`.** The measurement in
+`experiments/results/whiteout-contract.txt` check B predicted exactly that file
+and exactly that gid, and the extraction found it without being told.
+`voidlinux-musl` has three: `usr/bin/wall` and `usr/bin/write` at gid 5, and
+`usr/bin/xbps-uchroot` at gid 101.
+
+⛔ **The `Prove` no longer runs `podbox run --rm`**, which is M3, because
+`podbox extract` is the verb that puts the rootfs there and this entry is about
+the sidecar rather than about entering the image. [T-1103](milestones.md)
+carries the clauses that genuinely need M3 and is `partial` for them.
+
+⛔ **The honest half is asserted too.** A test reading only the sidecar would
+pass on an implementation that claimed an ownership it never applied, so
+`the_sidecar_does_not_claim_an_ownership_the_kernel_did_not_apply` checks the
+file on disk and asserts its gid is the extractor's and NOT 42.
 
 ---
 
@@ -108,7 +153,7 @@ Source:      `TOOL.md` section 6.3; measured against `references/indigo-dc__udoc
 Category:    extract
 Priority:    P0
 Effort:      S
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     A whiteout at the **root** of a layer is silently ignored by a
              selector anchored on a slash, and real OCI layers do not write a
@@ -136,6 +181,21 @@ Decision:    Basename matching over any glob. A glob is what produced the
              archive and a bare one.
 Prove:       `./experiments/70-whiteout-contract.sh` exits 0
 
+**Done, 2026-09-08.** `crates/podbox-extract/src/whiteout.rs`.
+
+⭐ **Mutation-proved against the defect it exists for.** Replacing the basename
+test with udocker's own slash-anchored selector (`path.contains("/.wh.")`) turns
+three tests red, and the one that names it is
+`a_root_level_whiteout_is_found_and_a_glob_would_miss_it`. The mutation
+reproduces check D's measured reading exactly: the nested whiteout is found and
+the root-level one is missed.
+
+⚠ **Two cases the entry did not name, both settled here.** `.wh.` with nothing
+after it names no file and is left as an ordinary entry, because turning it into
+a removal of `""` would remove the directory the marker sits in; and a whiteout
+whose own name carries a trailing slash is still a removal, because the
+basename must not depend on the directory marker.
+
 ---
 
 ### T-0304 Refuse an entry that resolves outside the destination, including through a symlink from the same layer
@@ -144,7 +204,7 @@ Source:      `TOOL.md` section 5 M2 acceptance 3, section 6.3; `paper_final.md` 
 Category:    extract
 Priority:    P0
 Effort:      M
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     A crafted layer creates `evil -> /etc` as its first entry and
              writes `evil/passwd` as its second. Both entries are lexically
@@ -173,6 +233,32 @@ Decision:    Refuse rather than sanitize. Rewriting a hostile path to something
              clean one.
 Prove:       `./experiments/220-extract-path-safety.sh` exits 0
 
+**Done, 2026-09-08.** `crates/podbox-extract/src/safety.rs`, and the script
+exits 0 with six checks. `experiments/results/extract-path-safety.txt` is the
+reading; the refusal it captures names the layer digest and the entry:
+
+```
+refusing layer sha256:43a4608399...: the entry "evil/passwd" is not extractable
+because resolving it against what the layers have written so far leaves the
+destination ("evil": ELOOP).
+```
+
+⭐ **BOTH MECHANISMS ARE DRIVEN, ON ONE KERNEL, AND THAT IS DELIBERATE.**
+Measured on 2026-09-08: this host is 6.18.44 and `openat2(2)` is present, so an
+ordinary run never enters the `O_NOFOLLOW` walk and the walk,  which is what
+every kernel before Linux 5.6 runs,  would have shipped having refused nothing.
+`safety::Resolve` exists only so the tests can force it, and
+`the_walk_and_openat2_refuse_the_same_traversal` asserts the two give the same
+answer to the same attack AND both still admit a legitimate path.
+
+⛔ **Mutation-proved.** Removing `RESOLVE_NO_SYMLINKS` and `O_NOFOLLOW` turns
+three tests red, reporting "the traversal was not refused".
+
+⚠ **The refusal is asserted on the FILESYSTEM, not on the exit code.** Check F
+of the script and every refusal test look for the file the hostile layer tried
+to write. A refusal that still wrote it would pass a check that read only the
+status.
+
 ---
 
 ### T-0305 An absolute symlink target is rootfs-relative, not a refusal
@@ -181,7 +267,7 @@ Source:      Found while reading `references/qaidvoid__onelf` against M2
 Category:    extract
 Priority:    P1
 Effort:      S
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     A distro rootfs is full of legitimate absolute symlinks. Rejecting
              them, as a bundle packer reasonably does, would refuse almost every
@@ -205,7 +291,25 @@ Approach:    Interpret an absolute target **relative to the rootfs**, which is
 Decision:    Rebase rather than reject, and rebase rather than dereference at
              extraction time. Dereferencing would bake the build host's tree
              into the image.
-Prove:       `podbox pull voidlinux/voidlinux-musl:latest && podbox run --rm voidlinux/voidlinux-musl:latest readlink /var/cache/xbps` prints nothing and exits non-zero, the link having been whiteouted
+Prove:       `podbox pull voidlinux/voidlinux-musl:latest && podbox extract voidlinux/voidlinux-musl:latest && ! test -L "$(podbox inspect --format '{{.RootfsPath}}' voidlinux/voidlinux-musl:latest)/var/cache/xbps"`
+
+**Done, 2026-09-08.** `safety::rebase_symlink_target`, and driven against the
+image the entry names. `var/cache/xbps` is **gone** from the extracted tree,
+layer 2's single whiteout having removed it, which is the reading the entry
+predicted. **543 symlinks survive**, including `etc/mtab -> /proc/self/mounts`
+(absolute, rebased and allowed), `usr/sbin -> bin` (relative) and
+`var/lock -> ../run/lock` (a legitimate climb).
+
+⛔ **Rebasing decides whether a link is ALLOWED; it never decides what is
+stored.** The link on disk carries the target the image wrote, verbatim, and
+check E of `experiments/220-extract-path-safety.sh` asserts exactly that.
+Storing the rebased form would bake this host's idea of the rootfs into the
+image, which is the same mistake as dereferencing and is what this entry's
+Decision refuses.
+
+⚠ The `Prove` is rewritten: the original ran `readlink` under `podbox run`,
+which is M3, and asserted "prints nothing and exits non-zero",  a shape that
+also passes when `run` itself is missing. It now asks the filesystem.
 
 ---
 
@@ -215,7 +319,7 @@ Source:      `references/indigo-dc__udocker`, read against `TOOL.md` section 6.3
 Category:    extract
 Priority:    P1
 Effort:      S
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     Ownership-neutral extraction leaves directories with the image's
              modes and the extractor's ownership. A mode-0555 directory in
@@ -238,7 +342,29 @@ Decision:    Widen only the owner bits, and only on entries this extraction
              wrote. Widening group or other bits changes what the image means
              for a payload that reads modes, and widening everything makes the
              sidecar the only record of the real image.
-Prove:       `podbox pull docker.io/library/debian:bookworm-slim && podbox run --rm docker.io/library/debian:bookworm-slim true` succeeds on an image whose layers overlay one another
+Prove:       `cargo test -p podbox-extract a_read_only_directory_in_one_layer_can_be_written_into_by_the_next` passes, and `podbox extract voidlinux/voidlinux-musl:latest` succeeds on a two-layer image
+
+**Done, 2026-09-08.** The pass runs after each layer, over what **that layer
+wrote**, and adds owner read, write and execute to directories.
+
+⭐ **The case is crafted, because it has to be.** A two-layer real image does
+not reliably contain a mode-0555 directory in layer 1 that layer 2 writes into,
+so passing on one would say nothing,  the same argument
+[T-0303](extract.md)'s premise makes about root-level whiteouts. The crafted
+pair is exactly that, and it fails without the pass.
+
+⛔ **Owner bits only**, asserted:
+`re_permissioning_widens_the_owner_and_leaves_group_and_other_alone` checks that
+a 0555 directory ends 0755 and that the group and other bits are untouched.
+Widening those would change what the image means for a payload that reads modes.
+⛔ **No `chgrp`**, which is udocker's third action: podbox extracts as the only
+mapped id already.
+
+⚠ The `Prove` no longer runs `podbox run --rm` (M3) against
+`debian:bookworm-slim`. The real two-layer image it now names is one
+[T-1103](milestones.md) already pulls, so the acceptance costs no extra
+registry traffic,  and Docker Hub's anonymous quota is what
+[T-0206](image.md) exists for.
 
 ---
 
@@ -248,7 +374,7 @@ Source:      `TOOL.md` section 6.3, `paper_final.md` section 10.4
 Category:    extract
 Priority:    P1
 Effort:      S
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     Dropping ownership does not discharge the rest of the OCI layer
              contract, and a runtime that treats extraction as "untar each
@@ -267,4 +393,29 @@ Approach:    For each layer in manifest order: apply that layer's whiteouts to
              Preserve symlinks as symlinks; never dereference.
 Decision:    Whiteouts before the layer's own entries, per udocker. The opposite
              order deletes what the same layer just wrote.
-Prove:       `./experiments/70-whiteout-contract.sh` exits 0 and `podbox run --rm voidlinux/voidlinux-musl:latest xbps-install -Sy --dry-run bash` does not report `Symbolic link loop`
+Prove:       `./experiments/70-whiteout-contract.sh` exits 0 and `cargo test -p podbox-extract a_layer_may_delete_a_path_and_recreate_it_in_the_same_layer` passes
+
+**Done, 2026-09-08.** `crates/podbox-extract/src/remove.rs` collects a layer's
+whiteouts and applies them to the accumulated tree **before** that layer's own
+entries, per
+`references/indigo-dc__udocker/tree/udocker/container/structure.py:279`.
+
+⭐ **The ordering is asserted by the one case that distinguishes the two
+orders**: a layer that whiteouts `f` and writes `f`. Under udocker's order the
+new `f` survives; under "whiteouts after the layer" it is deleted by the same
+layer that wrote it. Also driven: an opaque marker empties its directory, keeps
+the directory, and does not remove a file the same layer writes afterwards.
+
+⚠ **It costs a second pass over each layer stream**, because a tar is a stream
+and the whiteouts are scattered through it. The alternative is holding a
+decompressed layer in memory, which for a distro base image is hundreds of
+megabytes. Stated in the module header rather than left for whoever profiles it.
+
+⛔ A hard link is materialised within the destination and one whose target is
+outside it is **refused**, driven both ways. A hard link out of the rootfs is a
+file the payload can write through, which the containment check would otherwise
+never see because the escape is in the link target rather than in the path.
+
+⚠ The `Prove` no longer runs `xbps-install` under `podbox run` (M3). The
+`Symbolic link loop` it watched for is the T-0305 case, and the extracted tree
+is asserted directly there.

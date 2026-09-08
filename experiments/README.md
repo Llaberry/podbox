@@ -78,7 +78,14 @@ decisions podbox has to make. Each writes its transcript to
 ./experiments/150-image-acquisition.sh          # M1's acceptance: podbox's digest against docker's
 ./experiments/160-store-gc.sh                   # a GC under a holder, and the containment check
 ./experiments/170-probe-cache.sh                # the probe cache, and the key the specification got wrong
+./experiments/220-extract-path-safety.sh        # M2: a hostile layer is refused and a distro rootfs is not
 ```
+
+⚠ **The numbers jump from `170-` to `220-`.** `180-` to `210-` are reserved by
+entries M1 authored and not yet written, and a number here is never reused even
+before its script exists. [`../TODO/gate.md`](../TODO/gate.md) T-1205 records
+the four `Prove` clauses that named a taken number, and check 18 of the gate now
+refuses a fifth.
 
 ⛔ `80-`, `90-`, `100-`, `125-`, `130-`, `150-` and `170-` need a running docker
 daemon, and `80-` needs `musl-gcc` for its fourth arm. `110-` needs

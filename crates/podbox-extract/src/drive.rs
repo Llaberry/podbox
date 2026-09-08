@@ -301,10 +301,16 @@ fn a_whiteout_at_the_layer_root_removes_its_target() {
         E::Dir("d/", 0o755),
         E::File("d/nested", b"2", 0o644),
     ]);
-    let two = layer(&[E::File(".wh.atroot", b"", 0o644), E::File("d/.wh.nested", b"", 0o644)]);
+    let two = layer(&[
+        E::File(".wh.atroot", b"", 0o644),
+        E::File("d/.wh.nested", b"", 0o644),
+    ]);
     let removed = run(s.path(), &[one, two]).unwrap();
     assert_eq!(removed, 2, "both whiteouts must have removed something");
-    assert!(!s.path().join("atroot").exists(), "the ROOT-level whiteout is the one a glob misses");
+    assert!(
+        !s.path().join("atroot").exists(),
+        "the ROOT-level whiteout is the one a glob misses"
+    );
     assert!(!s.path().join("d/nested").exists());
     // ⛔ The marker itself is never materialised.
     assert!(!s.path().join(".wh.atroot").exists());
@@ -319,9 +325,15 @@ fn an_opaque_marker_empties_its_directory_and_keeps_it() {
         E::File("var/a", b"1", 0o644),
         E::File("var/b", b"2", 0o644),
     ]);
-    let two = layer(&[E::File("var/.wh..wh..opq", b"", 0o644), E::File("var/c", b"3", 0o644)]);
+    let two = layer(&[
+        E::File("var/.wh..wh..opq", b"", 0o644),
+        E::File("var/c", b"3", 0o644),
+    ]);
     run(s.path(), &[one, two]).unwrap();
-    assert!(s.path().join("var").is_dir(), "the directory itself must survive");
+    assert!(
+        s.path().join("var").is_dir(),
+        "the directory itself must survive"
+    );
     assert!(!s.path().join("var/a").exists());
     assert!(!s.path().join("var/b").exists());
     // ⭐ T-0307's ordering: the opaque marker is applied BEFORE this layer's own
@@ -353,7 +365,10 @@ fn a_layer_may_delete_a_path_and_recreate_it_in_the_same_layer() {
 #[test]
 fn a_hard_link_within_the_destination_is_materialised() {
     let s = Scratch::new("hardlink");
-    let l = layer(&[E::File("orig", b"shared", 0o644), E::Hardlink("copy", "orig")]);
+    let l = layer(&[
+        E::File("orig", b"shared", 0o644),
+        E::Hardlink("copy", "orig"),
+    ]);
     run(s.path(), &[l]).unwrap();
     assert_eq!(std::fs::read(s.path().join("copy")).unwrap(), b"shared");
     let a = std::fs::metadata(s.path().join("orig")).unwrap();
@@ -398,7 +413,8 @@ fn a_read_only_directory_in_one_layer_can_be_written_into_by_the_next() {
     let s = Scratch::new("reperm");
     let one = layer(&[E::Dir("ro/", 0o555)]);
     let two = layer(&[E::File("ro/added", b"ok", 0o644)]);
-    run(s.path(), &[one, two]).expect("the second layer must be able to write into a 0555 directory");
+    run(s.path(), &[one, two])
+        .expect("the second layer must be able to write into a 0555 directory");
     assert_eq!(std::fs::read(s.path().join("ro/added")).unwrap(), b"ok");
 }
 
@@ -410,9 +426,17 @@ fn re_permissioning_widens_the_owner_and_leaves_group_and_other_alone() {
     let s = Scratch::new("ownerbits");
     let one = layer(&[E::Dir("d/", 0o555)]);
     run(s.path(), &[one]).unwrap();
-    let m = std::fs::metadata(s.path().join("d")).unwrap().permissions().mode() & 0o777;
+    let m = std::fs::metadata(s.path().join("d"))
+        .unwrap()
+        .permissions()
+        .mode()
+        & 0o777;
     assert_eq!(m & 0o700, 0o700, "owner rwx must be on: got {m:04o}");
-    assert_eq!(m & 0o077, 0o055, "group and other must be untouched: got {m:04o}");
+    assert_eq!(
+        m & 0o077,
+        0o055,
+        "group and other must be untouched: got {m:04o}"
+    );
 }
 
 // ---------------------------------------------------------------- T-0302
@@ -427,7 +451,10 @@ fn re_permissioning_widens_the_owner_and_leaves_group_and_other_alone() {
 #[test]
 fn the_shadow_file_extracts_and_its_dropped_gid_is_recorded() {
     let s = Scratch::new("shadow");
-    let l = layer(&[E::Dir("etc/", 0o755), E::Owned("etc/shadow", b"root:!::\n", 0, 42)]);
+    let l = layer(&[
+        E::Dir("etc/", 0o755),
+        E::Owned("etc/shadow", b"root:!::\n", 0, 42),
+    ]);
     run(s.path(), &[l]).expect("gid 42 must not stop the extraction");
 
     // ⛔ The file is there. This is where GNU tar, containers/storage,
@@ -456,7 +483,11 @@ fn the_sidecar_does_not_claim_an_ownership_the_kernel_did_not_apply() {
     let l = layer(&[E::Dir("etc/", 0o755), E::Owned("etc/shadow", b"x", 0, 42)]);
     run(s.path(), &[l]).unwrap();
     let md = std::fs::metadata(s.path().join("etc/shadow")).unwrap();
-    assert_ne!(md.gid(), 42, "the gid was somehow applied; the sidecar exists because it cannot be");
+    assert_ne!(
+        md.gid(),
+        42,
+        "the gid was somehow applied; the sidecar exists because it cannot be"
+    );
     assert_eq!(md.gid(), Ids::current().gid as u32);
 }
 
@@ -489,8 +520,7 @@ fn one_layer_store(s: &Scratch, entries: &[E]) -> (podbox_image::Store, String) 
     use std::io::Write as _;
     let store = podbox_image::Store::open(s.path().join("store")).unwrap();
     let tar = layer(entries);
-    let mut gz =
-        flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+    let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
     gz.write_all(&tar).unwrap();
     let blob = gz.finish().unwrap();
 
@@ -517,7 +547,7 @@ fn one_layer_store(s: &Scratch, entries: &[E]) -> (podbox_image::Store, String) 
 /// A refused extraction leaves a directory and a sidecar behind, because the
 /// refusal happens partway through writing them. `is_extracted` asked whether
 /// those two existed, so the very NEXT `podbox extract` of the same image
-/// answered "already done", printed the path and exited **0** — handing back a
+/// answered "already done", printed the path and exited **0**,  handing back a
 /// half-extracted tree with the attacker's symlink still in it. The refusal was
 /// correct and the call after it undid the whole thing.
 #[test]
@@ -525,7 +555,10 @@ fn a_refused_extraction_leaves_nothing_that_reads_as_extracted() {
     let s = Scratch::new("refusedstate");
     let (store, mj) = one_layer_store(
         &s,
-        &[E::Symlink("evil", "/etc"), E::File("evil/passwd", b"pwned", 0o644)],
+        &[
+            E::Symlink("evil", "/etc"),
+            E::File("evil/passwd", b"pwned", 0o644),
+        ],
     );
     let manifest: podbox_image::oci::Manifest = serde_json::from_str(&mj).unwrap();
     let digest = "sha256:1111111111111111111111111111111111111111111111111111111111111111";
@@ -567,7 +600,10 @@ fn a_successful_extraction_reports_as_extracted() {
     // ⭐ The gzip trailer gives the real uncompressed length, so this is a
     // measurement rather than a multiplier.
     assert!(!done.uncompressed_estimated);
-    assert_eq!(done.uncompressed_bytes, layer(&[E::File("f", b"hello", 0o644)]).len() as u64);
+    assert_eq!(
+        done.uncompressed_bytes,
+        layer(&[E::File("f", b"hello", 0o644)]).len() as u64
+    );
 }
 
 /// ⛔ A directory and a sidecar with NO marker is the shape a `SIGKILL` between

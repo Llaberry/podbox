@@ -173,8 +173,11 @@ mod tests {
     /// zero. Zero would pass every space check.
     #[test]
     fn an_unreadable_gzip_blob_estimates_rather_than_returning_zero() {
-        let (n, est) =
-            uncompressed_size(std::path::Path::new("/nonexistent"), Compression::Gzip, 1000);
+        let (n, est) = uncompressed_size(
+            std::path::Path::new("/nonexistent"),
+            Compression::Gzip,
+            1000,
+        );
         assert!(n >= 1000, "{n}");
         assert!(est);
     }

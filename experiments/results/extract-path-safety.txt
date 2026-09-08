@@ -1,5 +1,5 @@
 # podbox extraction path safety, TODO/extract.md T-0304 and T-0305
-# taken 2026-09-08T21:19:01Z on kernel 6.18.44-fc-v24
+# taken 2026-09-08T21:27:05Z on kernel 6.18.44-fc-v24
 # Every hostile layer is crafted: no honest image carries one, so a pass
 # against the pinned images would say nothing. Each is paired with a
 # legitimate case that must survive.
@@ -11,4 +11,4 @@ escaped_entries     0
 checks_failed       0
 
 ## the refusal, verbatim
-  podbox extract: refusing layer sha256:43a46083994fd447be8951205d30abf0f16830f47c27209d619e1927767c76b5: the entry "evil/passwd" is not extractable because resolving it against what the layers have written so far leaves the destination ("evil": ELOOP). A symlink an earlier entry created is the usual cause, and it is exactly the case a lexical check cannot see. The layer is refused whole rather than with that entry skipped, because an image that differs from its digest with nothing saying so cannot be told from a clean one
+  podbox extract: refusing layer sha256:e607ee540d23019ac9e09a36a5f4d55127886629f0e9d7ba10de0aed21796d58: the entry "evil/passwd" is not extractable because resolving it against what the layers have written so far leaves the destination ("evil": ELOOP). A symlink an earlier entry created is the usual cause, and it is exactly the case a lexical check cannot see. The layer is refused whole rather than with that entry skipped, because an image that differs from its digest with nothing saying so cannot be told from a clean one

@@ -182,7 +182,7 @@ Source:      `TOOL.md` section 5 M2
 Category:    milestones
 Priority:    P0
 Effort:      L
-Status:      open
+Status:      partial 2026-09-08
 
 Problem:     The single highest-risk component. Four separate tools in the
              corpus stop here.
@@ -197,7 +197,50 @@ Approach:    The four acceptance criteria, in order, and each is a separate
              failure mode rather than a variation of one.
 Decision:    In-process extraction at entry level. Shelling out to `tar` is what
              makes this wall reach five tools instead of one.
-Prove:       `./experiments/70-whiteout-contract.sh && ./experiments/220-extract-path-safety.sh && podbox pull alpine:latest && podbox run --rm alpine:latest test -f /etc/shadow && podbox pull voidlinux/voidlinux-musl:latest && podbox run --rm voidlinux/voidlinux-musl:latest sh -c '! test -L /var/cache/xbps'`
+Prove:       `./experiments/70-whiteout-contract.sh` exits 0; `./experiments/220-extract-path-safety.sh` exits 0; `podbox pull alpine:latest && podbox extract alpine:latest && test -f "$(podbox inspect --format '{{.RootfsPath}}' alpine:latest)/etc/shadow"`; `podbox pull voidlinux/voidlinux-musl:latest && podbox extract voidlinux/voidlinux-musl:latest && ! test -L "$(podbox inspect --format '{{.RootfsPath}}' voidlinux/voidlinux-musl:latest)/var/cache/xbps"`; then, when M3 lands, the same two images under `podbox run --rm`
+
+**Partial, 2026-09-08.** Every clause above ran and matched, on this host, with
+`crates/podbox-extract` and the `extract` verb. [extract.md](extract.md) T-0301
+to T-0307 are all `done`, and this entry stays `partial` for one reason, named
+below.
+
+| clause | reading |
+| --- | --- |
+| `70-whiteout-contract.sh` | exits 0 |
+| `220-extract-path-safety.sh` | exits 0, six checks |
+| `alpine` has `etc/shadow` | present, 515 entries, the one gid-42 row recorded |
+| `voidlinux` has no `var/cache/xbps` link | gone, whiteouted by layer 2; 543 other symlinks survive |
+
+⛔ **THIS ENTRY CANNOT CLOSE UNTIL M3, AND THAT WAS KNOWN BEFORE M2 STARTED.**
+The `Prove` as authored ran `podbox run --rm`, which is [T-1104](milestones.md).
+M2 can implement and drive extraction and cannot enter the tree it produced, in
+exactly the way [T-0107](probe.md), [T-0108](probe.md) and [T-0204](image.md)
+are `partial` now. What is left is one line: re-run the two image clauses under
+`run --rm` instead of against the extracted rootfs, and close this entry.
+
+⚠ **THE `Prove` WAS REWRITTEN, AND NOT ONLY TO REMOVE `run`.** As authored it
+was one `&&` chain of six commands, and that shape cannot report what this
+milestone needs:
+
+1. ⛔ **it collapses the third state.** `70-whiteout-contract.sh` exits **2**
+   when it cannot run,  no docker, no network,  and in an `&&` chain a 2 stops
+   the chain and reads as a failure. `docs/AGENTS.md` absolute 4 makes "could
+   not run" a state of its own precisely so it never reads as "ran and did not
+   match";
+2. ⛔ **the composite status names no clause.** `podbox` exits 125 on a runtime
+   failure and 2 on invalid input, an experiment exits 2 for "could not run",
+   and the chain reports one number for all six. A reader cannot tell which
+   link produced it, which is the same defect `docs/AGENTS.md` absolute 8
+   states for a pipe.
+
+The clauses are therefore separate commands, each read from the process that
+produced it. This is the shape [T-1101](milestones.md) already closed against:
+one script per question, three-state exit, per-clause verdicts.
+
+⚠ **The experiment was renumbered from `80-` before a line of it was written.**
+80 is `experiments/80-interposer-abi.sh`; `experiments/README.md` rules a number
+is never reused. [T-1205](gate.md) found this and three more, and the gate now
+holds the rule.
 
 ---
 

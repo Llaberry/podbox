@@ -409,7 +409,12 @@ pub fn unlinkat(dirfd: i64, path: &CBuf, flags: u64) -> Sysres {
 }
 
 pub fn symlinkat(target: &CBuf, dirfd: i64, path: &CBuf) -> Sysres {
-    unsafe { sys(SYS_SYMLINKAT, [target.ptr(), dirfd as u64, path.ptr(), 0, 0, 0]) }
+    unsafe {
+        sys(
+            SYS_SYMLINKAT,
+            [target.ptr(), dirfd as u64, path.ptr(), 0, 0, 0],
+        )
+    }
 }
 
 pub fn linkat(olddirfd: i64, old: &CBuf, newdirfd: i64, new: &CBuf, flags: u64) -> Sysres {
@@ -445,14 +450,7 @@ pub fn fchownat(dirfd: i64, path: &CBuf, uid: u32, gid: u32, flags: u64) -> Sysr
     unsafe {
         sys(
             SYS_FCHOWNAT,
-            [
-                dirfd as u64,
-                path.ptr(),
-                uid as u64,
-                gid as u64,
-                flags,
-                0,
-            ],
+            [dirfd as u64, path.ptr(), uid as u64, gid as u64, flags, 0],
         )
     }
 }
@@ -510,7 +508,14 @@ pub fn getdents64(fd: i64) -> Result<Vec<Dirent>, Errno> {
         let n = unsafe {
             sys(
                 SYS_GETDENTS64,
-                [fd as u64, buf.as_mut_ptr() as u64, buf.len() as u64, 0, 0, 0],
+                [
+                    fd as u64,
+                    buf.as_mut_ptr() as u64,
+                    buf.len() as u64,
+                    0,
+                    0,
+                    0,
+                ],
             )?
         } as usize;
         if n == 0 {

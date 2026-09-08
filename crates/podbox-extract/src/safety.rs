@@ -237,11 +237,8 @@ pub fn have_openat2() -> bool {
 }
 
 fn cbuf(s: &str) -> Result<CBuf> {
-    CBuf::new(s).ok_or_else(|| {
-        Error::Extract(format!(
-            "{s:?} contains a NUL and cannot reach the kernel"
-        ))
-    })
+    CBuf::new(s)
+        .ok_or_else(|| Error::Extract(format!("{s:?} contains a NUL and cannot reach the kernel")))
 }
 
 /// Open the **parent** of `parts` beneath `root`, creating directories as
@@ -347,9 +344,9 @@ fn step(
         // saying the resolution left the destination or crossed a symlink.
         // ELOOP is O_NOFOLLOW's refusal, EXDEV is RESOLVE_BENEATH's, and
         // ENOTDIR is a component that is a file.
-        Err(e) if e == Errno(40) || e == Errno(18) || e == Errno(20) => Ok(Err(
-            Refusal::Escapes(format!("{name:?}: {}", e.name())),
-        )),
+        Err(e) if e == Errno(40) || e == Errno(18) || e == Errno(20) => {
+            Ok(Err(Refusal::Escapes(format!("{name:?}: {}", e.name()))))
+        }
         Err(e) => Err(Error::Extract(format!(
             "cannot descend into {name:?}: {}",
             e.name()

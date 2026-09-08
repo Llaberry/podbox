@@ -4,13 +4,15 @@
 order. Rewritten every session. It carries no history: the history is the git
 log and the entries.
 
-**State: M1 complete. `podbox pull` fetches an image over HTTPS into a
-content-addressed store, and the digest it reports is the digest
-`docker image inspect` reports. `images`, `rmi`, `tag`, `image prune` and
-`inspect` work; the probe cache lands beside the store and is already on the
-`pull` hot path. M2, extraction, is next.**
-Session of 2026-09-08, on `claude/podbox-m1-image-acquisition-8p2n3d`; see open
-question 7.
+**State: M2 complete as far as M2 can go. `podbox extract` unpacks an image's
+layers in-process at entry level, refuses an entry that resolves outside the
+destination, records what the image meant about ownership rather than claiming
+it applied it, and survives the `chown` wall four other tools stop at.
+[extract.md](extract.md) T-0301 to T-0307 are all `done` and
+[T-0203](image.md) is closed. [T-1103](milestones.md) is `partial` for one
+reason and one only: its last two clauses need `podbox run --rm`, which is M3.
+M3 is next.**
+Session of 2026-09-08, on `claude/m2-extraction-ypu8qc`; see open question 6.
 
 [INDEX.md](INDEX.md) is the list. [RULES.md](RULES.md) is how this repository is
 worked on. [reference-map.md](reference-map.md) is the corpus.
@@ -81,6 +83,19 @@ is a control of the bogus-argument discriminator, and the consequence is
 | gate coverage | ⛔ not recorded here. It is **self-referential**: writing the number down changes it | `scripts/check-todo.py`, on every run |
 | the gate's checks, planted against | 17 checks, 18 cases; see the acceptance block below | `scripts/plant.sh` |
 | corpus | 30 trees, 154 MB in a fresh clone | `scripts/common/mine-repo.sh` |
+| ⭐ release binary, M2 complete, `x86_64-unknown-linux-musl` | 2,282,224 bytes | `experiments/110-bloat-delta.sh extract` |
+| third-party crates in that binary | 95 | the same script |
+| ⭐ `alpine:latest` extracted | 515 entries, 1 with an id this host cannot apply | `podbox extract` |
+| that one entry | `etc/shadow`, gid 42, exactly as check B predicted | `.meta.jsonl` |
+| ⭐ `voidlinux-musl:latest` extracted | 2 layers, 4,664 entries, 1 whiteout, 3 dropped ids | `podbox extract` |
+| symlinks surviving in that tree | 543, absolute ones rebased-and-allowed, stored verbatim | `find -type l` |
+| `var/cache/xbps` after extraction | gone, whiteouted by layer 2 | `experiments/220-extract-path-safety.sh` and by hand |
+| hostile layers refused | 4 of 4: traversal, `..`, absolute, hard link out | `experiments/220-extract-path-safety.sh` |
+| entries that escaped a destination | **0**, checked on the filesystem rather than on an exit code | the same script |
+| ⭐ `openat2(2)` on this kernel | **present** (6.18.44), so the `O_NOFOLLOW` walk needs forcing to run at all | measured by calling it |
+| `execve` of `tar` during a full extraction | **0**. The only `execve` is podbox itself | `strace -f -e trace=execve` |
+| ⭐ alpine's layer, compressed then uncompressed | 3,846,391 then 8,697,856 bytes, the second read from gzip `ISIZE` | `podbox extract` |
+| ⭐ `docker image inspect --format '{{.Size}}'`, same image | 3,857,242 = podbox's blob total **to the byte**. ⛔ COMPRESSED, not uncompressed: see [T-0202](image.md) | docker 29.3.1, containerd store |
 | `alpine:3.20` `etc/shadow` ownership | uid 0, gid 42 | `experiments/70-whiteout-contract.sh` |
 | OCI layer member-name prefix | no `./` on any layer of either pinned image | `experiments/70-whiteout-contract.sh` |
 | a slash-anchored whiteout glob against a layer-root whiteout | misses it | `experiments/70-whiteout-contract.sh` |
@@ -113,11 +128,21 @@ $ ./experiments/160-store-gc.sh
   rmi refused under a holder, prune named what it skipped, the canary survived
 $ ./experiments/170-probe-cache.sh
   one boot id, two rungs; the confined run refused the host's cache
+$ ./experiments/220-extract-path-safety.sh
+  A traverse / B dotdot / C absolute / D hardlink refused; E legit survived;
+  F containment: nothing was written outside any destination
+$ ./experiments/110-bloat-delta.sh extract
+  total_bytes 2282224   headroom 5717776   delta +1786040   third-party crates 95
 ```
+
+⚠ The acceptance is a list of commands and **not an `&&` chain**, deliberately.
+An experiment exits 2 when it could not run, and a chain collapses that third
+state into a failure and reports one status for every clause. That is the same
+correction [T-1103](milestones.md)'s own `Prove` needed.
 
 ## Counts
 
-95 entries: 59 open, 5 partial, 2 blocked, 29 done.
+95 entries: 51 open, 5 partial, 2 blocked, 37 done.
 
 ⚠ Eight entries were **authored and not implemented** this session, in their own
 pass per `docs/AGENTS.md`'s routing table: [T-0206](image.md) to
@@ -131,221 +156,154 @@ gate refuses a commit where the two disagree.
 
 ## What this session did
 
-⭐ **M1, image acquisition**, and the first podbox code that talks to a network.
-`crates/podbox-image` is 12 modules and is the first member to take a
-`[workspace.dependencies]` pin, so the sweep of the last session stopped being
-inert.
+⭐ **M2, extraction, and it is the component four separate tools in the corpus
+stop at.** `crates/podbox-extract` and the `extract` verb, driven against two
+real images and four crafted hostile ones.
 
-1. **The registry client.** [T-0201](image.md), `done`. Challenge-driven bearer
-   auth, manifests by tag and by digest, indexes resolved to `linux/amd64`,
-   blobs streamed. HTTPS only, at every layer.
-2. **The store.** [T-0202](image.md), `done`. Blobs under `sha256:<hex>`,
-   verified **as they are written**, renamed into `blobs/` only on success, and
-   re-verified on the way out. Images keyed by the digest of the bytes the
-   registry served for the reference that was asked for, which is what makes the
-   milestone's parity hold.
-3. **The space precheck.** [T-0203](image.md), `partial`. Blocks **and** inodes,
-   before any download, with the destination, the free amount, the required
-   amount and the unit in the message. The second call site is before an
-   extraction that does not exist until M2.
-4. **`images`, `rmi`, `tag`, `image prune`, `inspect`, and the GC lock.**
-   [T-0204](image.md), `partial`. An advisory lock on an fd opened **without**
-   `O_CLOEXEC`, so it survives an exec. The `run -d` half of its acceptance is
-   M3.
-5. **The probe cache.** [T-0111](probe.md), `done`, beside the store as its own
-   `Decision` said it would be, and already on the `pull` hot path rather than
-   waiting for M3.
-6. **[T-1102](milestones.md), the milestone, closed against a script**:
-   `experiments/150-image-acquisition.sh`.
+1. **Entry level, in process.** [T-0301](extract.md). `tar::Archive::entries()`
+   with every ownership, permission and path decision made here. ⛔ A library's
+   `unpack()` is the same mistake as shelling out to `tar`, in process.
+2. **The ownership sidecar.** [T-0302](extract.md). `.meta.jsonl` beside the
+   rootfs. Its `Prove` passes verbatim against a real `alpine`, and the one
+   entry of 515 that carries an unmappable id is `etc/shadow` at gid 42, which
+   is exactly what `whiteout-contract.txt` check B predicted.
+3. **Whiteouts on the basename.** [T-0303](extract.md), and mutating it back
+   into udocker's slash-anchored glob reproduces the measured defect.
+4. **Containment, both halves.** [T-0304](extract.md). Lexical, then
+   `openat2(RESOLVE_BENEATH|RESOLVE_NO_SYMLINKS)` against the accumulated tree.
+5. **Absolute symlinks rebased, not refused.** [T-0305](extract.md). 543 links
+   survive in `voidlinux-musl` and the self-referential one is whiteouted away.
+6. **Re-permissioning and the layer order.** [T-0306](extract.md),
+   [T-0307](extract.md).
+7. **[T-0203](image.md) closed**, its second `statvfs` call site placed before
+   the layer loop rather than inside it.
+8. **[T-1205](gate.md) closed**, with check 18 and two plant cases.
 
-### The specification's cache key is wrong, and one run proves it
+### ⛔ A defect the experiment found that no unit test could
 
-⭐ `TOOL.md` section 6.1 says to key the probe cache on
-`/proc/sys/kernel/random/boot_id`. `experiments/170-probe-cache.sh` prints both
-the boot id and the rung, on the host and inside the reconstruction, in one run:
+⭐ **Every decision was correct and the seam between them was not.** A refused
+extraction is refused *partway through*, so it leaves a directory and a sidecar
+behind. `is_extracted` asked whether those two existed. The very next
+`podbox extract` of the same image therefore answered "already done", printed
+the path and exited **0**, handing back a half-extracted tree **with the
+attacker's symlink still in it**. The refusal was correct and the call after it
+undid the whole thing.
 
-```
-host      rung=namespace  boot_id=b538b475-930e-4dd1-9dec-3098dd77212f
-confined  rung=chroot     boot_id=b538b475-930e-4dd1-9dec-3098dd77212f
-```
+It was found by running `experiments/220-extract-path-safety.sh` and reading its
+output, not by a test: the script's own result block re-ran the extraction to
+capture the refusal and captured a success instead.
 
-Equal ids, different verdicts, because the boot id is the **kernel's**. podbox
-keys on the boot id, the mount-namespace inode, the three ID-map files and the
-two seccomp fields, and the confined run named all six that moved and re-probed.
+Two defences, because they cover different failures, and each has its own test:
+the partial tree is removed on every failure path, and a **completion marker
+written last** covers the `SIGKILL`-between-two-entries case that cleanup
+cannot. ⚠ Reverting the marker leaves the cleanup test green and turns only the
+kill test red, which is how it was confirmed the two are independent rather
+than one mechanism written twice.
 
-### Ten defects found by driving the thing rather than reading it
+### Three guards mutation-proved, and one dead code path found
 
-⭐ Each was found by running something. Four are in podbox's own code; the rest
-are in the harness this session wrote, and every one of those came out of
-re-running a script against its own committed reading rather than looking at it
-once.
+⭐ **A guard nobody has seen fail is not a guard**, which is `scripts/plant.sh`'s
+argument applied to this crate.
 
-| what looked right | what it did |
+| mutation | what went red |
 | --- | --- |
-| `hex.bytes().all(|b| b.is_ascii_lowercase() && b.is_ascii_hexdigit())` | refused **every real digest**: `0`-`9` are not lowercase letters. Caught by the store's own tests, which is what they are for |
-| docker's rule that a first component with a dot is a registry | read `../etc/passwd` as a registry called `..`, and the repository check never saw it. The domain has its own validator now |
-| `Path::file_name` on a candidate ending in `..` | returns `None`, so the containment walk could not take the path apart at all. `..` is refused up front now, before anything resolves |
-| the pull transcript | printed the **config blob** as a third `Pull complete` beside two layers, which reads as an image with three layers. docker names layers only |
-| `flock FILE -c 'sleep N'` as a lock holder | the sleep is a **child** and inherits the locked fd, so killing `flock` left the lock held. That is T-0204's mechanism working exactly as designed, arriving as a defect in the harness |
-| ⛔ `20-enter-target.sh --stage <dir>` | **nests on a re-run.** `cp -a src/store dest/store` with `dest/store` present produces `dest/store/store`, so a second run reads the first run's copy. The clause passed for a reason that had nothing to do with what it was testing. Staging a FILE overwrites, which hid it for as long as only files were staged |
-| `150-`'s committed reading | recorded `http_refused_rc 125` against code that exits **2**. Evidence taken before a change, disagreeing with the code it is evidence for. `result-diff.sh` caught it from a FRESH CLONE |
-| ⛔ `grep -c 'Pull complete' \|\| echo 0` | wrote **two** lines. `grep -c` prints 0 and exits 1 on zero matches, so the fallback fired beside the real value. That is the trap `docs/AGENTS.md` names twice, written into a new script by the session that had just read it |
-| ⛔ a registry answering `HTTP 429` | `140-` reported **FAIL** for a clause that never ran and `160-` reported **SUCCESS** for the same. Both discriminate and exit 2 now. `150-` already did |
-| `140-`'s inode clause | was not deterministic: a 12-inode tmpfs may or may not fit the store's own directories, so the record flipped between two honest values on re-runs |
-| `140-`'s recorded transcript | carried the `mktemp` directory, so the file could **never** reproduce. Redacted, as `130-` already does |
+| drop `RESOLVE_NO_SYMLINKS` and `O_NOFOLLOW` | 3 tests, reporting "the traversal was not refused" |
+| basename rule to udocker's `*/.wh.*` | 3 tests; the root-level whiteout is missed, reproducing check D |
+| `is_extracted` back to directory-plus-sidecar | the kill test, and only it |
 
-### `zig cc` stopped being inert, and cost one measurement to wire up
+⛔ **And the fallback was dead code on this machine.** `openat2(2)` is Linux
+5.6; measured on 2026-09-08, this host is 6.18.44 and **has** it, so an ordinary
+run never enters the `O_NOFOLLOW` walk,  which is what every older kernel runs.
+It would have shipped having refused nothing. `safety::Resolve` exists only so
+the tests can force it, and both mechanisms are now asserted to give the same
+answer to the same attack and to still admit a legitimate path.
 
-⛔ **`cargo build` (debug) failed at the link and `cargo build --release`
-succeeded**, on the same tree, the first time a member took the `rustls` pin:
+### Four `Prove` clauses that could not have passed as written
 
-```
-libring-*.rlib(...curve25519.o): undefined reference to `__ubsan_handle_type_mismatch_v1'
-```
+⭐ **Verify, do not accept**, applied to this project's own entries.
 
-`zig cc` with no `-O` compiles in its Debug mode, which instruments with UBSan
-and emits calls to handlers in zig's own `compiler-rt`; `cc-rs` passes no `-O`
-in a cargo debug profile and `-O3` in release, which is why only one broke.
+1. ⛔ **[T-1103](milestones.md)'s was one `&&` chain of six commands.** An
+   experiment exits **2** for "could not run", and in an `&&` chain that stops
+   the chain and reads as a failure; `podbox` exits 125 and 2 for different
+   things; and the chain reports one number for all six with nothing saying
+   which link produced it. Now separate commands, each read from the process
+   that produced it.
+2. ⛔ **[T-0301](extract.md)'s ended `| grep -c ... | grep -qx 0`.**
+   `docs/AGENTS.md` names that trap twice: `grep -c` exits 1 on zero matches and
+   the pipeline reports the last command's status.
+3. **[T-0305](extract.md)'s** asserted `readlink` "prints nothing and exits
+   non-zero" under `podbox run`, a shape that also passes when `run` is missing.
+4. **[T-0302](extract.md)'s, [T-0306](extract.md)'s and
+   [T-0307](extract.md)'s** all ran `podbox run --rm`, which is M3, to check
+   something the extracted tree answers directly.
 
-⚠ **The obvious fix was tried and is worse.** Making `zig cc` the linker as
-well fails on `duplicate symbol: _start`: zig's driver adds its own `crt1.o`
-despite the `-nostartfiles` rustc passes. `scripts/zig-cc.sh` passes
-`-fno-sanitize=undefined` instead, which makes the debug profile match the
-release profile the artefact actually is, and `ZIG_SANITIZE=1` restores it.
+### A premise of this tree, corrected by measurement
 
-⚠ **Changing that wrapper does not rebuild `ring`.** cargo does not track the
-contents of a `CC` program, so `cargo clean -p ring` is needed after editing it.
+⛔ **[T-0202](image.md) said "docker's `SIZE` is the sum of the uncompressed
+layers". On this host it is not.** docker 29.3.1 runs the containerd image
+store, and `.Size` is the **compressed** content size: 3,857,242 bytes, which
+equals podbox's blob total for the same digest **to the byte**. The entry
+carries the table and the caveat that it is one host and one docker.
 
-### Docker Hub's rate limit, and what it changed
+⚠ **"Uncompressed size" is three different numbers**,  the tar stream length,
+the applied filesystem size, and `du` over the result,  so podbox names which
+one it prints. It prints the stream length, read exactly from gzip's `ISIZE`
+trailer where the layer is gzip, and labels it an estimate where it is not.
 
-⚠ **`HTTP 429: TOOMANYREQUESTS: You have reached your unauthenticated pull rate
-limit`** arrives after enough anonymous pulls from one address, and this
-session's own runs reached it. It is a condition of re-running `150-`, which
-must ask docker about the same tag and therefore cannot leave the Hub; the
-script exits **2** and says so, which is correct and is not a failure of
-anything it measures.
+### A finding about the `tar` crate, not about podbox
 
-⭐ `140-` and `160-` compare nothing against docker, so they need a registry
-rather than THE registry, and their default is now
-`public.ecr.aws/docker/library/alpine:latest`. `PODBOX_TEST_IMAGE` overrides all
-three. Establishing that also drove the challenge-driven auth against four
-registries rather than one.
-
-### One reading in the test output that is not a failure
-
-⚠ **`cargo test` prints `error: Unrecognized option: 'probe-child'` many times
-and exits 0.** Every probe re-executes `self_exe` with `--probe-child`, and
-under `cargo test` `self_exe` is the libtest binary, which rejects the flag. The
-probe records each as a `skip` with its reason, which is correct. The volume
-rose this session because `podbox-image`'s tests exercise the real
-`probe_cache::resolve`, which runs the whole set. ⛔ It is recorded rather than
-filtered, because `docs/methodology/gate.md` says to count the test files the
-runner reports against the files on disk: a green pass count beside an
-unexplained error line is a file that never ran, and this one is explained.
-
-### Four new experiments, and the numbering rule that renamed one
-
-- `experiments/140-space-precheck.sh`, `150-image-acquisition.sh`,
-  `160-store-gc.sh`, `170-probe-cache.sh`. All four exit 0, all four print
-  their conditions, and all four end with `result-diff.sh`.
-- ⚠ [T-0203](image.md)'s `Prove` named `90-space-precheck.sh`, and 90 is
-  `experiments/90-nsswitch-contract.sh`. `experiments/README.md` rules that a
-  number is never reused. The entry carries the correction and the `Prove` names
-  `140-`.
-- ⚠ `150-` and `160-` pull `alpine:latest`, which is a **moving tag**. `150-`
-  detects that case rather than reporting it as a wrong digest: it re-pulls both
-  once and says which of the two it was. `PODBOX_TEST_IMAGE` removes the race.
-
-### What the four review passes found
-
-⭐ Each pass asked a different question, and each found something.
-
-1. **Is it true?** Every reference citation in the new code was opened at its
-   line: `onelf`'s verify-before-exec at `main.rs:149-157` and its
-   lock-through-exec at `main.rs:275-278`, dwarfs's status-code-as-byte-count at
-   `filesystem_extractor.cpp:544-552`, and memfd-exec's unchecked temp-dir
-   fallback at `executable.rs:580-584`. All four say what the entries say they
-   say. Every number written into this file was re-read from the thing that
-   produces it: the binary size, the delta, the headroom, the crate count, the
-   line and file counts, the script and result counts. All matched. ⚠ One
-   apparent finding was not one: a grep reported two declarations of the size
-   ceiling, and the second is `scripts/plant.sh` READING the value out of its
-   one home rather than declaring it.
-2. **Is it consistent?** Three numbers had moved and their sentences had not:
-   the root `README.md` said `podbox probe` works and nothing else does,
-   `experiments/README.md` listed neither the four new scripts nor the daemon
-   they need, and `.cargo/config.toml` still called the `zig cc` lines inert.
-   All three are corrected. Every verb the documents name is dispatched, every
-   experiment the README names exists, and the counts agree across
-   [INDEX.md](INDEX.md), this file and the rows.
-3. **Is it usable cold?** The whole M1 surface was driven as a first-time user
-   would, including twenty error cases against an **empty store**, which is the
-   state a first-time user is actually in. ⭐ **That is where the worst defect
-   of the session was found**: `--format` was validated inside the loop over
-   records, an empty store means zero iterations, and
-   `podbox images --format '{{.Nope}}'` printed nothing and exited **0**. A
-   caller's typo read as an empty result set. `--format 'table {{.Tag}}'`
-   printed `table latest` and exited 0. Both are refusals now, checked before
-   the store is opened. [T-0807](cli.md) carries it.
-4. **What is the worst input, ordering and partial failure?** Two concurrent
-   pulls into one store: both exit 0, one image, four blobs, the index parses,
-   no staging file left. An interrupted pull: nothing in `blobs/`, and the next
-   pull succeeds. No bearer token in the transcript or anywhere under the store.
-   ⚠ **The gap this pass found is recorded rather than fixed**, because fixing
-   it is not M1's scope: a process killed with SIGKILL mid-blob leaves a
-   `*.partial` file that nothing sweeps, and the orderings that were NOT driven
-   are the interesting ones. [T-0210](image.md) is that work, and it is `L`.
+⚠ **`tar::Builder` refuses to write a member whose path contains `..`, and
+`tar::Archive`'s reader hands that same member straight to the caller.** The
+writer's validation is not the reader's. Every hostile archive in the tests and
+in `220-` is therefore built at the header level, which is what an attacker
+does. Taking a Rust tar crate does not make any of this safe by itself.
 
 ## In progress
 
-Nothing. [T-0203](image.md) and [T-0204](image.md) are `partial` with exactly
-one half named each, and each names the milestone that half lands in. The seven
-entries authored this session are authored and not started, which is what
-`docs/AGENTS.md`'s routing table requires of an authoring pass.
+Nothing. [T-1103](milestones.md) is `partial` with exactly one half named,  its
+last two clauses need `podbox run --rm`,  and [T-0107](probe.md),
+[T-0108](probe.md) and [T-0204](image.md) are `partial` for halves that need the
+same verb. All four land in M3, and each names exactly what is left.
 
 ## The work order
 
 ⭐ **This is the only work order.** Do not take one from the index or from a
 kickoff prompt.
 
-1. **M2, extraction.** [T-1103](milestones.md) and [extract.md](extract.md).
-   The highest-risk component, and three of its four acceptance criteria are
-   already measured. ⭐ It also closes the half [T-0203](image.md) is `partial`
-   for: the second `statvfs` call site, before an extraction that now exists.
-   `tar`, `flate2` and `ruzstd` are pinned in `[workspace.dependencies]` and
-   are still untaken by any member.
-2. **M3, `run`.** [T-1104](milestones.md), [enter.md](enter.md),
-   [cli.md](cli.md). ⭐ It closes three halves: [T-0107](probe.md),
-   [T-0108](probe.md) and [T-0204](image.md), and all three name exactly what is
-   left. It is also where `podbox probe --cached` gets its second caller.
-3. Then M4, M5, M6, M7 in order. [T-0709](interpose.md) and
+1. **M3, `run`.** [T-1104](milestones.md), [enter.md](enter.md),
+   [cli.md](cli.md). ⭐ **It closes four halves now, not three**:
+   [T-0107](probe.md), [T-0108](probe.md), [T-0204](image.md) and
+   [T-1103](milestones.md), and each names exactly what is left. It is also
+   where `podbox probe --cached` gets its second caller, and the rootfs it
+   enters is the one `podbox extract` now produces.
+2. Then M4, M5, M6, M7 in order. [T-0709](interpose.md) and
    [T-0410](complete.md) are both P0 and both land inside M6 and M5
    respectively; neither needs a measurement that has not been taken.
 
-⭐ **Two of this session's own entries are P1 and belong beside M2 rather than
-after M7**, because both are about M1's own gate rather than about a new
-capability:
+⭐ **Three entries are P1 and belong beside M3 rather than after M7**, because
+each is about the gate rather than about a new capability:
 
-- [T-0206](image.md), the registry fixture, `L`. M1's acceptance currently
-  depends on Docker Hub's anonymous quota, and this session exhausted it. A gate
-  a third party can turn red is not a gate.
+- [T-0206](image.md), the registry fixture, `L`. The acceptance depends on
+  Docker Hub's anonymous quota, and M1 exhausted it. A gate a third party can
+  turn red is not a gate. ⚠ M2 made this worse rather than better: `extract`
+  needs a pulled image, so the acceptance now spends quota on two images.
 - [T-0210](image.md), the store's concurrency contract, `L`. One ordering of one
   case was driven; the contract is not written down, so every future change to
   the store is a change to an unstated one.
 - [T-1204](gate.md), `S`. Check 17 holds M0's baseline under the ceiling and no
-  longer holds the shipping binary, which is now four times larger.
-- ⛔ [T-1205](gate.md), `S`, **and it bites M2 on its first day.** Sweeping every
-  `Prove` against `experiments/` found **four** entries naming an experiment
-  number that is already taken, and `experiments/README.md` rules that a number
-  is never reused. One of the four is [T-1103](milestones.md)'s own acceptance,
-  which is the next milestone. [T-0203](image.md) hit the same defect this
-  session and it cost a renumbering mid-flight; nothing checks it, so it will
-  keep happening.
+  longer holds the shipping binary. ⚠ **The gap widened this session**: the
+  committed baseline is 496,184 bytes and the shipping binary is now
+  **2,282,224**, four and a half times it, against a ceiling of 8,000,000. The
+  ceiling is still honoured; what nothing holds is the number that grew.
 
-⛔ **[T-1103](milestones.md)'s `Prove` also needs `podbox run --rm`, which is
-M3.** M2 can therefore implement and drive extraction but cannot close its own
-acceptance until M3 lands, in the same way [T-0204](image.md) is `partial` now.
-That is worth knowing before M2 starts rather than at its end.
+⛔ **What M2 could not do, and it was known before M2 started.**
+[T-1103](milestones.md)'s acceptance runs `podbox run --rm`, which is M3, so M2
+implemented and drove extraction and could not close its own milestone. The
+entry is `partial` with the two remaining clauses written out, in the same shape
+[T-0204](image.md) uses. ⚠ **Six other `Prove` clauses named `run` for something
+the extracted tree answers directly**, and those were rewritten rather than
+deferred: an entry that waits on another milestone to check a fact it can
+already check is an entry that goes untested for a milestone.
 
 ⚠ [T-0207](image.md), [T-0208](image.md) and [T-0209](image.md) are P2 `L`
 entries and are not in the order. Each names what it needs and none blocks a
@@ -357,7 +315,7 @@ They are worth doing when something else touches the same ground.
 ⚠ [T-0801](cli.md), the verb and flag parity table, and [T-0802](cli.md),
 docker's exit codes unaltered, are M3's. Until they land the CLI's contract is
 the one [T-0110](probe.md) settled: invalid input exits 2, a runtime failure
-exits 125. The M1 verbs follow that and not docker's per-verb codes.
+exits 125. The M1 and M2 verbs follow that and not docker's per-verb codes.
 
 ## Open questions for the operator
 
@@ -389,19 +347,42 @@ exits 125. The M1 verbs follow that and not docker's per-verb codes.
    reading, not a diagnosis. It bears on what podbox may assume about payloads
    in an image, and the row is also the one distribution whose `nsswitch: compat`
    setting is therefore untested for the passwd question.
-6. ⭐ **What `{{.Size}}` should report.** docker's `SIZE` is the sum of the
-   **uncompressed** layers; M1 does not extract, so podbox prints the
-   compressed bytes it holds and heads the column `SIZE (STORED)` rather than
-   printing a number it has not measured under docker's heading. M2 makes the
-   uncompressed figure available. The alternative is to keep reporting stored
-   bytes and document the divergence permanently, and [T-0202](image.md)
-   carries both readings.
-7. ⚠ **The branch.** [`../docs/AGENTS.md`](../docs/AGENTS.md)'s first absolute
-   and [RULES.md](RULES.md) section 2 both say `main`. The harness this session
-   ran under named `claude/podbox-m1-image-acquisition-8p2n3d` and said never to
-   push elsewhere without permission, and this session's operator prompt named
-   no branch. `docs/AGENTS.md`'s closing section orders the operator's word
-   first, and the only branch the operator named this session is that one, so
-   work is on it. ⛔ **The previous session resolved the same contradiction the
-   other way**, because its prompt said `main` in so many words. That the answer
-   flips with the prompt is the finding, and a standing ruling would end it.
+6. ⚠ **The branch, and it now has a cost rather than only a contradiction.**
+   [`../docs/AGENTS.md`](../docs/AGENTS.md)'s first absolute and
+   [RULES.md](RULES.md) section 2 both say `main`. The harness named
+   `claude/m2-extraction-ypu8qc` and said never to push elsewhere without
+   permission, and this session's operator prompt named no branch,  it pointed
+   at this question and left the decision here. `docs/AGENTS.md`'s closing
+   section orders the operator's word first, so with no branch named the
+   harness's is the one that stands, exactly as M1 reasoned. Work is on
+   `claude/m2-extraction-ypu8qc`.
+
+   ⛔ **THE COST IS NOW MEASURABLE, AND IT WAS NOT WHEN M1 ASKED.** Three
+   sessions have each applied the same rule and landed differently because the
+   prompts differed, and the result is that **`origin/main` carries no M1 and no
+   M2**: measured at the start of this session, `main` is `a4ab727`, M0's tip,
+   and has neither the store, `pull`, nor `space.rs`. Every branch is a strict
+   fast-forward of the last, so nothing is lost and nothing conflicts,  this
+   session based itself on the M1 branch rather than on `main`, which is the
+   only reason M2 could build on M1 at all. But `main` is now two milestones
+   stale, a clone of it cannot run the acceptance in `PROGRESS.md`, and the next
+   session inherits a fourth branch and the same decision.
+
+   ⭐ **What would end it, in one sentence from the operator:** either "always
+   work on `main`, the harness notwithstanding", or "the harness branch is
+   correct, and `main` is a release branch somebody merges into". Either answers
+   it permanently; the current state answers it once per session, differently.
+   ⚠ Until then, **a session that takes the harness branch must base it on the
+   previous branch's tip and not on `main`**, or it silently reverts two
+   milestones. That is written here because it is the part that is not obvious
+   and the part that would do real damage.
+7. ⭐ **ANSWERED BY MEASUREMENT, and the premise was wrong.** This asked what
+   `{{.Size}}` should report, on the stated basis that "docker's `SIZE` is the
+   sum of the uncompressed layers". Measured on 2026-09-08 against the same
+   image by the same digest: docker 29.3.1 here runs the containerd image store
+   and its `.Size` is **3,857,242 bytes, the COMPRESSED content**, which equals
+   podbox's blob total to the byte. The divergence the question worried about
+   does not exist on this docker. ⚠ It is one host and one docker,  the classic
+   image store reports the uncompressed total,  and [T-0202](image.md) carries
+   the table, the caveat, and the fact that "uncompressed size" is three
+   different numbers of which podbox names the one it prints.

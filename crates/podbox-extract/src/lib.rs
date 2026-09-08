@@ -188,11 +188,7 @@ pub fn extract(
     }
 }
 
-fn done_ok(
-    sidecar: sidecar::Sidecar,
-    total: &mut Extracted,
-    rootfs: &Path,
-) -> Result<()> {
+fn done_ok(sidecar: sidecar::Sidecar, total: &mut Extracted, rootfs: &Path) -> Result<()> {
     total.ownership_dropped = sidecar.dropped();
     let (rows, _) = sidecar.finish()?;
     total.sidecar_rows = rows;

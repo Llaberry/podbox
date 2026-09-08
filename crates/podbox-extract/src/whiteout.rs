@@ -107,7 +107,10 @@ mod tests {
     fn opaque_is_its_own_kind_and_is_not_a_removal_of_a_file_called_wh_opq() {
         assert_eq!(classify(".wh..wh..opq"), Kind::Opaque);
         assert_eq!(classify("var/cache/.wh..wh..opq"), Kind::Opaque);
-        assert_eq!(dirname_parts("var/cache/.wh..wh..opq"), vec!["var", "cache"]);
+        assert_eq!(
+            dirname_parts("var/cache/.wh..wh..opq"),
+            vec!["var", "cache"]
+        );
         assert!(dirname_parts(".wh..wh..opq").is_empty());
     }
 

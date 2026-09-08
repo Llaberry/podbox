@@ -14,11 +14,11 @@ and exit codes, and where it cannot honour something it says so in one line.
 
 ## State
 
-**`podbox probe` and image acquisition work. Nothing runs a container yet.**
-This tree is milestones M0 and M1 of
+**`podbox probe`, image acquisition and extraction work. Nothing runs a
+container yet.** This tree is milestones M0, M1 and M2 of
 [`TOOL.md`](references/Azathothas__container-research/tree/TOOL.md) section 5:
-the probe, then `pull` and the store. Every other verb exits 125 and says so.
-The next milestone is M2, extraction.
+the probe, then `pull` and the store, then unpacking a rootfs. Every other verb
+exits 125 and says so. The next milestone is M3, `run`.
 
 ```sh
 podbox probe            # the rung on stdout, the evidence on stderr, exit 0
@@ -33,6 +33,8 @@ podbox tag alpine:latest myalpine:v1
 podbox rmi myalpine:v1
 podbox image prune -af
 podbox inspect alpine:latest
+
+podbox extract alpine:latest        # unpack the layers, print the rootfs path
 ```
 
 ⛔ **It reports the mode it achieved and never lets a weaker one satisfy a
@@ -46,12 +48,24 @@ Every blob is verified as it is written, blocks **and inodes** are checked at
 the destination before anything is fetched, and a registry offering only
 `http://` is a named refusal rather than a downgrade.
 
+⛔ **Extraction never restores ownership, and says what it could not apply.**
+`chown` to an id the user namespace does not map returns `EINVAL`, and that is
+where four other tools in the corpus stop. podbox extracts ownership-neutrally
+and records what the image intended in `.meta.jsonl` beside the rootfs, keyed by
+path. ⚠ That sidecar changes no kernel permission check and is never presented
+as though it does.
+
+⛔ **An entry that resolves outside the destination is refused and the
+extraction fails.** Including one that traverses a symlink an earlier entry of
+the same layer created, which is the case a lexical check cannot see. A
+repaired layer cannot be told from a clean one, so podbox does not repair one.
+
 `TODO/PROGRESS.md` carries the state line, the counts and the work order.
 
 | path | what it is |
 | --- | --- |
 | [`TODO/`](TODO/) | the work. `INDEX.md` lists every entry, `PROGRESS.md` carries the order, `reference-map.md` carries the corpus and its licence determinations |
-| [`crates/`](crates/) | the workspace of `TOOL.md` section 4.3. `podbox-probe`, `podbox-image` and the M0 and M1 verbs of `podbox-cli` are implemented; the rest are skeletons |
+| [`crates/`](crates/) | the workspace of `TOOL.md` section 4.3. `podbox-probe`, `podbox-image`, `podbox-extract` and the M0 to M2 verbs of `podbox-cli` are implemented; the rest are skeletons |
 | [`references/`](references/) | the corpus: 30 trees at pinned commits, with their trackers. Tracked, in the tree |
 | [`experiments/`](experiments/) | the reconstruction of the target runtime, seeded from `Azathothas/container-research`, plus this project's own measurements |
 | [`scripts/`](scripts/) | the gate, the count scripts, the corpus fetcher, the environment bootstrap, and the `zig cc` wrappers |
