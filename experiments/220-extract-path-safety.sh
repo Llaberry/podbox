@@ -100,6 +100,13 @@ t = tarfile.open(out, "w")
 def add(name, data=b"", mode=0o644, typ=tarfile.REGTYPE, link=""):
     i = tarfile.TarInfo(name)
     i.mode, i.type, i.linkname, i.size = mode, typ, link, len(data)
+    # ⛔ EVERY FIELD PINNED, so the layer's digest is the same on every run.
+    # Without this the tarball carries this run's mtime, its sha256 differs
+    # every time, and the digest lands in the tracked reading below: a reading
+    # that changes on every run can never be diffed or reproduced, which is
+    # what scripts/common/result-diff.sh exists to catch. It caught exactly
+    # this on 2026-09-08.
+    i.mtime, i.uid, i.gid, i.uname, i.gname = 0, 0, 0, "", ""
     t.addfile(i, io.BytesIO(data) if data else None)
 
 if kind == "traverse":
@@ -126,7 +133,9 @@ elif kind == "legit":
     add("usr/bin/true", b"#!/bin/sh\n", mode=0o755)
 t.close()
 PY
-  gzip -kf "$OUT/$name.tar"
+  # ⛔ `-n`: gzip otherwise writes the current time into the header, which
+  # would move the digest on every run even with the tar pinned above.
+  gzip -nkf "$OUT/$name.tar"
 }
 
 # install NAME REPO -> writes the blobs and a store record, echoes nothing
