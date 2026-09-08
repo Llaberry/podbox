@@ -31,9 +31,16 @@ Premise:     ⭐ **Measured on this tree.** Two defect classes the gate could no
              `os.path.isfile` asks this disk rather than a fresh clone, so an
              untracked file reads as present to whoever ran it last and absent
              to everybody else.
-             Coverage before and after, from the gate's own line: citations
-             examined outside `TODO/` went from **1** to **11**, and bare path
-             citations from **0**, an unchecked class, to **280**.
+             ⛔ **The coverage counts are recorded nowhere, and that is a
+             finding rather than an omission.** They are self-referential: this
+             file's own citations are among the things counted, so writing the
+             number down changes it. Measured while writing this entry, twice:
+             `todo_links` moved from 261 to 262 because recording 261 added a
+             link. `./scripts/check-todo.py` prints the reading on every run,
+             and no document copies it.
+             What is fixed rather than measured, and safe to state: bare path
+             citations were an **unchecked class** before this entry, and
+             `tree_citations` counted **1**.
 Approach:    Checks 11 to 14 of `scripts/check-todo.py`. Citations and links are
              resolved across every tracked file this project wrote, against
              `git ls-files` rather than the filesystem. `references/` and the
@@ -136,8 +143,10 @@ Premise:     ⭐ **Measured here, and it is why this entry exists.**
              archlinux-latest     glibc  files systemd           seen
              ```
 
-             ⚠ **Five distinct shapes of `nsswitch` across eleven rows**, which
-             is the whole argument for T-0410 probing rather than assuming.
+             ⚠ **Six distinct shapes of `nsswitch` across eleven rows**:
+             `files`, `files systemd`, `sss files systemd`, `compat`, a file
+             present with no `passwd` line, and no file at all. That is the
+             whole argument for T-0410 probing rather than assuming.
              ⛔ **And one row where a static glibc binary does not run at all.**
              `rc136` is 128 plus 8, SIGFPE, on `opensuse-leap-15.6`, from a
              probe built on this host's glibc 2.39 and static-linked. That is a

@@ -39,8 +39,10 @@ the reconstruction cannot run here and report `SKIP`.
 | the same file under a non-`files` service | **ignored**, `getpwnam` returns NULL | `experiments/90-nsswitch-contract.sh` |
 | glibc gconv modules recording `DT_NEEDED libc.so.6` | 253 of 253 | `experiments/90-nsswitch-contract.sh` |
 | distributions where a supplied `/etc/passwd` is read | 10 of 11 | `experiments/125-across-distributions.sh` |
-| distinct `nsswitch` `passwd` shapes across those 11 | 5 | `experiments/125-across-distributions.sh` |
+| distinct `nsswitch` `passwd` shapes across those 11 | 6 | `experiments/125-across-distributions.sh` |
 | a static glibc binary on `opensuse-leap-15.6` | **SIGFPE**, rc 136 | `experiments/125-across-distributions.sh` |
+| gate coverage | ⛔ not recorded here. It is **self-referential**: writing the number down changes it | `scripts/check-todo.py`, on every run |
+| the gate's checks, planted against | 12 caught, 0 missed; 3 controls quiet | `scripts/plant.sh` |
 | corpus | 30 trees, 152 MB in a fresh clone plus 27 MB of git objects | `scripts/common/mine-repo.sh` |
 | `alpine:3.20` `etc/shadow` ownership | uid 0, gid 42 | `experiments/70-whiteout-contract.sh` |
 | OCI layer member-name prefix | no `./` on any layer of either pinned image | `experiments/70-whiteout-contract.sh` |
@@ -89,8 +91,10 @@ implementation code.
    `scripts/check-todo.py` resolve citations and links across every tracked file
    this project wrote, against `git ls-files` rather than the filesystem, and
    check 14 resolves a **bare** path with no line number, which is the shape the
-   defect that opened issue 6 actually took. Coverage went from 1 citation
-   examined outside `TODO/` to 11, and from 0 bare citations to 315.
+   defect that opened issue 6 actually took. Before it, `tree_citations` was 1
+   and bare path citations were an unchecked class. ⚠ The counts move with every
+   commit that adds a sentence, so the current reading is whatever
+   `./scripts/check-todo.py` prints and is not copied into an entry.
 3. **The gate's checks are planted against.** [T-1202](gate.md).
    `scripts/plant.sh` breaks each check and asserts it goes red **with that
    check's own message**. Its first run found a case that landed its mutation
@@ -137,7 +141,7 @@ settled it.
   `readelf` away with nothing run, which [T-0709](interpose.md) turns into a
   selection rather than an attempt. [T-0702](interpose.md) is no longer blocked.
 - ⭐ **A measurement taken on one host is a property of that host.**
-  [T-1203](gate.md) is the runner, and its first eleven-row reading found five
+  [T-1203](gate.md) is the runner, and its first eleven-row reading found six
   distinct `nsswitch` shapes and one distribution where a static glibc binary
   does not run at all.
 

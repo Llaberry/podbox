@@ -30,7 +30,14 @@
  13. the dangling links inside the verbatim methodology copy are exactly the
      recorded set. They point at template infrastructure this project did not
      adopt. Holding the count is what stops a tenth appearing unnoticed;
- 14. ⭐ every check above examined something. A check that runs zero assertions
+ 14. every BARE path named in backticks anywhere this project wrote resolves to
+     something git tracks. Check 11 sees only a `path:line`, and the citation
+     that actually broke this repository carried no line number. Two exemptions,
+     both narrow and both visible in the source: a path under
+     `experiments/results/`, which is where a measurement not yet taken will
+     land, and a line carrying the `known-absent` token, which is how a document
+     names something deliberately not here;
+ 15. ⭐ every check above examined something. A check that runs zero assertions
      and a check whose assertions all pass produce the same exit code, and the
      first is the state this repository was actually in at its first commit.
      The coverage line below is printed on every run and a zero in it is a
@@ -78,7 +85,7 @@ KNOWN_VERBATIM_DANGLING = 9
 # carry citations worth resolving.
 SOURCE_SUFFIXES = (".rs", ".sh", ".py", ".toml", ".yml", ".yaml")
 
-# ⭐ The one exemption from check 15, and it is narrow on purpose.
+# ⭐ The first of check 14's two exemptions, and it is narrow on purpose.
 # `experiments/results/` is where a measurement lands, so an entry whose work is
 # to take that measurement cites a file that does not exist yet. That is a
 # forward reference and it is the point of the entry. Everything else that
@@ -87,7 +94,7 @@ SOURCE_SUFFIXES = (".rs", ".sh", ".py", ".toml", ".yml", ".yaml")
 # `path:line` check therefore could not see.
 FORWARD_REF_PREFIX = "experiments/results/"
 
-# ⭐ The second and last exemption from check 14, and it is per LINE rather than
+# ⭐ The second and last of check 14's exemptions, per LINE rather than
 # per file, so it cannot be turned on for a whole document by accident. A line
 # carrying this token names paths that are deliberately absent: the known-gaps
 # table in docs/AGENTS.md lists template infrastructure podbox did not adopt,
@@ -169,7 +176,7 @@ def is_ours(rel):
 
 
 def check_tree(files):
-    """Checks 11, 12 and 13: citations and links outside TODO/."""
+    """Checks 11 to 14: citations and links outside TODO/."""
     dangling_verbatim = 0
     for rel in sorted(files):
         if rel.startswith(CORPUS_PREFIX):
@@ -446,10 +453,10 @@ def main():
             err("TODO/PROGRESS.md",
                 f"the count line is not the rows. Expected exactly:\n    {want_prog}")
 
-    # -- 11, 12, 13. the rest of the tree ------------------------------------
+    # -- 11 to 14. the rest of the tree --------------------------------------
     files = tracked_files()
     if files is None:
-        print("check-todo: `git ls-files` failed, so checks 11 to 13 could not "
+        print("check-todo: `git ls-files` failed, so checks 11 to 14 could not "
               "run. This is not a pass.", file=sys.stderr)
         return 2
     check_tree(files)

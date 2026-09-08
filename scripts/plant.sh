@@ -43,7 +43,7 @@ command -v git >/dev/null 2>&1 || { echo "SKIP: no git" >&2; exit 2; }
 
 # ⛔ GUARD 3: ONE LIST. Everything any case may touch is named here once, and
 # both the backup and the restore iterate this and nothing else.
-FILES="TODO/INDEX.md TODO/PROGRESS.md TODO/probe.md TODO/reference-map.md README.md"
+FILES="TODO/INDEX.md TODO/PROGRESS.md TODO/probe.md TODO/reference-map.md README.md docs/conventions/prose.md"
 
 # ⛔ Refuse to start over staged work. Guard 2 makes the restore safe, but a
 # dirty index means the "clean" baseline below is not clean, and every case
@@ -146,6 +146,9 @@ echo "== plants"
 case_plant "1 row without an entry" "has a row and no entry" \
   sh -c 'printf "| [T-9999](probe.md) | P0 | probe | open | A row naming nothing |\n" >> TODO/INDEX.md'
 
+case_plant "2 entry without a row" "has an entry and no row" \
+  sh -c 'printf "\n---\n\n### T-9998 An entry no row names\n\nStatus:      open\n" >> TODO/probe.md'
+
 case_plant "3 status disagreement" "disagrees with the index" \
   sh -c 'sed -i "0,/^Status:      open$/s//Status:      blocked/" TODO/probe.md'
 
@@ -184,9 +187,22 @@ case_plant "11 a tree citation past EOF" "lines" \
 case_plant "12 a link out of README" "does not resolve" \
   sh -c 'printf "\n[gone](docs/no-such-page.md)\n" >> README.md'
 
+case_plant "13 a tenth dangling link" "dangling link" \
+  sh -c 'printf "\n[gone](../../scripts/no-such-template-script.sh)\n" >> docs/conventions/prose.md'
+
 case_plant "14 a bare path naming nothing" "git tracks no such file" \
   sh -c 'printf "\nThe work is in \`%s\`.\n" "$BAD_BARE" >> README.md'
 
+echo
+# ⛔ SAY WHAT IS NOT COVERED. A harness that lists twelve passing cases against a
+# fifteen-check gate implies a coverage it does not have, which is the same
+# vacuity it exists to catch.
+echo "== not planted against"
+echo "  15 coverage floor    no case. Planting it means making a check examine"
+echo "                       nothing, which requires editing check-todo.py's own"
+echo "                       matchers rather than the tree. Every other check's"
+echo "                       counter is asserted non-zero on every run instead,"
+echo "                       and a zero is reported as a failure."
 echo
 echo "== controls"
 
