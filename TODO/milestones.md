@@ -120,8 +120,10 @@ run; anything else is a mismatch.
 ⚠ **What M0 does NOT include, stated so the next milestone is not surprised.**
 `run`, `exec` and the store are M3 and M1. [T-0107](probe.md) and
 [T-0108](probe.md) are `partial` for that reason and each names the half that is
-left. `TOOL.md` section 6.1's `$store/probe.json` cache keyed by boot id has no
-entry yet and is not implemented; it belongs beside the store.
+left. `TOOL.md` section 6.1's `$store/probe.json` cache is [T-0111](probe.md),
+authored in this session and deliberately not implemented: it belongs beside
+the store. ⛔ Authoring it found that the specification's cache key does not
+work, and the entry carries the reading that settles it.
 
 ---
 

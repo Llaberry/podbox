@@ -72,7 +72,7 @@ Acceptance, run on 2026-09-08:
 
 ```
 $ ./scripts/check-todo.py
-check-todo: 86 rows, 86 entries, 58 open, 3 partial, 2 blocked, 23 done
+check-todo: 87 rows, 87 entries, 59 open, 3 partial, 2 blocked, 23 done
 check-todo: ok
 $ ./scripts/plant.sh
   plants   18 caught, 0 missed
@@ -91,7 +91,7 @@ $ ./experiments/130-probe-parity.sh
 
 ## Counts
 
-86 entries: 58 open, 3 partial, 2 blocked, 23 done.
+87 entries: 59 open, 3 partial, 2 blocked, 23 done.
 
 Derived by `scripts/todo-count.py` and asserted by `scripts/check-todo.py`.
 [INDEX.md](INDEX.md)'s Counts block carries the per-priority breakdown, and the
@@ -298,14 +298,18 @@ kickoff prompt.
 ⚠ [T-0205](image.md) and [T-1004](packaging.md) are P3 and are not in the order.
 They are worth doing when something else touches the same ground.
 
-⛔ **One piece of M0's specification has no entry and was not written.**
-`TOOL.md` section 6.1's last paragraph asks for the probe result to be cached in
-`$store/probe.json`, keyed by boot id, and re-probed when the key changes. There
-is no store until M1, so it cannot be built yet; there is also no entry for it,
-and authoring one is a separate pass from implementing (`docs/AGENTS.md`'s
-routing table). ⭐ The next session should author it into [image.md](image.md)
-or [probe.md](probe.md) before M1's store lands, so the cache is designed with
-the store rather than bolted to it.
+⭐ **[T-0111](probe.md) is authored and NOT implemented**, in its own pass per
+`docs/AGENTS.md`'s routing table. It is `TOOL.md` section 6.1's last paragraph:
+cache the probe result in `$store/probe.json`. It lands beside the store, in
+M1, because there is no `$store` before it.
+
+⛔ **Authoring it found that the specification's cache key does not work**, and
+one command in three places settles it: `/proc/sys/kernel/random/boot_id` is
+the **kernel's**, and the host, the reconstruction and a plain docker container
+all read the same value while producing two different probe answers. A cache
+keyed on the boot id alone would serve the host's `namespace` verdict to a
+confined process, which is podbox telling the exact lie it exists to refuse.
+The entry keys on the mount-namespace inode and the id maps as well.
 
 ## In progress
 

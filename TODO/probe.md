@@ -560,6 +560,69 @@ about the target.
 
 ---
 
+### T-0111 Cache the probe result, and key it on what actually decides it
+
+Source:      `TOOL.md` section 6.1, last paragraph
+Category:    probe
+Priority:    P2
+Effort:      S
+Status:      open
+
+Problem:     The probe forks 50 children, and everything downstream branches on
+             its answer. Re-running the whole set for every `run` and every
+             `exec` is the cost `TOOL.md` section 6.1 asks to avoid by caching.
+             ⛔ **A cache keyed wrongly is worse than no cache**, and this is the
+             one component where a stale answer is the exact failure the project
+             exists to prevent: a `namespace` verdict served to a process that
+             has a `chroot` is podbox telling the lie it was built to refuse.
+Premise:     ⭐ **Measured, and it disagrees with the specification's key.**
+             `TOOL.md` section 6.1 says to key on the boot id and re-probe when
+             it changes. Read on 2026-09-08, one command in three places:
+
+             ```
+             host                     01703f0e-380a-462e-ab15-36460e5a8be7
+             the reconstruction       01703f0e-380a-462e-ab15-36460e5a8be7
+             a plain docker container 01703f0e-380a-462e-ab15-36460e5a8be7
+             ```
+
+             `/proc/sys/kernel/random/boot_id` is the **kernel's**, and every
+             namespace on that kernel reads the same value. The three above
+             produce three different probe answers: `namespace` on the host and
+             `chroot` inside the reconstruction, measured by
+             `experiments/130-probe-parity.sh`. So the boot id cannot tell them
+             apart, and a cache keyed on it alone would serve the host's answer
+             to a confined process on the first `run` after a probe.
+Approach:    Key on the boot id **and** on what the probe measured about the
+             confinement, both of which are already read:
+             1. the boot id, which catches a reboot;
+             2. `/proc/self/uid_map`, `/proc/self/gid_map` and
+                `/proc/self/setgroups`, which `crates/podbox-probe/src/identity.rs`
+                already reads and which change with the user namespace;
+             3. `Seccomp` and `Seccomp_filters` from `/proc/self/status`, which
+                change when a filter is installed;
+             4. the mount namespace's inode, `readlink("/proc/self/ns/mnt")`,
+                which is what actually differs between the three readings above.
+             Write `$store/probe.json` as the existing `--json` document plus
+             that key, and re-probe when any component differs.
+             ⚠ The document is already versioned by `"podbox"`, and
+             `crates/podbox-probe/src/report.rs` is the one writer. Adding a
+             second serializer for the cache is the copy-paste this project's
+             `docs/conventions/code.md` forbids: the cache stores what `--json`
+             prints.
+Decision:    Refuse to use a cache whose key does not match, rather than
+             refreshing part of it. A partial refresh means two halves of one
+             answer measured under two confinements, which is the class of
+             defect [T-0109](#t-0109-a-verdict-is-the-operations-and-could-not-run-never-reads-as-denied)
+             is about. ⚠ The alternative considered and rejected is no cache at
+             all: 50 forks is small, but `run` and `exec` are the hot path and
+             `TOOL.md` section 6.1 asks for it by name.
+             ⛔ **Not blocked, and not startable either.** There is no `$store`
+             until [T-1102](milestones.md), M1, so this lands beside the store
+             and not before it.
+Prove:       `podbox probe --json > /tmp/a.json && podbox probe --json > /tmp/b.json && jq -e --slurpfile a /tmp/a.json '.rung == $a[0].rung' /tmp/b.json` and, inside `./experiments/20-enter-target.sh`, a probe run after a host run selects `chroot` rather than reading the host's cached `namespace`
+
+---
+
 ### T-0110 `podbox probe` exit-code and channel contract
 
 Source:      `TOOL.md` section 5 M0; `references/compforge__pathshim/tree/README.md:65`

@@ -70,6 +70,7 @@ the blocker named and what would clear it.
 | [T-0108](probe.md) | P0 | probe | partial | The mode banner |
 | [T-0109](probe.md) | P0 | probe | done | A verdict is the operation's, and "could not run" never reads as "denied" |
 | [T-0110](probe.md) | P1 | probe | done | `podbox probe` exit-code and channel contract |
+| [T-0111](probe.md) | P2 | probe | open | Cache the probe result, and key it on what actually decides it |
 | [T-0201](image.md) | P0 | image | open | Registry client, HTTPS only, with no plain-HTTP fallback |
 | [T-0202](image.md) | P0 | image | open | A content-addressed store, and digest parity with docker |
 | [T-0203](image.md) | P0 | image | open | Check `statvfs` for blocks and inodes, and name the destination |
@@ -149,7 +150,7 @@ the blocker named and what would clear it.
 
 ## Counts
 
-86 items: 58 open, 3 partial, 2 blocked, 23 done.
+87 items: 59 open, 3 partial, 2 blocked, 23 done.
 
 Counted from the rows above by `scripts/todo-count.py` and asserted
 independently by `scripts/check-todo.py`, which is the gate. A number here
@@ -159,9 +160,9 @@ that disagrees with the rows cannot reach a commit.
 | --- | --- | --- | --- | --- | --- |
 | P0 | 29 | 2 | 1 | 12 | 44 |
 | P1 | 20 | 1 | 1 | 8 | 30 |
-| P2 | 7 | 0 | 0 | 2 | 9 |
+| P2 | 8 | 0 | 0 | 2 | 10 |
 | P3 | 2 | 0 | 0 | 1 | 3 |
-| **All** | **58** | **3** | **2** | **23** | **86** |
+| **All** | **59** | **3** | **2** | **23** | **87** |
 
 ## How the current ordering is derived
 

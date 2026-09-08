@@ -11,12 +11,12 @@ mid-session: the rest of the dependency sweep, and the git-object debt.
 
 | row | before | after | from |
 | --- | --- | --- | --- |
-| Commits | `e8ed921` | `a05bae4`, 9 commits | `git log e8ed921..HEAD` |
-| Changes | | 59 files, +7301 / -315 | `git diff --shortstat e8ed921..HEAD` |
+| Commits | `e8ed921` | 13 commits, and a history rewrite | `git log e8ed921..HEAD` |
+| Changes | | 62 files, about +7,800 / -350 | `git diff --shortstat e8ed921..HEAD` |
 | podbox implementation code | ⛔ **none existed** | 4,116 lines of Rust across 11 files | `wc -l crates/podbox-probe/src/*.rs crates/podbox-cli/src/main.rs` |
 | Release binary | 389,656 bytes (empty skeleton) | 496,184 bytes, **0 third-party crates** | `experiments/110-bloat-delta.sh baseline` |
-| TODO entries | 86 | 86 | `check-todo.py` |
-| Entry statuses | 79 open, 0 partial, 2 blocked, 5 done | **58 open, 3 partial, 2 blocked, 23 done** | `check-todo.py` |
+| TODO entries | 86 | 87, one authored and not implemented | `check-todo.py` |
+| Entry statuses | 79 open, 0 partial, 2 blocked, 5 done | **59 open, 3 partial, 2 blocked, 23 done** | `check-todo.py` |
 | Gate checks | 16 | 17 | `scripts/check-todo.py` |
 | Plant cases | 15 caught, 0 missed | 18 caught, 0 missed, 3 controls quiet | `scripts/plant.sh` |
 | Rust tests | ⛔ **none existed** | 44 passing | `cargo test --workspace` |
@@ -35,7 +35,7 @@ mid-session: the rest of the dependency sweep, and the git-object debt.
 
 | question | ruling |
 | --- | --- |
-| The commit trailer, where `docs/conventions/git.md` section 1 and the harness disagree | git.md wins: no trailer names a model, a vendor or a tool. This session's 9 commits carry none |
+| The commit trailer, where `docs/conventions/git.md` section 1 and the harness disagree | git.md wins: no trailer names a model, a vendor or a tool. Every commit this session carries none |
 | The git-object debt | rewrite history and force push, overriding git.md section 5. Done and verified |
 | [T-0803](cli.md), the `docker` name where a daemon is reachable | refuse without an explicit flag |
 | How far the dependency sweep may go | measure, and land what the measurement favours |
@@ -51,7 +51,7 @@ mid-session: the rest of the dependency sweep, and the git-object debt.
 denial.** `kcmp(2)` needs `CONFIG_CHECKPOINT_RESTORE`; `ENOSYS` is the kernel
 saying the control is not there, which is not the control answering.
 
-## Six defects found by running things rather than reading them
+## Seven defects found by running things rather than reading them
 
 1. `experiments/20-enter-target.sh` named `$REPO/verification/`, which this tree
    does not have. **The reconstruction had never run here.**
@@ -67,6 +67,11 @@ saying the control is not there, which is not the control answering.
    A sweep reporting "this crate is free" has measured nothing.
 6. `Cargo.toml` repeated the sweep's byte counts and one was stale against its
    own entry within the hour.
+7. ⛔ **A commit went out with a red gate**, because the gate was run before
+   `git add` and then `add && commit && push` continued as a chain whose
+   earlier link had succeeded. Fixed in the next commit, and the mechanism is
+   written into it: this is the eighth absolute, read the code from the process
+   that produced it.
 
 ## Four defects found in the reference instrument
 
@@ -92,6 +97,9 @@ it costs a C cross-compiler.
   brings a fresh container up to what the gate, the experiments and the builds
   need, **including starting the docker daemon**. Its checksum guard, its
   install path and its daemon restart were each driven rather than assumed.
+- `scripts/common/result-diff.sh`: says whether a re-run reproduced the
+  committed reading, ignoring the clock lines only, so a dirty tree carrying
+  just a new date is never mistaken for a finding or the reverse.
 - `scripts/zig-cc.sh` and `scripts/zig-ar.sh`, wired into `.cargo/config.toml`.
   ⭐ They also closed an open question three sessions old:
   `experiments/60-interposer-libc.sh` **exits 0** for the first time, and its
@@ -107,6 +115,9 @@ it costs a C cross-compiler.
   out right for the reasons it should have, and the M half is untested locally.
 - ⚠ **`controls_answered` is false on every run of this host**, because
   `kcmp(2)` is not built into this kernel. Correct, and not clearable here.
-- ⛔ **`TOOL.md` section 6.1's `$store/probe.json` cache has no entry and was
-  not written.** There is no store until M1, and authoring is a separate pass
-  from implementing.
+- ⭐ **`TOOL.md` section 6.1's `$store/probe.json` cache is now
+  [T-0111](probe.md), authored and deliberately not implemented.** It lands
+  beside the store in M1. ⛔ Authoring it found that the specification's cache
+  key does not work: the boot id is the kernel's, and the host, the
+  reconstruction and a plain docker container all read the same one while
+  producing two different probe answers.
