@@ -1,123 +1,139 @@
-# Session summary, 2026-09-08 (M0, the sweep, and the debt)
+# Session summary, 2026-09-08 (M1, image acquisition)
 
 ⭐ Saved beside the record so it survives the chat scrolling away.
 [PROGRESS.md](PROGRESS.md) is the record and carries the work order. This file
 carries only what one session moved.
 
-**Task:** M0, the probe: [milestones.md](milestones.md) T-1101 and, under it,
-[probe.md](probe.md) T-0101 to T-0110. Then [deps.md](deps.md) T-0910, the
-`cargo bloat` baseline wired into the gate. Then, on the operator's rulings
-mid-session: the rest of the dependency sweep, and the git-object debt.
+**Task:** M1, image acquisition: [milestones.md](milestones.md) T-1102 and,
+under it, [image.md](image.md) T-0201 to T-0204. Then [probe.md](probe.md)
+T-0111, the probe cache, which lands beside the store and not before it.
 
 | row | before | after | from |
 | --- | --- | --- | --- |
-| Commits | `e8ed921` | 15 commits, and a history rewrite | `git log e8ed921..HEAD` |
-| Changes | | 60 files, +7,512 / -320 | `git diff --shortstat e8ed921..HEAD` |
-| podbox implementation code | ⛔ **none existed** | 4,116 lines of Rust across 11 files | `wc -l crates/podbox-probe/src/*.rs crates/podbox-cli/src/main.rs` |
-| Release binary | 389,656 bytes (empty skeleton) | 496,184 bytes, **0 third-party crates** | `experiments/110-bloat-delta.sh baseline` |
-| TODO entries | 86 | 87, one authored and not implemented | `check-todo.py` |
-| Entry statuses | 79 open, 0 partial, 2 blocked, 5 done | **59 open, 3 partial, 2 blocked, 23 done** | `check-todo.py` |
-| Gate checks | 16 | 17 | `scripts/check-todo.py` |
-| Plant cases | 15 caught, 0 missed | 18 caught, 0 missed, 3 controls quiet | `scripts/plant.sh` |
-| Rust tests | ⛔ **none existed** | 44 passing | `cargo test --workspace` |
-| Experiment scripts | 12 | 14 | `ls experiments/*.sh` |
-| Committed results | 17 | 36 | `git ls-files experiments/results/` |
-| Dependency sweep | 0 of 10 entries closed | **10 of 10** | [deps.md](deps.md) |
-| ⭐ git objects, fresh clone | 51 MB, 9,445 objects | **29 MB, 7,931 objects** | `git count-objects -vH` after `git clone` |
-| Checks | | gate 0, plant 0, markers 0, fmt 0, clippy 0, tests 0, musl build 0, `PT_INTERP` 0, `110-` 0, `130-` 0, `60-` **0 (was 2)**, `30-` 2, bootstrap 0 | each read unpiped |
-| Health | clean | clean, 0 uncommitted, pushed to `main` | `git status` |
-| Debt cleared | ⛔ the reconstruction had never run here; the artefacts were in history | ⭐ both | `experiments/results/`, `git count-objects` |
+| Commits | `a4ab727` | 3 commits | `git log a4ab727..HEAD` |
+| Changes | | 43 files, +7,340 / -328 | `git diff --shortstat a4ab727..HEAD` |
+| podbox implementation code | 4,116 lines, 11 files | **9,098 lines, 27 files** | `wc -l crates/podbox-{probe,image,cli}/src/*.rs` |
+| ⭐ Release binary | 496,184 bytes | **2,130,672 bytes**, +1,634,488 | `experiments/110-bloat-delta.sh image` |
+| Headroom under the ceiling | 7,503,816 | 5,869,328 of 8,000,000 | the same |
+| `PT_INTERP` | none | **still none** | `readelf -l`, the same script |
+| Third-party crates in the artefact | **0** | 88 | `cargo tree`, the same script |
+| TODO entries | 87 | 87 | `check-todo.py` |
+| Entry statuses | 59 open, 3 partial, 2 blocked, 23 done | **53 open, 5 partial, 2 blocked, 27 done** | `check-todo.py` |
+| Gate checks | 17 | 17, unchanged | `scripts/check-todo.py` |
+| Plant cases | 18 caught, 0 missed | 18 caught, 0 missed, 3 controls quiet | `scripts/plant.sh` |
+| Rust tests | 44 | **125** (8 cli, 67 image, 50 probe) | `cargo test --workspace` |
+| Experiment scripts | 14 | 18 | `ls experiments/*.sh` |
+| Committed results | 36 | 41 | `git ls-files experiments/results/` |
+| Checks | | gate 0, plant 0, markers 0, fmt 0, clippy 0 with **0 warnings**, tests 0, musl build 0, `PT_INTERP` 0, `110-` 0, `130-` 0, `140-` 0, `150-` 0, `160-` 0, `170-` 0 | each read unpiped |
+| Health | clean | clean, 0 uncommitted | `git status` |
+| Debt cleared | | none was outstanding | |
 | Debt introduced | | none | |
 
-## Four operator rulings, recorded so an unattended session does not re-ask
+## M1
 
-[RULES.md](RULES.md) section 11 carries all four.
+```
+$ podbox pull alpine:latest && podbox images --format '{{.Digest}}' alpine:latest
+sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+$ docker image inspect alpine:latest --format '{{index .RepoDigests 0}}' | cut -d@ -f2
+sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+```
 
-| question | ruling |
-| --- | --- |
-| The commit trailer, where `docs/conventions/git.md` section 1 and the harness disagree | git.md wins: no trailer names a model, a vendor or a tool. Every commit this session carries none |
-| The git-object debt | rewrite history and force push, overriding git.md section 5. Done and verified |
-| [T-0803](cli.md), the `docker` name where a daemon is reachable | refuse without an explicit flag |
-| How far the dependency sweep may go | measure, and land what the measurement favours |
+`experiments/150-image-acquisition.sh` is that acceptance as one command, and it
+also carries [T-0201](image.md)'s and [T-0202](image.md)'s `Prove` commands.
 
-## M0
+⭐ **The digest recorded is the one computed over the bytes the registry served
+for the reference that was asked for.** For a multi-platform tag that is the
+**index** digest, not the per-platform manifest digest. Recording the wrong one
+is exactly the parity this milestone is accepted on, and the store carries both.
 
-`podbox probe` selects `chroot` inside `experiments/20-enter-target.sh` and
-`namespace` unconfined, and 15 of 16 attribution rows match
-`experiments/results/attribute.txt` exactly.
-`experiments/130-probe-parity.sh` is that acceptance as one command.
+## The specification's probe cache key does not work, in one run
 
-⭐ **The one divergence is the reference recording a control's absence as a
-denial.** `kcmp(2)` needs `CONFIG_CHECKPOINT_RESTORE`; `ENOSYS` is the kernel
-saying the control is not there, which is not the control answering.
+⭐ `TOOL.md` section 6.1 says to key on `/proc/sys/kernel/random/boot_id`.
+`experiments/170-probe-cache.sh` prints the boot id and the rung in both places:
 
-## Seven defects found by running things rather than reading them
+```
+host      rung=namespace  boot_id=b538b475-930e-4dd1-9dec-3098dd77212f
+confined  rung=chroot     boot_id=b538b475-930e-4dd1-9dec-3098dd77212f
+```
 
-1. `experiments/20-enter-target.sh` named `$REPO/verification/`, which this tree
-   does not have. **The reconstruction had never run here.**
-2. `experiments/results/attribute.txt`, which the milestone compares against,
-   **did not exist**.
-3. [T-0102](probe.md)'s `Prove` asserted one host's answer as every host's.
-4. ⭐ **The probe's verdict channel was lost when a caller had fd 1 closed.**
-   `pipe2(2)` puts a pipe end on fd 1 and `dup2(1, 1)` returns without closing,
-   so the unconditional `close` after it shut the channel every child answers
-   through. Every verdict would have become a `skip`: honest, and useless.
-   Found by driving the CLI, not by a test.
-5. ⭐ **A dependency nothing calls measures as zero**, because `lto` deletes it.
-   A sweep reporting "this crate is free" has measured nothing.
-6. `Cargo.toml` repeated the sweep's byte counts and one was stale against its
-   own entry within the hour.
-7. ⛔ **A commit went out with a red gate**, because the gate was run before
-   `git add` and then `add && commit && push` continued as a chain whose
-   earlier link had succeeded. Fixed in the next commit, and the mechanism is
-   written into it: this is the eighth absolute, read the code from the process
-   that produced it.
+Equal ids, different verdicts, because the boot id is the **kernel's**. podbox
+keys on the boot id, the mount-namespace inode, the three ID-map files and the
+two seccomp fields, and the confined run named all six that moved and re-probed.
+⛔ A cache keyed on the boot id alone serves the host's `namespace` to a
+`chroot` process, which is the exact lie podbox exists to refuse.
 
-## Four defects found in the reference instrument
+## Six defects found by driving things rather than reading them
 
-Recorded in `crates/podbox-probe/src/probes.rs`'s module header with the reason
-each was not ported as-is: a propagation change that escapes the prober, two
-mounts left attached, scratch files overwritten, and a failed precondition
-reported as the row's denial.
+Four are in podbox's own code and two are in the harness.
 
-## The dependency sweep
+1. ⛔ `hex.bytes().all(|b| b.is_ascii_lowercase() && b.is_ascii_hexdigit())`
+   refused **every real digest**: `0`-`9` are not lowercase letters. Caught by
+   the store's own tests, which is what they are for.
+2. docker's rule that a first component carrying a dot is a registry read
+   `../etc/passwd` as a registry called `..`, and the repository check never saw
+   it. The domain has its own validator now.
+3. `Path::file_name` returns `None` for a path ending in `..`, so the
+   containment walk could not take such a path apart at all. `..` is refused up
+   front now, before anything resolves.
+4. The pull transcript printed the **config blob** as a third `Pull complete`
+   beside two layers, which reads as an image with three layers. docker's
+   transcript names layers only.
+5. `flock FILE -c 'sleep N'` runs the sleep as a **child**, which inherits the
+   locked fd, so killing `flock` left the lock held. ⭐ That is
+   [T-0204](image.md)'s mechanism working exactly as designed, arriving as a
+   defect in the harness.
+6. ⛔ `experiments/20-enter-target.sh --stage <dir>` **nests on a re-run**.
+   `cp -a src/store dest/store` with `dest/store` present produces
+   `dest/store/store`, so the second run reads the first run's copy. The clause
+   passed for a reason that had nothing to do with what it was testing. Staging
+   a FILE overwrites, which hid it for as long as only files were staged.
 
-Landed as pins: `rustls` with the host bundle and `webpki-roots` as the
-fallback, `ureq`, `tar` + `flate2` (`rust_backend`) + `ruzstd`, `sha2`,
-`serde_json`. Refused with a number each: `clap`, `goblin`, `oci-spec`,
-`seccompiler`, the `landlock` crate, `rustix`, `libc`.
+## The toolchain, which stopped being inert
 
-⛔ **`rustls` is pure Rust and its crypto provider is not.** `ring` ships 17 `.c`
-files and 90 `.S` files behind a `build.rs`. It does not break `crt-static`, and
-it costs a C cross-compiler.
+⛔ **`cargo build` failed and `cargo build --release` succeeded**, on the same
+tree, the moment a member took the `rustls` pin:
+`undefined reference to '__ubsan_handle_type_mismatch_v1'`. `zig cc` with no
+`-O` compiles in its Debug mode and emits calls to handlers in its own
+`compiler-rt`; `cc-rs` passes no `-O` in a debug profile and `-O3` in release.
 
-## New infrastructure
+⚠ **Making `zig cc` the linker as well was tried and is worse**: zig's driver
+adds its own `crt1.o` despite rustc's `-nostartfiles`, and the link dies on
+`duplicate symbol: _start`. `scripts/zig-cc.sh` passes `-fno-sanitize=undefined`
+instead, and `ZIG_SANITIZE=1` restores it.
 
-- `scripts/common/bootstrap-env.sh`: one idempotent, non-interactive script that
-  brings a fresh container up to what the gate, the experiments and the builds
-  need, **including starting the docker daemon**. Its checksum guard, its
-  install path and its daemon restart were each driven rather than assumed.
-- `scripts/common/result-diff.sh`: says whether a re-run reproduced the
-  committed reading, ignoring the clock lines only, so a dirty tree carrying
-  just a new date is never mistaken for a finding or the reverse.
-- `scripts/zig-cc.sh` and `scripts/zig-ar.sh`, wired into `.cargo/config.toml`.
-  ⭐ They also closed an open question three sessions old:
-  `experiments/60-interposer-libc.sh` **exits 0** for the first time, and its
-  check B now reproduces the cross-libc refusal with podbox's own Rust cdylib
-  rather than only with the C reference interposer.
+⚠ **cargo does not track the contents of a `CC` program**, so `cargo clean -p ring`
+is needed after editing that wrapper.
+
+## New experiments
+
+- `140-space-precheck.sh`: blocks and inodes, on two real tmpfs mounts rather
+  than fixtures. Both refusals name the destination, the free amount, the
+  required amount and the unit, and **0 blobs** were written before either.
+- `150-image-acquisition.sh`: M1's acceptance. ⚠ It detects a moved tag rather
+  than reporting it as a wrong digest.
+- `160-store-gc.sh`: a GC under a holder, and the containment check against a
+  blob path that resolves outside the store.
+- `170-probe-cache.sh`: the cache, and the key the specification got wrong.
+- ⚠ [T-0203](image.md)'s `Prove` named `90-space-precheck.sh`, and 90 is
+  `experiments/90-nsswitch-contract.sh`. `experiments/README.md` rules that a
+  number is never reused. The entry carries the correction.
 
 ## What did not move
 
 - **`experiments/30-attribution-census.sh` still exits 2.** This kernel has no
   Landlock, so the three M rows cannot run.
-- ⚠ **The `chroot` rung was selected without an LSM ever being present.** On the
-  target `move_mount` is `EPERM` from Landlock; here it attaches. The rung came
-  out right for the reasons it should have, and the M half is untested locally.
 - ⚠ **`controls_answered` is false on every run of this host**, because
   `kcmp(2)` is not built into this kernel. Correct, and not clearable here.
-- ⭐ **`TOOL.md` section 6.1's `$store/probe.json` cache is now
-  [T-0111](probe.md), authored and deliberately not implemented.** It lands
-  beside the store in M1. ⛔ Authoring it found that the specification's cache
-  key does not work: the boot id is the kernel's, and the host, the
-  reconstruction and a plain docker container all read the same one while
-  producing two different probe answers.
+- ⚠ **`cargo test` prints `error: Unrecognized option: 'probe-child'` many times
+  and exits 0.** Under `cargo test` the probe re-executes the libtest binary,
+  which rejects the flag, and each row becomes a `skip` with its reason. The
+  volume rose because `podbox-image`'s tests exercise the real
+  `probe_cache::resolve`. Recorded rather than filtered, so a future session
+  does not chase it.
+- ⚠ **`{{.Size}}` is the compressed bytes podbox holds**, headed
+  `SIZE (STORED)`. docker's is the uncompressed total, which M1 has not
+  measured. [PROGRESS.md](PROGRESS.md) open question 6.
+- ⚠ One number in the last session's own record was quoted wrong:
+  `PROGRESS.md`'s acceptance block said `37 passed` where the total was 44,
+  which is one crate's line quoted as the total. Measured in a worktree at
+  `a4ab727` rather than taken from either document.
