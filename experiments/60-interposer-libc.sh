@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Question: podbox is one static musl binary (TOOL.md §3.4, §7 M7), and its
-# interposer is an LD_PRELOAD object (§6.7). Can one build satisfy both, and
+# Question: podbox is one static musl binary (TOOL.md section 3.4, section 7 M7), and its
+# interposer is an LD_PRELOAD object (section 6.7). Can one build satisfy both, and
 # can one object reach every payload?
 #
 # Two claims are checked, both of which the specification leaves open:
@@ -145,7 +145,7 @@ echo
 echo "== verdict"
 if [ "$b_rc" -ne 0 ]; then
   echo "  one object per libc is REQUIRED: the musl object does not load into a"
-  echo "  glibc payload while the glibc object does. TOOL.md §6.7 does not say"
+  echo "  glibc payload while the glibc object does. TOOL.md section 6.7 does not say"
   echo "  this; TODO/interpose.md T-0702 carries it."
 else
   echo "  the musl object loaded into a glibc payload. T-0702's premise is"

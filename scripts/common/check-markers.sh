@@ -127,6 +127,28 @@ cd "$REPO_ROOT" || { printf 'check-markers: cannot enter %s\n' "$REPO_ROOT" >&2;
 # absorbs a real finding.
 TEXT_RE='\.(ts|tsx|js|mjs|cjs|jsx|json|md|sql|css|scss|html|toml|yaml|yml|sh|ps1|py|rs|go|c|h|cpp|hpp|java|rb|php|txt|cfg|ini|conf)$'
 
+# -- PATCHED IN THIS TREE, per docs/methodology/vendoring.md -----------------
+#
+# `references/` and `docs/` are excluded below. `references/` holds the corpus:
+# thirty unmodified third-party trees at pinned commits, tracked because
+# docs/methodology/references.md section 4 requires a project that ships code to
+# keep its corpus and because scripts/check-todo.py resolves every cited line
+# into it.
+#
+# `docs/` is copied VERBATIM from Azathothas/TEMPLATE, which is the property
+# TOOL.md section 0.5 relies on: a reader with no network can work under the
+# same rules. Editing it to satisfy a check it ships would end that.
+#
+# This project's prose conventions do not reach somebody else's source, and
+# rewriting it to satisfy them would invalidate every citation and would
+# misrepresent what the corpus is. Unpatched, this check reports 5650 problems,
+# of which 5420 are in trees nobody here wrote.
+#
+# Reproduce the defect this patch fixes:
+#   git stash && ./scripts/common/check-markers.sh; git stash pop
+# A zero exit from the unpatched script against a tree with a corpus means
+# upstream has taken an equivalent exclusion and this patch can be deleted.
+#
 # ⛔ TRACKED PLUS UNTRACKED-BUT-NOT-IGNORED. A file that has never been staged
 # is exactly when a new file is likeliest to carry the defect, and it is what
 # the next `git add -A` would take.
@@ -134,7 +156,8 @@ FILES=$(
   {
     git ls-files 2>/dev/null
     git ls-files --others --exclude-standard 2>/dev/null
-  } | sort -u | grep -E "$TEXT_RE" | grep -v '^LICENSES/.*\.txt$' || true
+  } | sort -u | grep -E "$TEXT_RE" | grep -v '^LICENSES/.*\.txt$' \
+    | grep -v -e '^references/' -e '^docs/' || true
 )
 if [ -z "$FILES" ]; then
   printf 'check-markers: no text files in scope\n' >&2

@@ -3,8 +3,8 @@
 //
 // The interesting row is threads_at_main: the Go runtime starts several OS
 // threads before main() is entered, and the kernel refuses
-// unshare(CLONE_NEWUSER) to any multithreaded caller. That is paper §3.5's
-// F11 — a Go probe reports EINVAL on a completely unrestricted host — and it
+// unshare(CLONE_NEWUSER) to any multithreaded caller. That is paper section 3.5's
+// F11 - a Go probe reports EINVAL on a completely unrestricted host - and it
 // is a property of the language runtime, not of the sandbox.
 package main
 

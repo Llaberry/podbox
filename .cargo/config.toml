@@ -1,4 +1,4 @@
-# The artefact is a single static binary. TOOL.md §3.4, §7 M7.
+# The artefact is a single static binary. TOOL.md section 3.4, section 7 M7.
 #
 # ⛔ crt-static is set per target, not globally. Setting it under [build] also
 # applies it to build scripts and proc macros compiled for the host, which is

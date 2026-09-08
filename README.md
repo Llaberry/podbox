@@ -15,7 +15,7 @@ and exit codes, and where it cannot honour something it says so in one line.
 ## State
 
 **Nothing is implemented.** This tree is milestone M-1 of
-[`TOOL.md`](references/Azathothas__container-research/tree/TOOL.md) §5: the
+[`TOOL.md`](references/Azathothas__container-research/tree/TOOL.md) section 5: the
 reference corpus, the work index and the skeleton. The next milestone is M0,
 the probe.
 
@@ -24,7 +24,7 @@ the probe.
 | path | what it is |
 | --- | --- |
 | [`TODO/`](TODO/) | the work. `INDEX.md` lists every entry, `PROGRESS.md` carries the order, `reference-map.md` carries the corpus and its licence determinations |
-| [`crates/`](crates/) | the workspace of `TOOL.md` §4.3. Every crate is a skeleton |
+| [`crates/`](crates/) | the workspace of `TOOL.md` section 4.3. Every crate is a skeleton |
 | [`references/`](references/) | the corpus: 30 trees at pinned commits, with their trackers. Tracked, in the tree |
 | [`experiments/`](experiments/) | the reconstruction of the target runtime, seeded from `Azathothas/container-research`, plus this project's own measurements |
 | [`scripts/`](scripts/) | the gate, the count scripts, the corpus fetcher |
@@ -48,7 +48,7 @@ is built separately:
 ## The gate
 
 ```sh
-./scripts/check-todo.sh
+./scripts/check-todo.py
 ```
 
 It re-derives every count in `TODO/INDEX.md` from the rows, asserts that no

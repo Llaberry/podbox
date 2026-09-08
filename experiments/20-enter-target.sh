@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Question: can a container supply the target runtime's kernel-visible shape —
+# Question: can a container supply the target runtime's kernel-visible shape  - 
 # its mount topology, its partial ID map, its seccomp filter and its write
-# policy — and which parts does this host refuse?
+# policy - and which parts does this host refuse?
 #
 #   ./20-enter-target.sh                     interactive shell inside the reconstruction
 #   ./20-enter-target.sh -- id               run one command inside it
@@ -12,7 +12,7 @@
 #
 # --stage copies a file or directory into what becomes /workspace, which is one
 # of the four writable paths inside. Repeatable. This is how you run something
-# that is not part of this repository against the reconstructed runtime — which
+# that is not part of this repository against the reconstructed runtime - which
 # is the point of the script for anyone implementing against it.
 #
 # Exit: 0 the payload ran, its own code otherwise, 2 could not run.
@@ -81,7 +81,7 @@ if "$H/probe" check 'landlock_create_ruleset(VERSION)' 2>/dev/null | grep -q ' O
 	export CONFINE_LANDLOCK
 	echo "target: N+F+M (landlock write-allowlist active)" >&2
 else
-	echo "target: N+F only — M: unavailable (no CONFIG_SECURITY_LANDLOCK on this kernel);" >&2
+	echo "target: N+F only - M: unavailable (no CONFIG_SECURITY_LANDLOCK on this kernel);" >&2
 	echo "        writes outside /tmp /dev/shm /workspace /state will NOT be denied" >&2
 fi
 

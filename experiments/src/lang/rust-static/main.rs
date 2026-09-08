@@ -1,13 +1,13 @@
 // The three properties podbox needs from its implementation language, probed
 // from the language itself rather than from its documentation:
 //
-//   1. how many OS threads the runtime starts before main() runs — because
+//   1. how many OS threads the runtime starts before main() runs - because
 //      unshare(CLONE_NEWUSER) is refused for any multithreaded caller, and
 //      PR_SET_PDEATHSIG fires on the death of the creating *thread*
-//      (paper §3.5, §10.6);
+//      (paper section 3.5, section 10.6);
 //   2. whether unshare(CLONE_NEWUSER) is therefore usable at all;
 //   3. whether the binary carries a PT_INTERP, i.e. whether it needs a loader
-//      at the far end (paper §8.4's memfd rung requires that it does not).
+//      at the far end (paper section 8.4's memfd rung requires that it does not).
 //
 // Property 3 is read off the artefact by the calling script, not self-reported.
 use std::fs;

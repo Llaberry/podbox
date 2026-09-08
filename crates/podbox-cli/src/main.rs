@@ -1,4 +1,4 @@
-//! TOOL.md §6.8: the docker and podman argument surface, the parity table, exit codes.
+//! TOOL.md section 6.8: the docker and podman argument surface, the parity table, exit codes.
 //!
 //! Skeleton. Every verb is unimplemented and says so on stderr with exit 125,
 //! which is docker's code for "the runtime could not run the command". The
@@ -22,7 +22,7 @@ fn main() -> std::process::ExitCode {
         other => {
             let _ = writeln!(
                 err,
-                "podbox: {}: not implemented yet (skeleton; TOOL.md §5 milestone M-1)",
+                "podbox: {}: not implemented yet (skeleton; TOOL.md section 5 milestone M-1)",
                 other.unwrap_or("no command given")
             );
             let _ = writeln!(err, "podbox: invoked as {argv0}");

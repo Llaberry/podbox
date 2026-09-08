@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # Question: which implementation language can supply the four things podbox
-# needs from one — and which cannot, measured rather than assumed?
+# needs from one - and which cannot, measured rather than assumed?
 #
-#   A. a statically linked binary with no PT_INTERP (paper §8.4: the memfd
+#   A. a statically linked binary with no PT_INTERP (paper section 8.4: the memfd
 #      launch rung requires a dependency-free entrypoint)
 #   B. a single-threaded process at main(), because the kernel refuses
 #      unshare(CLONE_NEWUSER) to a multithreaded caller and PR_SET_PDEATHSIG
-#      fires on the creating *thread* (paper §3.5 F11, §10.6)
+#      fires on the creating *thread* (paper section 3.5 F11, section 10.6)
 #   C. an LD_PRELOAD interposer, which is the whole `interpose` tier
-#      (paper §10.3, §5.5)
+#      (paper section 10.3, section 5.5)
 #   D. a small artefact, because it is packed into a single file
 #
-# Candidates: Rust (musl target), Go (CGO_ENABLED=0), C (the control — it can
+# Candidates: Rust (musl target), Go (CGO_ENABLED=0), C (the control - it can
 # obviously do all four, and is here to prove the probes work).
 #
 # Nothing here is a benchmark: no timings are taken, and sizes are one build
@@ -98,8 +98,8 @@ echo
 echo "== C: does an LD_PRELOAD interposer built in this language reach a"
 echo "      dynamically linked C payload's lchown?"
 
-# The payload forks. Every workload podbox interposes on does — tar, dpkg,
-# rpm, apk, make, configure — so an interposer that only survives a
+# The payload forks. Every workload podbox interposes on does - tar, dpkg,
+# rpm, apk, make, configure - so an interposer that only survives a
 # straight-line program has not been tested at all. It also reports the host
 # process's thread count, because a preloaded object that starts threads in
 # its host changes that host's fork semantics.
@@ -211,13 +211,13 @@ echo "== reading"
 echo "  Static, PT_INTERP-free artefact: all three."
 echo "  Single-threaded at main(): rust and c. Go starts its scheduler first,"
 echo "    which is why a Go process cannot unshare(CLONE_NEWUSER) even"
-echo "    unconfined (paper §3.5 F11) and why PR_SET_PDEATHSIG is unreliable"
-echo "    in a Go supervisor (§10.6)."
-echo "  LD_PRELOAD interposer: read the table above rather than this line —"
+echo "    unconfined (paper section 3.5 F11) and why PR_SET_PDEATHSIG is unreliable"
+echo "    in a Go supervisor (section 10.6)."
+echo "  LD_PRELOAD interposer: read the table above rather than this line  - "
 echo "    a Go c-shared object *does* hook the symbol, and the cost shows up"
 echo "    in the host-threads and object-size columns, not in a yes/no."
-echo "  Independent of all of it, paper §9.3: no preload of any language sees"
+echo "  Independent of all of it, paper section 9.3: no preload of any language sees"
 echo "    a Go *payload*'s lchown, cgo or not. The interpose tier's ceiling is"
 echo "    a property of the payload, never of the interposer."
-echo "  TOOL.md §3 carries the decision these rows support."
+echo "  TOOL.md section 3 carries the decision these rows support."
 exit "$rc"

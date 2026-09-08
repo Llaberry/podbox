@@ -13,7 +13,7 @@
 # ⛔ ONE OBJECT PER LIBC. A preloaded object is loaded by the payload's own
 # dynamic loader and resolves its own imports against the payload's libc, so a
 # musl-linked object cannot be preloaded into a glibc payload. podbox embeds
-# both and selects on the payload's PT_INTERP (TOOL.md §6.7, TODO/interpose.md
+# both and selects on the payload's PT_INTERP (TOOL.md section 6.7, TODO/interpose.md
 # T-0702).
 #
 # Exit: 0 every requested target built, 1 a build failed, 2 could not run.

@@ -1,0 +1,32 @@
+== conditions
+date              2026-09-08T06:11:14Z
+host kernel       6.18.44-fc-v24
+tar               tar (GNU tar) 1.35
+docker            29.3.1
+alpine            alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+void              voidlinux/voidlinux-musl@sha256:d5c970d0015c3aa2559a2b5a87b158839969fbb1941a9ef52cc484a5392554cd
+
+== A. member-name prefix style, per layer
+  alpine  25f1d6b1951ac8eb3740558fe94cb83d377bdadf95fd9f98b50d2e1b96130471  first member: bin/
+  void    91c43422d24e22cf3350fe6fc2bd2d9b0ff0168dc6d92c09ff8684d28210805d  first member: bin
+  void    bfc5f30ae528630a7dabddaf9ed76026d5f40ec3a0567c549b7ae09880a4dfd6  first member: etc/
+ok   A: no layer uses a ./ prefix, so a slash-anchored glob cannot see a root whiteout
+
+== B. alpine etc/shadow ownership
+  -rw-r----- 0/42            260 2026-04-15 16:09 etc/shadow
+ok   B: etc/shadow is uid 0 gid 42, the section 9.1 wall
+
+== C. voidlinux var/cache/xbps
+  layer 1 symlink:  lrwxrwxrwx 0/0               0 2021-07-25 10:39 var/cache/xbps -> /var/cache/xbps
+  layer 2 whiteout: var/cache/.wh.xbps
+ok   C: an ABSOLUTE self-referential symlink in layer 1, whiteouted in layer 2
+
+== D. udocker's whiteout selector against a basename oracle
+  members: .wh.rootfile dir/.wh.nested normal.txt 
+  basename oracle: .wh.rootfile dir/.wh.nested
+  udocker glob:    dir/.wh.nested
+  MISSED by the glob: .wh.rootfile
+ok   D: a slash-anchored glob misses a layer-root whiteout. podbox matches on the basename.
+
+== verdict
+  every check matched

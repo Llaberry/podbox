@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # Question: does an off-the-shelf LD_PRELOAD path interposer give podbox's
-# `interpose` tier what it needs on this runtime class — and which of the four
+# `interpose` tier what it needs on this runtime class - and which of the four
 # walls does it NOT clear?
 #
-# Subject: VHSgunzo/pathmap, which ships both halves of the tier in one repo —
-# an LD_PRELOAD library (path-mapping.so) and a ptrace tracer (pathmap) — so a
+# Subject: VHSgunzo/pathmap, which ships both halves of the tier in one repo  - 
+# an LD_PRELOAD library (path-mapping.so) and a ptrace tracer (pathmap) - so a
 # single build measures both the surviving route and the dead one.
 #
 # Four measurements, each against a wall paper_final.md already names:
-#   1. path mapping without mount(2)      — the volume problem (§10.7)
-#   2. chown to an unmapped gid           — the ownership wall (§9.1)
-#   3. the ptrace tracer                  — F denies ptrace and process_vm_* (§3.7a)
-#   4. memfd_create + fexecve             — the memfd launch rung (§8.4)
+#   1. path mapping without mount(2) - the volume problem (section 10.7)
+#   2. chown to an unmapped gid - the ownership wall (section 9.1)
+#   3. the ptrace tracer - F denies ptrace and process_vm_* (section 3.7a)
+#   4. memfd_create + fexecve - the memfd launch rung (section 8.4)
 #
 # Every input is pinned to a commit. Exit: 0 ran, 1 a measurement failed to
 # produce a verdict, 2 could not run.
@@ -107,9 +107,9 @@ echo
 echo "== reading"
 echo "  The surviving half of this tier is the preload, not the tracer: the"
 echo "  runtime's filter denies ptrace(2) and process_vm_readv(2), which is"
-echo "  both of the tracer's channels (paper §3.7a)."
+echo "  both of the tracer's channels (paper section 3.7a)."
 echo "  Path mapping and ownership faking are different jobs. An interposer"
-echo "  that maps paths still passes the real uid/gid to the kernel, so §9.1"
-echo "  stands until the same library also answers chown — which is the"
+echo "  that maps paths still passes the real uid/gid to the kernel, so section 9.1"
+echo "  stands until the same library also answers chown - which is the"
 echo "  fakeroot half of TOOL.md's interposer spec, not the fakechroot half."
 exit "$rc"

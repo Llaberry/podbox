@@ -2,7 +2,7 @@
 # Reconstruct the target's mount topology, then hand off to confine.
 #
 # Runs as pid 1 of a privileged container. Everything here needs mount(2),
-# which is exactly what the reconstructed runtime will not have — so it all
+# which is exactly what the reconstructed runtime will not have - so it all
 # happens before the confinement is applied, and none of it is reachable from
 # inside.
 #
@@ -50,9 +50,9 @@ mount --bind /usr/bin "$R"/bin
 mount --bind /usr/bin "$R"/sbin
 
 # ---------------------------------------------------------------- /etc
-# Individually bind-mounted files, exactly as the target does it — which is
+# Individually bind-mounted files, exactly as the target does it - which is
 # why /etc as a whole has no passwd, group or shadow. getpwuid(0) failing is a
-# load-bearing property (paper §8.4 field guide, udocker and treesandbox both
+# load-bearing property (paper section 8.4 field guide, udocker and treesandbox both
 # die on it), so it must not be repaired by copying a whole /etc.
 for f in ca-certificates.conf ld.so.cache ld.so.conf nsswitch.conf \
          protocols services resolv.conf; do

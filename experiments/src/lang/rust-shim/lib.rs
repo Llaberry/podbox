@@ -1,8 +1,8 @@
 // An LD_PRELOAD interposer in Rust, of the shape podbox's `interpose` tier
-// needs (paper §5.5, §10.3): override one libc symbol, record that it was
-// reached, and return success without performing the operation — which is
+// needs (paper section 5.5, section 10.3): override one libc symbol, record that it was
+// reached, and return success without performing the operation - which is
 // what makes ownership restoration survivable on a runtime that answers
-// chown-to-an-unmapped-id with EINVAL (§9.1).
+// chown-to-an-unmapped-id with EINVAL (section 9.1).
 //
 // Built as a cdylib. Two details decide whether this works at all, and both
 // are the reason this file exists as a measurement rather than an assertion:

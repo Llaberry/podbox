@@ -1,0 +1,114 @@
+name: gate
+
+# The gate. docs/methodology/gate.md is what it answers to, and
+# docs/methodology/work-todo.md requires the reader script to run as one:
+# a count that disagrees with the rows cannot reach a commit.
+#
+# ⛔ Every step reads an exit code from the process that produced it, unpiped.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  todo:
+    name: TODO index and citations
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # Asserts the counts against the rows, that no status disagrees between
+      # the index and its entry, that every reference resolves, and that every
+      # cited path and line exists. The last of those is why the corpus is
+      # tracked in the tree rather than on a side branch.
+      - name: check-todo
+        run: ./scripts/check-todo.py
+
+      # The writer must be a no-op on a tree the reader already passed. If it
+      # changes anything, the committed counts were not derived from the rows.
+      - name: todo-count is idempotent
+        run: |
+          ./scripts/todo-count.py
+          git diff --exit-code -- TODO/
+
+  build:
+    name: static build, no PT_INTERP
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: toolchain
+        run: rustup target add x86_64-unknown-linux-musl
+
+      - name: build
+        run: cargo build --release --target x86_64-unknown-linux-musl
+
+      # TOOL.md section 5 M-1 and M7. The artefact is a single static binary, and a
+      # PT_INTERP would mean it is not.
+      - name: no PT_INTERP
+        run: |
+          readelf -l target/x86_64-unknown-linux-musl/release/podbox
+          test "$(readelf -l target/x86_64-unknown-linux-musl/release/podbox | grep -c INTERP)" -eq 0
+
+      # T-0910's ceiling. A dependency that lands quietly fails here rather
+      # than being noticed at release. Raise it deliberately, with the
+      # cargo bloat delta that justifies it committed beside the change.
+      - name: binary size ceiling
+        run: |
+          size=$(stat -c%s target/x86_64-unknown-linux-musl/release/podbox)
+          echo "release binary: $size bytes"
+          test "$size" -lt 8000000
+
+      # The interposer is the one artefact that is not crt-static, and it is
+      # built separately for exactly that reason.
+      - name: interposer, one object per libc
+        run: ./scripts/build-interpose.sh
+
+  lint:
+    name: fmt, clippy, shell
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: toolchain
+        run: rustup component add rustfmt clippy
+
+      - name: fmt
+        run: cargo fmt --all -- --check
+
+      - name: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      # docs/conventions/prose.md: no em dashes, nothing outside the five
+      # allowed markers, and a density ceiling, over every tracked text file.
+      # ⚠ references/ is excluded: it is somebody else's prose, unmodified, and
+      # this project's conventions do not reach it.
+      - name: markers and prose
+        run: |
+          ./scripts/common/check-markers.sh || rc=$?
+          exit "${rc:-0}"
+
+      - name: shell scripts parse
+        run: |
+          rc=0
+          for f in scripts/*.sh scripts/common/*.sh experiments/*.sh; do
+            bash -n "$f" || rc=1
+          done
+          exit "$rc"
+
+      # The two count scripts are Python. Named as such so the step above does
+      # not try to parse them as shell, which it did while they were `.sh`.
+      - name: count scripts compile
+        run: python3 -m py_compile scripts/check-todo.py scripts/todo-count.py

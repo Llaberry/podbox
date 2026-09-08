@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Question: in the reconstruction, which mechanism produces which denial — and
-# does the answer match what paper_final.md §3.3, §3.7 and §3.7a say it is?
+# Question: in the reconstruction, which mechanism produces which denial - and
+# does the answer match what paper_final.md section 3.3, section 3.7 and section 3.7a say it is?
 #
 # Runs the census and the discriminating probes inside the reconstruction and
 # checks each row against a written-down expectation. An expectation that
 # cannot be tested on this host (every M row, where the kernel has no Landlock)
-# is reported SKIP and makes the script exit 2 — never a silent pass.
+# is reported SKIP and makes the script exit 2 - never a silent pass.
 #
 #   ./30-attribution-census.sh              run and assert
 #   ./30-attribution-census.sh --capture D  also write raw output under D
@@ -57,7 +57,7 @@ expect() {
 	fi
 }
 
-echo "== identity (paper §3.1; target capture verification/real/identity.txt)"
+echo "== identity (paper section 3.1; target capture verification/real/identity.txt)"
 for want in 'uid=0 gid=0 groups=[0 65534]' \
             'CapEff:	000001ffffffffff' \
             '/proc/self/uid_map: 0       1000          1' \
@@ -70,7 +70,7 @@ for want in 'uid=0 gid=0 groups=[0 65534]' \
 done
 
 echo
-echo "== census (paper §3.3 N+F column; target capture verification/real/probe-census.txt)"
+echo "== census (paper section 3.3 N+F column; target capture verification/real/probe-census.txt)"
 expect CENSUS 'unshare(CLONE_NEWNS)'              'FAIL errno=1 EPERM'  '(F)'
 expect CENSUS 'unshare(CLONE_NEWUSER)'            'FAIL errno=1 EPERM'  '(F)'
 expect CENSUS 'clone(CLONE_NEWNS)'                'OK'                  '(F2: not denied)'
@@ -93,7 +93,7 @@ expect CENSUS 'memfd_create+exec'                 'OK'
 expect CENSUS 'write(/etc/probe)'                 'FAIL errno=13 EACCES' '(N: /etc is owned by an unmapped id)'
 
 echo
-echo "== attribution (paper §3.7a; target capture verification/real/extkernel-newapi.txt)"
+echo "== attribution (paper section 3.7a; target capture verification/real/extkernel-newapi.txt)"
 expect ATTR 'mount(2) bogus target'               'FAIL errno=1 EPERM'  '(EPERM for a bogus path = pre-execution = F)'
 expect ATTR 'umount2(2) bogus target'             'FAIL errno=1 EPERM'  '(F)'
 expect ATTR 'pivot_root(2) bogus paths'           'FAIL errno=1 EPERM'  '(F)'
@@ -106,7 +106,7 @@ expect ATTR 'seccomp(NEW_LISTENER)'               'OK'                  '(F14: t
 expect ATTR 'open /proc/self/mem O_RDONLY'        'OK'                  '(F14: argument reads have a channel)'
 
 echo
-echo "== mechanism M (paper §3.3 correction, §3.7 fact 3)"
+echo "== mechanism M (paper section 3.3 correction, section 3.7 fact 3)"
 if printf '%s\n' "$ATTR" | grep -qF 'landlock_create_ruleset(VERSION)   OK'; then
 	expect ATTR 'move_mount(-> /tmp/mm-probe)'      'FAIL errno=1 EPERM'  '(M: security_move_mount)'
 	expect ATTR 'openat(detached tmpfs, O_DIRECTORY)' 'FAIL errno=13 EACCES' '(M: an LSM cannot resolve a detached mount)'

@@ -1,4 +1,4 @@
-//! TOOL.md §6.7: the LD_PRELOAD cdylib. Path virtualization and ownership
+//! TOOL.md section 6.7: the LD_PRELOAD cdylib. Path virtualization and ownership
 //! virtualization, which are two jobs and not one.
 //!
 //! Empty. The work is in `TODO/interpose.md`.

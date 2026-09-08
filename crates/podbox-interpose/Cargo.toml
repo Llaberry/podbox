@@ -8,7 +8,7 @@ repository = "https://github.com/Llaberry/podbox"
 
 # ⛔ Not a workspace member (see the root Cargo.toml). This object is loaded
 # into other people's processes: it takes no dependency on the rest of the tree
-# and none on anything that allocates on an interposed path (TOOL.md §6.7).
+# and none on anything that allocates on an interposed path (TOOL.md section 6.7).
 
 [lib]
 name = "podbox_interpose"

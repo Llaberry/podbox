@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Question: can a container image supply the target runtime's userspace — the
+# Question: can a container image supply the target runtime's userspace - the
 # toolchain it has (go, gcc, python3, tar, zstd) and the files it lacks
 # (/etc/passwd, /run, /var, /dev/fuse)?
 #
