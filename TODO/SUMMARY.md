@@ -15,18 +15,18 @@ T-0111, the probe cache, which lands beside the store and not before it.
 
 | row | before | after | from |
 | --- | --- | --- | --- |
-| Commits | `a4ab727` | 4 commits | `git log a4ab727..HEAD --oneline \| wc -l` |
-| Changes | | 42 files, +7,191 / -328 | `git diff --shortstat a4ab727..HEAD -- . ':!TODO/SUMMARY.md'` |
+| Commits | `a4ab727` | 9 commits | `git log a4ab727..HEAD --oneline \| wc -l` |
+| Changes | | 44 files, +7,784 / -330 | `git diff --shortstat a4ab727..HEAD -- . ':!TODO/SUMMARY.md'` |
 | podbox implementation code | 4,116 lines, 11 files | **9,098 lines, 27 files** | `wc -l crates/podbox-{probe,image,cli}/src/*.rs` |
 | ⭐ Release binary | 496,184 bytes | **2,130,672 bytes**, +1,634,488 | `experiments/110-bloat-delta.sh image` |
 | Headroom under the ceiling | 7,503,816 | 5,869,328 of 8,000,000 | the same |
 | `PT_INTERP` | none | **still none** | `readelf -l`, the same script |
 | Third-party crates in the artefact | **0** | 88 | `cargo tree`, the same script |
-| TODO entries | 87 | 87 | `check-todo.py` |
-| Entry statuses | 59 open, 3 partial, 2 blocked, 23 done | **53 open, 5 partial, 2 blocked, 27 done** | `check-todo.py` |
+| TODO entries | 87 | **94**, seven authored and not implemented | `check-todo.py` |
+| Entry statuses | 59 open, 3 partial, 2 blocked, 23 done | **59 open, 5 partial, 2 blocked, 28 done** | `check-todo.py` |
 | Gate checks | 17 | 17, unchanged | `scripts/check-todo.py` |
 | Plant cases | 18 caught, 0 missed | 18 caught, 0 missed, 3 controls quiet | `scripts/plant.sh` |
-| Rust tests | 44 | **125** (8 cli, 67 image, 50 probe) | `cargo test --workspace` |
+| Rust tests | 44 | **127** (10 cli, 67 image, 50 probe) | `cargo test --workspace` |
 | Experiment scripts | 14 | 18 | `ls experiments/*.sh` |
 | Committed results | 36 | 41 | `git ls-files experiments/results/` |
 | Checks | | gate 0, plant 0, markers 0, fmt 0, clippy 0 with **0 warnings**, tests 0, musl build 0, `PT_INTERP` 0, `110-` 0, `130-` 0, `140-` 0, `150-` 0, `160-` 0, `170-` 0 | each read unpiped |
@@ -67,7 +67,7 @@ two seccomp fields, and the confined run named all six that moved and re-probed.
 ⛔ A cache keyed on the boot id alone serves the host's `namespace` to a
 `chroot` process, which is the exact lie podbox exists to refuse.
 
-## Ten defects found by driving things rather than reading them
+## Eleven defects found by driving things rather than reading them
 
 Four are in podbox's own code. The other six are in the harness this session
 wrote, and five of those came out of re-running each script against its own
@@ -107,6 +107,12 @@ committed reading rather than looking at it once.
 10. `140-` recorded the `mktemp` directory into its transcript, so the file
     could **never** reproduce, and its inode clause was not deterministic. Both
     fixed, and all four scripts now reproduce their committed readings.
+11. ⭐ **The worst of them, and the last found.** `--format` was validated
+    inside the loop over records. An empty store means zero iterations, so
+    `podbox images --format '{{.Nope}}'` printed nothing and exited **0**: a
+    caller's typo reading as an empty result set. `--format 'table {{.Tag}}'`
+    printed `table latest` and exited 0. Both are refusals now, checked before
+    the store is opened. [T-0807](cli.md).
 
 ## The toolchain, which stopped being inert
 
@@ -148,6 +154,40 @@ compare nothing against docker and now default to
 `public.ecr.aws/docker/library/alpine:latest`. Establishing that drove the
 challenge-driven auth against **four registries** rather than one: Docker Hub,
 `public.ecr.aws`, `ghcr.io` and `quay.io`.
+
+## The four review passes
+
+1. **Is it true?** Four reference citations opened at their lines; all four say
+   what the entries say they say. Every number in [PROGRESS.md](PROGRESS.md)
+   re-read from the thing that produces it; all matched. ⚠ One apparent finding
+   was not one: a grep reported two declarations of the size ceiling, and the
+   second is `scripts/plant.sh` READING the value out of its one home.
+2. **Is it consistent?** Three sentences had outlived their numbers and are
+   corrected. Every verb the documents name is dispatched, every experiment the
+   README names exists, the counts agree in three places.
+3. **Is it usable cold?** Twenty error cases against an **empty store**, which
+   is the state a first-time user is in. ⭐ It found defect 11 above, the worst
+   of the session.
+4. **What is the worst input, ordering and partial failure?** Two concurrent
+   pulls into one store: both exit 0, one image, four blobs, index parses, no
+   staging left. An interrupted pull leaves nothing in `blobs/`. No bearer token
+   in the transcript or under the store. ⚠ The gap it found is recorded rather
+   than fixed, because fixing it is not M1's scope: SIGKILL mid-blob leaves a
+   `*.partial` nothing sweeps. [T-0210](image.md).
+
+## Seven entries authored, none implemented
+
+Per `docs/AGENTS.md`'s routing table, authoring is its own pass.
+
+| entry | size | what it is |
+| --- | --- | --- |
+| [T-0206](image.md) | L | a registry fixture, so M1's acceptance stops depending on Docker Hub's quota |
+| [T-0207](image.md) | L | bounded-concurrency layer fetch, with the wall time measured both ways |
+| [T-0208](image.md) | L | `--platform`, and a store keyed by variant so two do not overwrite each other |
+| [T-0209](image.md) | L | registry authentication, with no credential entering this tree |
+| [T-0210](image.md) | L | the store's concurrency contract, written down and driven by a stress run |
+| [T-1204](gate.md) | S | check 17 holds the newest committed reading, not only M0's baseline |
+| [T-0807](cli.md) | S | ⭐ `done`: the review pass that found it also fixed it |
 
 ## What did not move
 

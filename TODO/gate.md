@@ -203,3 +203,41 @@ first run and fixed in place: a combined `ls` glob that reported `unknown` for
 every glibc row, a `tr -s ' '` that did not squeeze the tab voidlinux uses, a
 `nsswitch` reading that folded "absent" into "present and silent", and a probe
 crash reported as "not seen".
+
+---
+
+### T-1204 Check 17 holds the newest committed reading under the ceiling, not only the baseline
+
+Source:      Found by reading check 17 against the tree after M1 landed
+Category:    gate
+Priority:    P1
+Effort:      S
+Status:      open
+
+Problem:     Check 17 reads `experiments/results/bloat-baseline.txt` and asserts
+             its `total_bytes` is under the ceiling. That file is deliberately
+             the "before": M0's artefact, 496,184 bytes. It is not the shipping
+             binary any more, so the number the gate holds is not the number the
+             ceiling exists to hold.
+Premise:     ⭐ **Measured on 2026-09-08.** M1 moved the artefact from 496,184 to
+             2,130,672 bytes, and `experiments/results/bloat-image.txt` records
+             it. `scripts/check-todo.py` went green throughout, because the file
+             it reads did not change. ⚠ The ceiling is still enforced at BUILD
+             time by `experiments/110-bloat-delta.sh`, which exits 1 over it, so
+             nothing is currently unprotected: what is missing is the half that
+             runs on a clone with no toolchain, which is the half check 17 was
+             written to be.
+Approach:    Read every `experiments/results/bloat-*.txt` rather than the
+             baseline alone, and assert each `total_bytes` is under the ceiling.
+             ⛔ Still no build: the check reads committed evidence, so it keeps
+             working on a fresh clone with no cargo, which is
+             `scripts/check-todo.py`'s own constraint.
+             ⚠ The baseline keeps its own separate assertion, because a missing
+             baseline means there is no "before" and `TODO/deps.md` T-0910 rules
+             that a dependency without one has not landed.
+Decision:    Every reading, not "the newest by date". A date inside a file is a
+             string this script would have to parse and rank, and a stale file
+             somebody forgot to delete would then silently outrank a real one.
+             Asserting all of them needs no ordering and fails on the same file
+             either way.
+Prove:       `./scripts/plant.sh` reports 19 caught, 0 missed, with the new case planting a `total_bytes` over the ceiling into `experiments/results/bloat-image.txt`

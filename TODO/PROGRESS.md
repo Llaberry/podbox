@@ -89,13 +89,13 @@ Acceptance, run on 2026-09-08:
 
 ```
 $ ./scripts/check-todo.py
-check-todo: 87 rows, 87 entries, 53 open, 5 partial, 2 blocked, 27 done
+check-todo: 94 rows, 94 entries, 59 open, 5 partial, 2 blocked, 28 done
 check-todo: ok
 $ ./scripts/plant.sh
   plants   18 caught, 0 missed
   controls 3 quiet, 0 fired
 $ cargo test --workspace
-test result: ok. 125 passed; 0 failed   (8 cli, 67 image, 50 probe)
+test result: ok. 127 passed; 0 failed   (10 cli, 67 image, 50 probe)
 $ cargo build --release --target x86_64-unknown-linux-musl
     Finished `release` profile [optimized] target(s)
 $ readelf -l target/x86_64-unknown-linux-musl/release/podbox | grep -c INTERP
@@ -117,7 +117,13 @@ $ ./experiments/170-probe-cache.sh
 
 ## Counts
 
-87 entries: 53 open, 5 partial, 2 blocked, 27 done.
+94 entries: 59 open, 5 partial, 2 blocked, 28 done.
+
+⚠ Seven entries were **authored and not implemented** this session, in their own
+pass per `docs/AGENTS.md`'s routing table: [T-0206](image.md) to
+[T-0210](image.md), [T-1204](gate.md) and [T-0807](cli.md). The last is `done`
+because the review pass that found it also fixed it; the other six are open and
+five of them are `L`.
 
 Derived by `scripts/todo-count.py` and asserted by `scripts/check-todo.py`.
 [INDEX.md](INDEX.md)'s Counts block carries the per-priority breakdown, and the
@@ -250,36 +256,52 @@ unexplained error line is a file that never ran, and this one is explained.
   detects that case rather than reporting it as a wrong digest: it re-pulls both
   once and says which of the two it was. `PODBOX_TEST_IMAGE` removes the race.
 
-### What the three review passes found
+### What the four review passes found
 
 ⭐ Each pass asked a different question, and each found something.
 
 1. **Is it true?** Every reference citation in the new code was opened at its
-   line: `onelf`'s verify-before-exec at `main.rs:149-157` and its lock-through-exec
-   at `main.rs:275-278`, dwarfs's status-code-as-byte-count at
+   line: `onelf`'s verify-before-exec at `main.rs:149-157` and its
+   lock-through-exec at `main.rs:275-278`, dwarfs's status-code-as-byte-count at
    `filesystem_extractor.cpp:544-552`, and memfd-exec's unchecked temp-dir
    fallback at `executable.rs:580-584`. All four say what the entries say they
-   say. The digest, reference, containment and clock conversions are
-   mutation-proved by tests that fail when the guard is removed, and the two
-   calendar conversions are checked against each other over a century of real
-   days rather than one known pair.
+   say. Every number written into this file was re-read from the thing that
+   produces it: the binary size, the delta, the headroom, the crate count, the
+   line and file counts, the script and result counts. All matched. ⚠ One
+   apparent finding was not one: a grep reported two declarations of the size
+   ceiling, and the second is `scripts/plant.sh` READING the value out of its
+   one home rather than declaring it.
 2. **Is it consistent?** Three numbers had moved and their sentences had not:
    the root `README.md` said `podbox probe` works and nothing else does,
    `experiments/README.md` listed neither the four new scripts nor the daemon
    they need, and `.cargo/config.toml` still called the `zig cc` lines inert.
-   All three are corrected.
+   All three are corrected. Every verb the documents name is dispatched, every
+   experiment the README names exists, and the counts agree across
+   [INDEX.md](INDEX.md), this file and the rows.
 3. **Is it usable cold?** The whole M1 surface was driven as a first-time user
-   would: `pull`, `pull` again, `images`, `images --format`, `images -q`,
-   `tag`, `inspect` with and without `--format`, `rmi`, `image prune -af`, and
-   `probe --cached` twice. ⚠ Two defects came out of this pass rather than out
-   of a test: the config blob in the pull transcript, and `--format` with an
-   unknown field, which now lists the fields the verb has instead of rendering
-   a blank column.
+   would, including twenty error cases against an **empty store**, which is the
+   state a first-time user is actually in. ⭐ **That is where the worst defect
+   of the session was found**: `--format` was validated inside the loop over
+   records, an empty store means zero iterations, and
+   `podbox images --format '{{.Nope}}'` printed nothing and exited **0**. A
+   caller's typo read as an empty result set. `--format 'table {{.Tag}}'`
+   printed `table latest` and exited 0. Both are refusals now, checked before
+   the store is opened. [T-0807](cli.md) carries it.
+4. **What is the worst input, ordering and partial failure?** Two concurrent
+   pulls into one store: both exit 0, one image, four blobs, the index parses,
+   no staging file left. An interrupted pull: nothing in `blobs/`, and the next
+   pull succeeds. No bearer token in the transcript or anywhere under the store.
+   ⚠ **The gap this pass found is recorded rather than fixed**, because fixing
+   it is not M1's scope: a process killed with SIGKILL mid-blob leaves a
+   `*.partial` file that nothing sweeps, and the orderings that were NOT driven
+   are the interesting ones. [T-0210](image.md) is that work, and it is `L`.
 
 ## In progress
 
 Nothing. [T-0203](image.md) and [T-0204](image.md) are `partial` with exactly
-one half named each, and each names the milestone that half lands in.
+one half named each, and each names the milestone that half lands in. The seven
+entries authored this session are authored and not started, which is what
+`docs/AGENTS.md`'s routing table requires of an authoring pass.
 
 ## The work order
 
@@ -299,6 +321,23 @@ kickoff prompt.
 3. Then M4, M5, M6, M7 in order. [T-0709](interpose.md) and
    [T-0410](complete.md) are both P0 and both land inside M6 and M5
    respectively; neither needs a measurement that has not been taken.
+
+⭐ **Two of this session's own entries are P1 and belong beside M2 rather than
+after M7**, because both are about M1's own gate rather than about a new
+capability:
+
+- [T-0206](image.md), the registry fixture, `L`. M1's acceptance currently
+  depends on Docker Hub's anonymous quota, and this session exhausted it. A gate
+  a third party can turn red is not a gate.
+- [T-0210](image.md), the store's concurrency contract, `L`. One ordering of one
+  case was driven; the contract is not written down, so every future change to
+  the store is a change to an unstated one.
+- [T-1204](gate.md), `S`. Check 17 holds M0's baseline under the ceiling and no
+  longer holds the shipping binary, which is now four times larger.
+
+⚠ [T-0207](image.md), [T-0208](image.md) and [T-0209](image.md) are P2 `L`
+entries and are not in the order. Each names what it needs and none blocks a
+milestone.
 
 ⚠ [T-0205](image.md) and [T-1004](packaging.md) are P3 and are not in the order.
 They are worth doing when something else touches the same ground.

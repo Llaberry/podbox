@@ -336,3 +336,217 @@ Decision:    This changes nothing about podbox's design and it changes a
              comparative claim podbox's own documentation would otherwise
              repeat. That is why it is P3 and not dropped.
 Prove:       `./experiments/95-podman-vfs-ignorechown.sh` exits 0 or 1, never 2, and its output is committed to `experiments/results/`
+
+---
+
+### T-0206 A registry fixture, so the acceptance stops depending on somebody else's quota
+
+Source:      Found while re-running `experiments/150-image-acquisition.sh` against its own committed reading
+Category:    image
+Priority:    P1
+Effort:      L
+Status:      open
+
+Problem:     M1's acceptance pulls from Docker Hub, and Docker Hub answers
+             `HTTP 429: TOOMANYREQUESTS: You have reached your unauthenticated
+             pull rate limit` after enough anonymous pulls from one address.
+             ⛔ A gate that a third party can turn red is not a gate. It is
+             worse than a missing one, because it teaches a session to read
+             `exit 2` as noise, and `exit 2` is the state this project uses for
+             "could not run".
+Premise:     ⭐ **Measured on 2026-09-08, in this repository.** The session that
+             implemented M1 exhausted the anonymous quota with its own runs.
+             `experiments/results/image-acquisition.txt` is a real reading and
+             the script that took it now exits 2 rather than 1 when the quota is
+             spent, which is correct and is also a gate nobody can run on demand.
+             ⚠ Two of the four scripts were moved off the Hub as a stopgap:
+             `experiments/140-space-precheck.sh` and
+             `experiments/160-store-gc.sh` compare nothing against docker and
+             default to `public.ecr.aws`. `experiments/150-image-acquisition.sh`
+             cannot follow them, because its whole question is whether podbox's
+             digest equals the one `docker image inspect` reports for the same
+             tag.
+Approach:    Serve the OCI distribution endpoints podbox uses from the store
+             podbox already has, on loopback, and point both podbox and docker
+             at it. The store is content-addressed and holds the manifest bytes
+             verbatim, which is exactly what `GET /v2/<name>/manifests/<ref>`
+             has to return, so the fixture is a reader over
+             `crates/podbox-image/src/store.rs` rather than a second store.
+             ⚠ Four endpoints, no more: `GET /v2/`, manifests by tag and by
+             digest, and blobs. No push, no catalog, no pagination.
+             ⛔ HTTPS, with a certificate the fixture generates and both clients
+             are pointed at. A fixture that speaks plain HTTP would be the one
+             thing `TODO/image.md` T-0201 refuses, wired into the acceptance.
+Decision:    A fixture in this tree over `registry:2` from Docker Hub. Pulling
+             the registry image to escape the pull limit is circular, and the
+             licence determination for a new tree is work
+             [reference-map.md](reference-map.md) requires before it is used.
+             ⚠ The rejected alternative is authenticating to the Hub: it needs a
+             credential, and `docs/security/secrets.md` keeps credentials out of
+             this tree, so the acceptance would then run only where somebody has
+             one.
+Prove:       `./experiments/180-registry-fixture.sh` exits 0 with the network to registry-1.docker.io blocked
+
+---
+
+### T-0207 Fetch layers with bounded concurrency, and measure what it buys
+
+Source:      `TOOL.md` section 6.2; `docs/conventions/forbidden-patterns.md`, the resources table
+Category:    image
+Priority:    P2
+Effort:      L
+Status:      open
+
+Problem:     `crates/podbox-image/src/pull.rs` fetches layers one after another.
+             `docs/conventions/forbidden-patterns.md` names "a sequential
+             awaited loop over independent IO" and what it caused: wall-time
+             blowups as the data grows. alpine has one layer and hides it; a
+             fifteen-layer image on a link with latency does not.
+Premise:     ⭐ **Read in this tree, at file and line.**
+             `crates/podbox-image/src/pull.rs` loops over
+             `manifest.layers.iter().chain(once(&manifest.config))` and calls
+             `client.blob` inside it, so every layer waits for its predecessor.
+             ⚠ **Not yet measured.** The claim that this costs wall time here is
+             a reading of the code, not a number, and taking the number is part
+             of this entry rather than a prerequisite for it.
+Approach:    A bounded pool of worker threads over the descriptor list, with the
+             bound a named constant and not a per-machine guess. Each worker
+             stages, verifies and commits through the existing store functions,
+             so there is one write path and not two.
+             ⛔ The transcript stays in manifest order however the fetches
+             interleave. A progress display whose order depends on scheduling is
+             a display that reports the machine's mood.
+             ⛔ A failure in one worker cancels the rest and removes every
+             staged file, rather than leaving a partial store behind.
+Decision:    Threads over an async runtime. `TODO/deps.md` T-0906 ruled a
+             blocking client on a measured size delta, and adding an async
+             runtime to parallelise four downloads reopens a decision that was
+             closed against a number.
+             ⚠ The genuine fork, with a recommendation: whether the bound is
+             fixed or scales with the CPU count. Recommend **fixed**, because
+             the constraint is the registry's willingness to serve, not this
+             machine's cores, and a CPU-scaled bound on a 96-core builder is how
+             a client earns a rate limit.
+Prove:       `./experiments/190-parallel-layers.sh` exits 0 and records the wall time of both shapes against a multi-layer image
+
+---
+
+### T-0208 `--platform`, and a store that can hold two variants of one tag
+
+Source:      `TOOL.md` section 6.2; `docs/conventions/forbidden-patterns.md`, the correctness table
+Category:    image
+Priority:    P2
+Effort:      L
+Status:      open
+
+Problem:     podbox resolves an index to `linux/amd64` and records the platform
+             it stored, but nothing can ask for another one, and the store keys
+             an image by repository and tag with no variant in the key. Pulling
+             `linux/arm64` would therefore either be refused or would overwrite
+             the amd64 record under the same name.
+Premise:     ⭐ **Read at file and line, and the corpus names the failure.**
+             `crates/podbox-image/src/oci.rs` hard-codes `OS` and `ARCH`, and
+             `crates/podbox-image/src/store.rs`'s `put_record` retains on
+             `repository` and `tag` alone. `docs/conventions/forbidden-patterns.md`
+             carries the incident: `podman run --platform linux/riscv64 alpine`
+             retags the shared local `alpine:latest` to the riscv64 image, so
+             the next plain `podman run alpine` fails with `Exec format error`
+             and reads as an unrelated breakage.
+             ⚠ podbox records `platform` on every record today, so the
+             information needed to key by it is already stored and unused.
+Approach:    `--platform <os>/<arch>[/<variant>]` on `pull`, defaulting to the
+             host's. The store key becomes repository, tag **and** platform.
+             `podbox images` gains the variant in its table only where more than
+             one is held, so the common output does not change.
+             ⛔ A reference that resolves to two stored records and no
+             `--platform` is a named refusal listing both, never a pick.
+Decision:    Key by platform rather than refusing a second variant. The refusal
+             is smaller and is the wrong shape: podbox's audience is automated,
+             and a multi-architecture builder is exactly the caller that needs
+             two variants at once.
+             ⚠ Rejected: defaulting to `linux/amd64` on every host. It is what
+             the code does now and it is wrong the moment podbox runs on arm64,
+             which is most of the machines its audience rents.
+Prove:       `podbox pull --platform linux/arm64 alpine:latest && podbox images --format '{{.Platform}} {{.Digest}}' alpine:latest | sort | uniq -c | grep -qx ' *1 linux/amd64 .*' `
+
+---
+
+### T-0209 Registry authentication, without a credential ever entering this tree
+
+Source:      `TOOL.md` section 6.2, section 11.1
+Category:    image
+Priority:    P2
+Effort:      L
+Status:      open
+
+Problem:     Every request podbox makes is anonymous. A private registry answers
+             401 and podbox has nothing to answer with, so the whole class of
+             image an agent sandbox actually runs is unreachable.
+Premise:     Read. `crates/podbox-image/src/registry.rs` answers a `Bearer`
+             challenge with no credential, which is what the anonymous flow
+             needs and is all it does. ⚠ The challenge parser, the realm
+             handling and the per-scope token cache are already there and are
+             the parts this entry does not have to write.
+Approach:    Read `~/.docker/config.json` and `$XDG_RUNTIME_DIR/containers/auth.json`,
+             both of which the audience's machines already have, and send Basic
+             to the token realm named by the challenge. `podbox login` writes
+             the same file docker writes.
+             ⛔ **No credential is logged, put in an error, or written into a
+             result file**, and `registry.rs`'s `redact` already covers URLs.
+             `docs/security/secrets.md` binds.
+             ⛔ A credential helper (`credsStore`) is executed only when the
+             config names one, never guessed, and a helper that fails is a named
+             refusal rather than a silent fall back to anonymous. Falling back
+             turns a permission problem into a 404 about a repository that
+             exists.
+Decision:    Read docker's and podman's files rather than inventing a third.
+             podbox answers to both names, and a runtime that needs its own
+             credential file has not replaced either.
+             ⚠ The genuine fork, with a recommendation: whether `podbox login`
+             writes a credential at all, given it lands in a file. Recommend
+             **yes, and only through the credential helper where one is
+             configured**, because refusing to write is not the same as the
+             credential not existing: it just moves it to a shell history.
+Prove:       `./experiments/200-registry-auth.sh` exits 0 against the fixture of T-0206 with a required credential
+
+---
+
+### T-0210 The store's concurrency contract, written down and driven
+
+Source:      Found while reviewing M1 adversarially; `docs/conventions/code.md`, "assume the worst case per feature"
+Category:    image
+Priority:    P1
+Effort:      L
+Status:      open
+
+Problem:     The store takes one exclusive lock around each index
+             read-modify-write and nothing else. What happens when two podboxes
+             pull different images at once, or one prunes while another pulls,
+             is not written down anywhere, so every future change to the store
+             is a change to an unstated contract.
+Premise:     ⭐ **Partly measured, and the measurement is the reason this is P1
+             rather than P3.** Two concurrent `podbox pull` runs of the same
+             reference into one store were driven on 2026-09-08: both exited 0,
+             the index parsed, one image and four blobs resulted, and no staging
+             file was left. ⚠ That is one ordering of one case. The cases NOT
+             driven are the interesting ones: a `prune` between another
+             process's space precheck and its first blob write, and two pulls of
+             DIFFERENT images racing on the same index.
+             ⚠ A second gap is read rather than measured:
+             `crates/podbox-image/src/store.rs` names a staging file after the
+             process id, so a process killed with SIGKILL mid-blob leaves a
+             `*.partial` file that nothing ever removes.
+Approach:    Write the contract into the module header as invariants, then drive
+             each one: what a reader may assume while a writer runs, what a
+             `prune` may delete while a `pull` is in flight, and what a crashed
+             process may leave. Then close the gaps the driving finds. A sweep
+             of orphaned staging files on store open is one of them, and it is
+             the "sweep that heals drift the happy path let slip" that
+             `docs/conventions/code.md` asks for.
+             ⛔ The sweep removes only files this store's own staging directory
+             holds, resolved through `crates/podbox-image/src/contain.rs`.
+Decision:    A stress experiment rather than a unit test. The failure is a race,
+             and a race that only a mock can produce is a race the mock's author
+             imagined. ⚠ The suite keeps its deterministic tests for the pieces;
+             the contract is proved against real concurrent processes.
+Prove:       `./experiments/210-store-concurrency.sh` exits 0 with 8 concurrent workers over 3 references, and the store verifies afterwards

@@ -225,3 +225,38 @@ Decision:    Check at the point of use rather than up front. lilipod's shape
              makes `pull` fail on a machine where `pull` would have worked, and
              `pull` is the verb an agent reaches for first.
 Prove:       `podbox run --rm alpine:latest true </dev/null && timeout 30 podbox pull alpine:latest </dev/null; test $? -ne 124`
+
+---
+
+### T-0807 `podbox images --format` refuses a template no verb can answer, before it looks at the store
+
+Source:      Found by driving the CLI cold against an empty store
+Category:    cli
+Priority:    P2
+Effort:      S
+Status:      done 2026-09-08
+
+Problem:     A `--format` template was validated inside the loop over records.
+             An empty store means zero iterations, so an invalid template was
+             never seen: `podbox images --format '{{.Nope}}'` printed nothing
+             and exited 0, and a caller's typo read as an empty result set.
+Premise:     ⭐ **Measured by running it**, not by reading it, on 2026-09-08.
+             Three templates exited 0 against an empty store where all three are
+             refusals: an unknown field, an unterminated `{{`, and docker's
+             `table` prefix, which rendered the word `table` beside the values.
+Approach:    One walk over the template, shared by a `check` that has no record
+             in hand and a `render` that does, in
+             `crates/podbox-cli/src/format.rs`. Both verbs call `check` before
+             the store is opened, against a named list of their own fields.
+             ⛔ The field-name list and the field builder are two places holding
+             one value, so a test asserts they agree, which is the remedy
+             `docs/conventions/forbidden-patterns.md` names for exactly that row.
+Decision:    Refuse `table` rather than rendering it as literal text. It selects
+             a column layout in docker and podbox does not have one, so printing
+             it is output shaped like something podbox does not do.
+Prove:       `podbox images --format '{{.Nope}}' >/dev/null 2>&1; test $? -eq 2`
+
+**Done 2026-09-08.** Driven against an empty store: the unknown field, the
+unterminated brace, the `table` prefix and a pipeline all exit 2 and name what
+is wrong; `{{.Digest}}` exits 0. `inspect` reports a bad template before it
+reports a missing image, because the template is the caller's own input.

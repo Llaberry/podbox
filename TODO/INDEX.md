@@ -76,6 +76,11 @@ the blocker named and what would clear it.
 | [T-0203](image.md) | P0 | image | partial | Check `statvfs` for blocks and inodes, and name the destination |
 | [T-0204](image.md) | P1 | image | partial | `images`, `rmi`, `tag`, and a store GC that cannot delete a running container's rootfs |
 | [T-0205](image.md) | P3 | image | open | Re-test podman with `vfs` and `ignore_chown_errors` before repeating "no path exists" |
+| [T-0206](image.md) | P1 | image | open | A registry fixture, so the acceptance stops depending on somebody else's quota |
+| [T-0207](image.md) | P2 | image | open | Fetch layers with bounded concurrency, and measure what it buys |
+| [T-0208](image.md) | P2 | image | open | `--platform`, and a store that can hold two variants of one tag |
+| [T-0209](image.md) | P2 | image | open | Registry authentication, without a credential ever entering this tree |
+| [T-0210](image.md) | P1 | image | open | The store's concurrency contract, written down and driven |
 | [T-0301](extract.md) | P0 | extract | open | Extract in-process, at entry level, never through system `tar` |
 | [T-0302](extract.md) | P0 | extract | open | Ownership-neutral extraction plus the sidecar |
 | [T-0303](extract.md) | P0 | extract | open | Whiteouts are matched on the basename, never with a path glob |
@@ -120,6 +125,7 @@ the blocker named and what would clear it.
 | [T-0804](cli.md) | P0 | cli | open | The honesty rules, and one switch that makes every degradation fatal |
 | [T-0805](cli.md) | P1 | cli | open | Diagnostics that name the operation, the errno, the mechanism and the remedy |
 | [T-0806](cli.md) | P0 | cli | open | Never prompt, never wait unbounded, and check space before every large write |
+| [T-0807](cli.md) | P2 | cli | done | `podbox images --format` refuses a template no verb can answer, before it looks at the store |
 | [T-0901](deps.md) | P1 | deps | done | Sweep: syscalls |
 | [T-0902](deps.md) | P2 | deps | done | Sweep: seccomp BPF |
 | [T-0903](deps.md) | P3 | deps | done | Sweep: Landlock |
@@ -147,10 +153,11 @@ the blocker named and what would clear it.
 | [T-1201](gate.md) | P0 | gate | done | The gate reaches every file this project wrote |
 | [T-1202](gate.md) | P0 | gate | done | Every check is planted against, and a plant that stops reaching its subject says so |
 | [T-1203](gate.md) | P1 | gate | done | A measurement taken on one host is a property of that host |
+| [T-1204](gate.md) | P1 | gate | open | Check 17 holds the newest committed reading under the ceiling, not only the baseline |
 
 ## Counts
 
-87 items: 53 open, 5 partial, 2 blocked, 27 done.
+94 items: 59 open, 5 partial, 2 blocked, 28 done.
 
 Counted from the rows above by `scripts/todo-count.py` and asserted
 independently by `scripts/check-todo.py`, which is the gate. A number here
@@ -159,10 +166,10 @@ that disagrees with the rows cannot reach a commit.
 | Priority | Open | Partial | Blocked | Done | Total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 26 | 3 | 1 | 14 | 44 |
-| P1 | 18 | 2 | 1 | 9 | 30 |
-| P2 | 7 | 0 | 0 | 3 | 10 |
+| P1 | 21 | 2 | 1 | 9 | 33 |
+| P2 | 10 | 0 | 0 | 4 | 14 |
 | P3 | 2 | 0 | 0 | 1 | 3 |
-| **All** | **53** | **5** | **2** | **27** | **87** |
+| **All** | **59** | **5** | **2** | **28** | **94** |
 
 ## How the current ordering is derived
 
