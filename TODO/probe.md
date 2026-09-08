@@ -593,15 +593,19 @@ Premise:     ⭐ **Measured, and it disagrees with the specification's key.**
              apart, and a cache keyed on it alone would serve the host's answer
              to a confined process on the first `run` after a probe.
 Approach:    Key on the boot id **and** on what the probe measured about the
-             confinement, both of which are already read:
+             confinement. ⚠ Three of the four below are already read by
+             `crates/podbox-probe/src/identity.rs`; the fourth is not and is
+             new work this entry carries:
              1. the boot id, which catches a reboot;
              2. `/proc/self/uid_map`, `/proc/self/gid_map` and
                 `/proc/self/setgroups`, which `crates/podbox-probe/src/identity.rs`
                 already reads and which change with the user namespace;
              3. `Seccomp` and `Seccomp_filters` from `/proc/self/status`, which
                 change when a filter is installed;
-             4. the mount namespace's inode, `readlink("/proc/self/ns/mnt")`,
-                which is what actually differs between the three readings above.
+             4. ⭐ **the mount namespace's inode**, `readlink("/proc/self/ns/mnt")`,
+                which is what actually differs between the three readings above
+                and is the one component **nothing in the tree reads today**.
+                It is the whole reason this entry is not a two-line change.
              Write `$store/probe.json` as the existing `--json` document plus
              that key, and re-probe when any component differs.
              ⚠ The document is already versioned by `"podbox"`, and
