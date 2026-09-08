@@ -15,8 +15,8 @@ T-0111, the probe cache, which lands beside the store and not before it.
 
 | row | before | after | from |
 | --- | --- | --- | --- |
-| Commits | `a4ab727` | 9 commits | `git log a4ab727..HEAD --oneline \| wc -l` |
-| Changes | | 44 files, +7,784 / -330 | `git diff --shortstat a4ab727..HEAD -- . ':!TODO/SUMMARY.md'` |
+| Commits | `a4ab727` | 10 commits | `git log a4ab727..HEAD --oneline \| wc -l` |
+| Changes | | 44 files, +7,847 / -331 | `git diff --shortstat a4ab727..HEAD -- . ':!TODO/SUMMARY.md'` |
 | podbox implementation code | 4,116 lines, 11 files | **9,098 lines, 27 files** | `wc -l crates/podbox-{probe,image,cli}/src/*.rs` |
 | ⭐ Release binary | 496,184 bytes | **2,130,672 bytes**, +1,634,488 | `experiments/110-bloat-delta.sh image` |
 | Headroom under the ceiling | 7,503,816 | 5,869,328 of 8,000,000 | the same |
