@@ -77,14 +77,21 @@ Problem:     A check that quietly matches nothing exits 0 exactly like a check
              the tree by hand. That verification lived in a transcript, so it
              was worth nothing to the next session.
 Premise:     ⭐ **Measured, and it found a real one on its first run.**
-             `scripts/plant.sh` plants twelve defects and asserts each makes the
+             `scripts/plant.sh` plants fourteen defects and asserts each makes the
              gate red **with that defect's own message**, and that the message
              was not already there. Case 6 landed its mutation and the gate
              stayed green: each corpus tree is named twice in
              `TODO/reference-map.md`, in the licence table and again in the
              verdicts table, so deleting one row left the other and the check
              never lost the tree. The plant now removes every mention.
-             Result: 12 plants caught, 0 missed, 3 controls quiet, 0 fired.
+             Result: 14 plants caught, 0 missed, 3 controls quiet, 0 fired.
+             ⛔ **Fourteen of the gate's fifteen checks, and the harness says
+             so on every run.** Check 15, the coverage floor, has no case:
+             planting it means making a check examine nothing, which requires
+             editing the gate's own matchers rather than the tree. Listing
+             fourteen passing cases against a fifteen-check gate without
+             saying which one is uncovered is the same vacuity this entry
+             exists to remove.
 Approach:    Four guards, each because the harness shape without it reports
              success while planting nothing:
              1. **the mutation must land**, asserted by hashing the file list
@@ -104,7 +111,7 @@ Decision:    Assert the message, not the exit code. A gate already red for
              code passes vacuously the moment anything else breaks.
 Prove:       `./scripts/plant.sh`
 
-**Done.** Exit 0: 12 plants caught, 0 missed; 3 controls quiet, 0 fired.
+**Done.** Exit 0: 14 plants caught, 0 missed; 3 controls quiet, 0 fired.
 
 ---
 
