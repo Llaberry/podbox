@@ -4,14 +4,19 @@
 [PROGRESS.md](PROGRESS.md) is the record and carries the work order. This file
 carries only what one session moved.
 
+⚠ **The Changes row excludes this file, deliberately.** A diffstat written into
+a file that is part of the diff is stale the moment it is committed, and the
+last session corrected the same row twice for that reason. The command in the
+row excludes `SUMMARY.md` and is therefore stable under any further edit to it.
+
 **Task:** M1, image acquisition: [milestones.md](milestones.md) T-1102 and,
 under it, [image.md](image.md) T-0201 to T-0204. Then [probe.md](probe.md)
 T-0111, the probe cache, which lands beside the store and not before it.
 
 | row | before | after | from |
 | --- | --- | --- | --- |
-| Commits | `a4ab727` | 3 commits | `git log a4ab727..HEAD` |
-| Changes | | 43 files, +7,340 / -328 | `git diff --shortstat a4ab727..HEAD` |
+| Commits | `a4ab727` | 4 commits | `git log a4ab727..HEAD --oneline \| wc -l` |
+| Changes | | 42 files, +7,191 / -328 | `git diff --shortstat a4ab727..HEAD -- . ':!TODO/SUMMARY.md'` |
 | podbox implementation code | 4,116 lines, 11 files | **9,098 lines, 27 files** | `wc -l crates/podbox-{probe,image,cli}/src/*.rs` |
 | ⭐ Release binary | 496,184 bytes | **2,130,672 bytes**, +1,634,488 | `experiments/110-bloat-delta.sh image` |
 | Headroom under the ceiling | 7,503,816 | 5,869,328 of 8,000,000 | the same |
