@@ -229,7 +229,7 @@ than an independent reading. What is still needed is one run on the target.
   finding. Guessing wrong costs either way: a regression committed as an
   "update", or a real change discarded as "just the timestamp". This compares
   the working copy against git's, ignoring the clock lines only, and says
-  which. `experiments/110-` and `130-` print it at the end. ⛔ It never moves
+  which. The two instruments print it at the end. ⛔ It never moves
   their exit codes, which belong to the ceiling and to the three acceptance
   clauses.
 - ⭐ **`scripts/zig-cc.sh` and `scripts/zig-ar.sh`**, wired into
