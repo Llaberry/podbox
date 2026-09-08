@@ -10,7 +10,7 @@ has to keep meaning what it meant.
 |---|---|
 | `10-build-target-image.sh` | can a container image supply the target's *userspace* - the toolchain it has, the files it lacks? |
 | `20-enter-target.sh` | can a container supply the target's *kernel-visible shape* - its mount topology, its ID map, its filter, its write policy - and which parts does this host refuse? |
-| `30-attribution-census.sh` | which mechanism produces which denial, measured one mechanism at a time, against a written-down expectation |
+| `30-attribution-census.sh` | which mechanism produces which denial, measured one mechanism at a time, against a written-down expectation. ⭐ `--capture experiments/results` is what writes `attribute.txt`, `census.txt` and `identity.txt`, and `130-` compares against the first |
 
 ## Exit codes
 
@@ -44,12 +44,26 @@ decisions podbox has to make. Each writes its transcript to
 ./experiments/80-interposer-abi.sh              # which interposer a payload may load, decided from ELF
 ./experiments/90-nsswitch-contract.sh           # whether a supplied /etc/passwd is read at all
 ./experiments/100-interpose-symbols.sh          # the exec family, and the completeness test
+./experiments/110-bloat-delta.sh baseline       # the release total, its breakdown, and the ceiling
 ./experiments/125-across-distributions.sh       # ~10 min, eleven pinned distributions
+./experiments/130-probe-parity.sh               # M0's acceptance: the rung in both environments, and the rows
 ```
 
-⛔ `80-`, `90-`, `100-` and `125-` need a running docker daemon, and `80-` needs
-`musl-gcc` for its fourth arm. Each says which of its checks could not run
+⛔ `80-`, `90-`, `100-`, `125-` and `130-` need a running docker daemon, and
+`80-` needs `musl-gcc` for its fourth arm. `110-` needs `cargo-bloat` for its
+breakdown and exits 2 without it. Each says which of its checks could not run
 rather than reporting a pass it did not earn.
+
+⭐ **`130-` is `TODO/milestones.md` T-1101's acceptance as one command**, so it
+is re-run rather than recalled. It builds nothing: point `PODBOX_BIN` at a
+binary, or build the default first with
+`cargo build --release --target x86_64-unknown-linux-musl`.
+
+⚠ **`20-` builds its harness from the corpus, not from this tree.** It arrived
+seeded from `Azathothas/container-research`, where the Go sources sit at
+`verification/`, and podbox tracks that repository under `references/` instead.
+`HARNESS_SRC` names the one place they are and the conditions block prints it.
+Every invocation failed at `cd` until 2026-09-08 because of that.
 
 ## Running your own binary against it
 

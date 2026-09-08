@@ -71,6 +71,29 @@ above one, because the kernel refuses that call to any multithreaded caller
 with `EINVAL` whatever the policy. That is what makes the rule survive the day
 somebody adds a thread pool rather than being a comment nobody re-reads.
 
+⭐ **The declared syscall numbers were checked against the kernel's own
+headers**, because a wrong one would report a verdict for a syscall nobody
+named and would look exactly like a measurement. The command is one `gcc` away
+and is reproducible:
+
+```sh
+printf '#include <sys/syscall.h>\n#include <stdio.h>\nint main(void){printf("%%d\\n",SYS_move_mount);}\n' \
+  | gcc -x c - -o /tmp/nr && /tmp/nr   # against `crates/podbox-probe/src/sys.rs`
+```
+
+All 46 declared numbers and all 19 flag constants matched on 2026-09-08. Two
+tests in `crates/podbox-probe/src/sys.rs` additionally cross-check the trap, the
+ABI and the negative-return window against facts the process already knows by
+another route, and the sixteen attribution numbers are exercised on every run of
+`experiments/130-probe-parity.sh`.
+
+⚠ **The verdict channel survives a caller with fd 1 closed.** `pipe2(2)` hands
+out the lowest free descriptors, so with stdout closed one end of the pipe lands
+on fd 1, where `dup2(1, 1)` is a no-op that returns without closing and an
+unconditional `close` after it would shut the channel every child answers
+through. Driven on 2026-09-08 with `podbox probe 1>&- 2>err`: the evidence block
+is identical to an ordinary run, two skips either way.
+
 ⚠ **The errno comes from the raw syscall, not from a libc wrapper.**
 `crates/podbox-probe/src/sys.rs` issues `syscall` directly, so the value in
 `-4095..=-1` *is* `-errno` with no thread-local in between. glibc's `setuid(3)`

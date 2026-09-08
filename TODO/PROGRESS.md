@@ -153,6 +153,33 @@ header of `crates/podbox-probe/src/probes.rs` carries all four.
    `fsmount` fails, the Go instrument reports its errno as `move_mount`'s
    verdict, and `kcmp`'s `ENOSYS` as a denial. Neither operation was measured.
 
+### What the three review passes found
+
+⭐ Each pass asked a different question, and each found something. A pass
+reporting nothing was too shallow.
+
+1. **Is it true?** All 46 declared syscall numbers and all 19 flag constants
+   were checked against `<sys/syscall.h>` and the kernel headers, and every
+   reference citation in the new code was opened at its line. All matched. Two
+   ABI cross-checks were added as tests, and four critical guards were
+   mutation-proved: the errno window, the child verdict-versus-status check,
+   the rung ordering under `--strict`, and the banner reporting the rung rather
+   than the machine. Each went red, and each named its own test.
+2. **Is it consistent?** Four numbers had moved and their sentences had not:
+   `docs/AGENTS.md` and `scripts/plant.sh` still said fifteen and sixteen
+   checks, [T-1202](gate.md)'s closing note still said fifteen plants, the root
+   `README.md` still said nothing was implemented, and `experiments/README.md`
+   listed neither of the two new scripts. All five are corrected.
+3. **Is it usable cold?** The whole CLI surface was driven as a first-time user
+   would: no arguments, `--help`, an unknown verb, `probe --help`, an unknown
+   flag, `--json --rows` together, and the internal child flag with and without
+   a name. Every one answers on the right channel with the right code. ⚠ One
+   real defect came out of this pass rather than out of a test: with fd 1
+   closed at process start, `pipe2(2)` hands a pipe end to fd 1 and the child's
+   unconditional `close` after a no-op `dup2(1, 1)` shut the channel every
+   probe answers through. Every verdict would have become a skip, honestly and
+   uselessly. Fixed, and driven with `podbox probe 1>&-` to confirm.
+
 ### One correction to the probe itself, made after the first confined run
 
 ⚠ `mount(tmpfs,/mnt)` originally checked that `/mnt` existed and skipped when it

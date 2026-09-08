@@ -205,18 +205,31 @@ impl Spawner {
         envp: &[*const u8],
     ) -> Result<Run, (String, Errno)> {
         let mut fds = [0i32; 2];
-        sys::pipe2(&mut fds, sys::O_CLOEXEC)
+        // ⛔ NOT `O_CLOEXEC`. The child closes the read end itself, so the flag
+        // buys nothing, and it introduces a case that loses the verdict: where
+        // the caller invoked podbox with fd 1 closed, `pipe2` hands out fd 1
+        // for one end, and a close-on-exec fd 1 is a child that writes its
+        // answer into a descriptor the exec has already taken away.
+        sys::pipe2(&mut fds, 0)
             .map_err(|e| ("pipe2 for the child's verdict failed".to_string(), e))?;
         let (r, w) = (fds[0] as i64, fds[1] as i64);
 
         let pid = match unsafe { sys::clone_fork(ns_flags | sys::SIGCHLD) } {
             Ok(0) => {
                 // ---- child. Async-signal-safe work only, then execve. ----
-                // dup2 clears O_CLOEXEC on the new descriptor, so fd 1 crosses
-                // the exec while the original write end does not.
-                let _ = sys::dup2(w, 1);
-                let _ = sys::close(w);
-                let _ = sys::close(r);
+                // ⚠ Both guards are for the same case: `pipe2` returns the
+                // lowest free descriptors, so with fd 1 closed one end lands on
+                // it. `dup2(1, 1)` is a no-op that returns 1 WITHOUT closing,
+                // and the unconditional `close` after it would then shut the
+                // verdict channel. Where an end already is fd 1 there is
+                // nothing to move and nothing to close.
+                if w != 1 {
+                    let _ = sys::dup2(w, 1);
+                    let _ = sys::close(w);
+                }
+                if r != 1 {
+                    let _ = sys::close(r);
+                }
                 let _ = unsafe { sys::execve(exe, argv.as_ptr(), envp.as_ptr()) };
                 // execve returned, so it failed. 127 is the shell's convention
                 // for "could not execute", and the parent reads it as a harness

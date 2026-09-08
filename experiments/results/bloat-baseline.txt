@@ -1,6 +1,6 @@
 # cargo bloat and the release total, area=baseline
 # TODO/deps.md T-0910. One machine, one day.
-date              2026-09-08T11:36:59Z
+date              2026-09-08T11:42:29Z
 host kernel       6.18.44-fc-v24
 rustc             rustc 1.98.1 (48a229cea 2026-09-01)
 cargo             cargo 1.98.1 (797e8a9bc 2026-08-05)
@@ -36,5 +36,5 @@ breakdown         taken from an unstripped build of the release profile
  0.1%   0.8%   2.9KiB    [Unknown] _ZN9libunwind10CFI_ParserINS_17LocalAddressSpaceEE9decodeFDEERS1_mPNS2_8FDE_InfoEPNS2_8CIE_InfoEb
  0.1%   0.8%   2.9KiB          std <std::backtrace_rs::symbolize::gimli::Mapping>::new_debug
  0.1%   0.8%   2.8KiB    [Unknown] _ZN9libunwind14EHHeaderParserINS_17LocalAddressSpaceEE7findFDEINS_16Registers_x86_64EEEbRS1_NT_23link_hardened_reg_arg_tEmjPNS_10CFI_ParserIS1_E8FDE_InfoEPNS9_8CIE_InfoE
- 9.5%  59.6% 213.2KiB              And 849 smaller methods. Use -n N to show more.
+ 9.5%  59.6% 213.2KiB              And 848 smaller methods. Use -n N to show more.
 15.9% 100.0% 357.6KiB              .text section size, the file size is 2.2MiB

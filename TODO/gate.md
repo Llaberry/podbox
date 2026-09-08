@@ -84,14 +84,22 @@ Premise:     ⭐ **Measured, and it found a real one on its first run.**
              `TODO/reference-map.md`, in the licence table and again in the
              verdicts table, so deleting one row left the other and the check
              never lost the tree. The plant now removes every mention.
-             Result: 15 plants caught, 0 missed, 3 controls quiet, 0 fired.
-             ⛔ **Fifteen of the gate's sixteen checks, and the harness says
-             so on every run.** Check 16, the coverage floor, has no case:
-             planting it means making a check examine nothing, which requires
-             editing the gate's own matchers rather than the tree. Listing
-             fifteen passing cases against a sixteen-check gate without
-             saying which one is uncovered is the same vacuity this entry
-             exists to remove.
+             Result on 2026-09-08: 18 plants caught, 0 missed, 3 controls
+             quiet, 0 fired, over seventeen checks. ⛔ **Every check but one has
+             a case, and the harness says which on every run.** Check 16, the
+             coverage floor, has none: planting it means making a check examine
+             nothing, which requires editing the gate's own matchers rather than
+             the tree. Listing passing cases without naming the check that has
+             none is the same vacuity this entry exists to remove.
+             ⚠ The counts here are not held by anything and will move again.
+             `./scripts/plant.sh` prints the current pair on every run, and it
+             is the answer; this line is a reading from one day.
+             ⭐ **A second case rotted and guard 1 caught that too.** Case 3
+             named `Status:      open` literally and stopped landing the moment
+             `TODO/probe.md` had no open entry left, which is what closing M0
+             did. It reported "the mutation did not land" rather than a silent
+             green, and the case is status-agnostic now. Cases 4 and 10 took the
+             same treatment for the counts, for the same reason.
 Approach:    Four guards, each because the harness shape without it reports
              success while planting nothing:
              1. **the mutation must land**, asserted by hashing the file list

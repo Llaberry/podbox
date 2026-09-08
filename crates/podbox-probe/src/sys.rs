@@ -90,6 +90,7 @@ pub const SYS_OPEN: i64 = 2;
 pub const SYS_CLOSE: i64 = 3;
 pub const SYS_STAT: i64 = 4;
 pub const SYS_DUP2: i64 = 33;
+pub const SYS_GETPID: i64 = 39;
 pub const SYS_CLONE: i64 = 56;
 pub const SYS_EXECVE: i64 = 59;
 pub const SYS_WAIT4: i64 = 61;
@@ -387,4 +388,55 @@ pub fn getgroups() -> Result<Vec<i32>, Errno> {
     };
     buf.truncate(got as usize);
     Ok(buf)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// ⛔ The worst failure available to this module is a wrong number or a
+    /// wrong ABI: it would report a verdict for a syscall nobody named, and it
+    /// would look exactly like a measurement. Two cross-checks against facts
+    /// this process already knows by another route.
+    ///
+    /// ⚠ Neither proves the whole table. The table itself was checked once
+    /// against `<sys/syscall.h>` on 2026-09-08 and the command is recorded in
+    /// `TODO/probe.md` T-0101 so it can be re-run; the sixteen attribution
+    /// numbers are additionally exercised on every run of
+    /// `experiments/130-probe-parity.sh`, which compares them against a reading
+    /// the reference instrument took.
+    #[test]
+    fn the_trap_and_the_abi_agree_with_what_this_process_already_knows() {
+        let raw = unsafe { syscall6(SYS_GETPID, 0, 0, 0, 0, 0, 0) };
+        assert_eq!(
+            raw,
+            std::process::id() as i64,
+            "SYS_GETPID or the syscall ABI is wrong"
+        );
+    }
+
+    #[test]
+    fn a_negative_return_decodes_as_the_errno_and_not_as_a_value() {
+        // close(-1) is EBADF on every Linux. If `split` had the window wrong,
+        // this would come back as a huge positive value instead.
+        assert_eq!(close(-1), Err(EBADF));
+        assert_eq!(split(-1), Err(EPERM));
+        assert_eq!(split(-4095), Err(Errno(4095)));
+        // ⚠ Outside the window is a VALUE, including a large negative one from
+        // a syscall that returns a signed quantity.
+        assert_eq!(split(-4096), Ok(-4096));
+        assert_eq!(split(0), Ok(0));
+    }
+
+    #[test]
+    fn a_path_with_an_interior_nul_is_refused_rather_than_truncated() {
+        assert!(CBuf::new("/tmp/a\0b").is_none());
+        assert!(CBuf::new("/tmp/ab").is_some());
+    }
+
+    #[test]
+    fn an_unknown_errno_names_its_number_rather_than_guessing_a_name() {
+        assert_eq!(Errno(1).name(), "EPERM");
+        assert_eq!(Errno(4093).name(), "E4093");
+    }
 }

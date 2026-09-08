@@ -2,9 +2,11 @@
 # plant.sh - break each of the gate's checks on purpose and assert it goes red.
 #
 # ⛔ AN ASSERTION NOBODY HAS SEEN FAIL IS NOT AN ASSERTION. `check-todo.py`
-# carries sixteen checks. A check that quietly matches nothing exits 0 exactly
-# like a check whose assertions all passed, and the second is what everybody
-# assumes they are looking at. This script is what tells them apart.
+# carries seventeen checks and this script carries eighteen cases, because
+# check 17 has three assertions that fail apart. A check that quietly matches
+# nothing exits 0 exactly like a check whose assertions all passed, and the
+# second is what everybody assumes they are looking at. This script is what
+# tells them apart.
 #
 # ⭐ READ THE FINDING, NOT THE EXIT CODE. A gate already red for another reason
 # exits 1 either way. Each case here asserts that the planted defect's OWN
@@ -247,8 +249,8 @@ case_plant "17c a baseline with no total" "carries no \`total_bytes <n>\` line" 
   sh -c 'sed -i -E "s/^total_bytes /total_bytes_renamed /" experiments/results/bloat-baseline.txt'
 
 echo
-# ⛔ SAY WHAT IS NOT COVERED. A harness that lists twelve passing cases against a
-# fifteen-check gate implies a coverage it does not have, which is the same
+# ⛔ SAY WHAT IS NOT COVERED. A harness that lists passing cases without naming
+# the check that has none implies a coverage it does not have, which is the same
 # vacuity it exists to catch.
 echo "== not planted against"
 echo "  16 coverage floor    no case. Planting it means making a check examine"

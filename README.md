@@ -14,17 +14,29 @@ and exit codes, and where it cannot honour something it says so in one line.
 
 ## State
 
-**Nothing is implemented.** This tree is milestone M-1 of
+**`podbox probe` works. Nothing else does.** This tree is milestone M0 of
 [`TOOL.md`](references/Azathothas__container-research/tree/TOOL.md) section 5: the
-reference corpus, the work index and the skeleton. The next milestone is M0,
-the probe.
+probe, and nothing else. Every other verb exits 125 and says so. The next
+milestone is M1, image acquisition.
+
+```sh
+podbox probe            # the rung on stdout, the evidence on stderr, exit 0
+podbox probe --json     # the same findings, for a harness
+podbox probe --rows     # every probe, one row each
+podbox probe --strict   # exit non-zero below the `namespace` rung
+```
+
+⛔ **It reports the mode it achieved and never lets a weaker one satisfy a
+stronger request.** On a machine that hands a process uid 0 and refuses mounts
+it selects `chroot`, prints what that does not provide, and does not pretend to
+be a container.
 
 `TODO/PROGRESS.md` carries the state line, the counts and the work order.
 
 | path | what it is |
 | --- | --- |
 | [`TODO/`](TODO/) | the work. `INDEX.md` lists every entry, `PROGRESS.md` carries the order, `reference-map.md` carries the corpus and its licence determinations |
-| [`crates/`](crates/) | the workspace of `TOOL.md` section 4.3. Every crate is a skeleton |
+| [`crates/`](crates/) | the workspace of `TOOL.md` section 4.3. `podbox-probe` and the `probe` verb of `podbox-cli` are implemented; the rest are skeletons |
 | [`references/`](references/) | the corpus: 30 trees at pinned commits, with their trackers. Tracked, in the tree |
 | [`experiments/`](experiments/) | the reconstruction of the target runtime, seeded from `Azathothas/container-research`, plus this project's own measurements |
 | [`scripts/`](scripts/) | the gate, the count scripts, the corpus fetcher |
