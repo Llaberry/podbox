@@ -149,8 +149,12 @@ case_plant "1 row without an entry" "has a row and no entry" \
 case_plant "3 status disagreement" "disagrees with the index" \
   sh -c 'sed -i "0,/^Status:      open$/s//Status:      blocked/" TODO/probe.md'
 
+# ⚠ COUNT-AGNOSTIC. These two cases named the counts literally and rotted the
+# first time the counts moved: guard 1 reported "the mutation did not land"
+# rather than a silent green, which is the whole reason guard 1 exists. A plant
+# must mutate whatever number is there.
 case_plant "4 count block is stale" "the totals line is not the rows" \
-  sh -c 'sed -i "s/^81 items: 76 open/81 items: 75 open/" TODO/INDEX.md'
+  sh -c 'sed -i -E "s/^([0-9]+) items: [0-9]+ open/\\1 items: 999 open/" TODO/INDEX.md'
 
 case_plant "5 a missing field" "has no \`Decision:\` field" \
   sh -c 'sed -i "0,/^Decision:/s//Decisionx:/" TODO/probe.md'
@@ -172,7 +176,7 @@ case_plant "9 a T-NNNN naming nothing" "which is not an entry" \
   sh -c 'printf "\nBlocked behind T-8888.\n" >> TODO/probe.md'
 
 case_plant "10 PROGRESS count is stale" "the count line is not the rows" \
-  sh -c 'sed -i "s/^81 entries: 76 open/81 entries: 74 open/" TODO/PROGRESS.md'
+  sh -c 'sed -i -E "s/^([0-9]+) entries: [0-9]+ open/\\1 entries: 999 open/" TODO/PROGRESS.md'
 
 case_plant "11 a tree citation past EOF" "lines" \
   sh -c 'printf "\nSee \`%s\` for the gate.\n" "$BAD_LINE_B" >> README.md'
