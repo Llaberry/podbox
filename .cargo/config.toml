@@ -12,10 +12,15 @@ rustflags = ["-C", "target-feature=+crt-static"]
 
 # ⭐ `zig cc` as the C cross-compiler for the shipping target.
 #
-# ⚠ Inert today: `[workspace.dependencies]` is empty and nothing in the tree
-# compiles C. It is here for the day a sweep in TODO/deps.md lands a candidate
-# that does, so the answer to "does it pull C" is a measurement rather than a
-# link error naming a toolchain nobody installed.
+# ⚠ NO LONGER INERT. `TODO/image.md` T-0201 landed `rustls` and its `ring`
+# provider, which compiles 17 `.c` files and 90 `.S` files behind a build
+# script, so this is the toolchain that builds them. Removing these two lines
+# now breaks the build rather than changing nothing.
+#
+# ⚠ The LINK is still the host `cc`, deliberately. Making zig the linker as
+# well fails on `duplicate symbol: _start`, because zig's driver adds its own
+# `crt1.o` despite rustc's `-nostartfiles`. scripts/zig-cc.sh carries that
+# measurement and the `-fno-sanitize=undefined` it takes instead.
 #
 # `relative = true` resolves against the repository root, so the same config
 # works from any subdirectory. `force` is left at its default, so a machine

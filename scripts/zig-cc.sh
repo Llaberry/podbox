@@ -28,6 +28,30 @@
 #      produces the same object on any machine with the same zig, which is what
 #      `docs/methodology/experiments.md` means by a pinned input.
 #
+# ⛔ WHY IT PASSES `-fno-sanitize=undefined`. Measured on 2026-09-08, the first
+# time a member crate took the `rustls` pin: `cargo build` (debug) failed at the
+# link with
+#     libring-*.rlib(...curve25519.o): undefined reference to
+#     `__ubsan_handle_type_mismatch_v1'
+# and `cargo build --release` succeeded. `zig cc` with no `-O` flag compiles in
+# its Debug mode, which instruments with UBSan and emits calls to handlers that
+# live in zig's own `compiler-rt`; `cc-rs` passes no `-O` in a cargo debug
+# profile and does pass `-O3` in release, which is why only one of the two
+# broke. rustc links with the host `cc`, which cannot resolve those handlers.
+#
+# ⚠ THE ALTERNATIVE WAS TRIED AND IS WORSE. Making `zig cc` the linker as well
+# (`linker = "scripts/zig-cc.sh"` under `[target.x86_64-unknown-linux-musl]`)
+# fails differently: zig's driver adds its own `crt1.o` despite the
+# `-nostartfiles` rustc passes, and the link dies on `duplicate symbol: _start`
+# against rustc's `rcrt1.o`.
+#
+# ⚠ What this gives up is UBSan instrumentation of a VENDORED C dependency in
+# debug builds. podbox consumes no UBSan diagnostic from it, the shipped
+# artefact is the release profile and never had the instrumentation, and the
+# flag makes the two profiles agree rather than removing a check this project
+# was reading. `ZIG_SANITIZE=1` restores it, for a session that wants to link
+# the runtime itself.
+#
 # ⚠ It is a cost, not a free win: zig is a ~53 MB download and a machine
 # without it cannot build a C dependency at all. TODO/deps.md question 3 asks
 # whether a candidate pulls C, and the answer stays "yes, and here is what that
@@ -80,4 +104,7 @@ for a in "$@"; do
 	esac
 done
 
-exec zig cc -target "$target" ${args+"${args[@]}"}
+sanitize=()
+[ -n "${ZIG_SANITIZE:-}" ] || sanitize=(-fno-sanitize=undefined)
+
+exec zig cc -target "$target" ${sanitize+"${sanitize[@]}"} ${args+"${args[@]}"}
