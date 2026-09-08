@@ -13,8 +13,8 @@ cat references/VHSgunzo__pathmap/PROVENANCE.md  # commit, route, and gaps
 
 That shape is chosen over the side branch for one reason:
 `scripts/check-todo.py` asserts that **every cited path and line resolves**, and
-a gate cannot resolve a citation into a branch it is not on. The cost is a
-157 MB clone.
+a gate cannot resolve a citation into a branch it is not on. The cost is a clone that carries it: 152 MB of corpus plus 27 MB of git
+objects, measured on a fresh clone on 2026-09-08.
 
 Each directory holds `PROVENANCE.md` (the commit, the route, and what could not
 be fetched), `api/` (issues and pull requests in both states, comments, review

@@ -25,10 +25,15 @@ the reconstruction cannot run here and report `SKIP`.
 | interposer cdylib, `-crt-static`, musl target | 14,064 bytes | `experiments/60-interposer-libc.sh` |
 | interposer cdylib, `-crt-static`, gnu target | 267,680 bytes | `experiments/60-interposer-libc.sh` |
 | cross-libc preload reach | **not measured.** exit 2, no musl libc on this host | `experiments/60-interposer-libc.sh` |
-| corpus | 30 trees, 157 MB, tracked in the tree | `scripts/common/mine-repo.sh` |
+| corpus | 30 trees, 152 MB in a fresh clone plus 27 MB of git objects | `scripts/common/mine-repo.sh` |
 | `alpine:3.20` `etc/shadow` ownership | uid 0, gid 42 | `experiments/70-whiteout-contract.sh` |
 | OCI layer member-name prefix | no `./` on any layer of either pinned image | `experiments/70-whiteout-contract.sh` |
 | a slash-anchored whiteout glob against a layer-root whiteout | misses it | `experiments/70-whiteout-contract.sh` |
+
+⭐ **Verified on a fresh clone**, which is the strongest form of the "usable
+cold" pass: `git clone` then the gate, the musl build, `readelf`, the marker
+check, the interposer build and both of this project's runnable experiments.
+All green, with `60-interposer-libc.sh` exiting 2 for the reason it names.
 
 Acceptance for M-1, run on 2026-09-08:
 

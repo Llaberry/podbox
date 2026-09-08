@@ -42,8 +42,8 @@ Approach:    Produced: `docs/` copied verbatim; `LICENSE` (0BSD), `README.md`,
 Decision:    The corpus is **tracked in the tree** rather than on a side branch,
              because `scripts/check-todo.py` resolves every cited path and line
              and cannot do so into a branch it is not on.
-             [reference-map.md](reference-map.md) records the choice and its
-             157 MB cost.
+             [reference-map.md](reference-map.md) records the choice and what a
+             clone pays for it.
 Prove:       `./scripts/check-todo.py && cargo build --release --target x86_64-unknown-linux-musl && readelf -l target/x86_64-unknown-linux-musl/release/podbox | grep -c INTERP | grep -qx 0`
 
 **Done. The `Prove` command was run on 2026-09-08 and exits 0.** The output is
