@@ -24,7 +24,7 @@ HERE="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 REPO="$(CDPATH= cd -- "$HERE/.." && pwd)"
 BIN="${PODBOX_BIN:-$REPO/target/x86_64-unknown-linux-musl/release/podbox}"
 OUT="$REPO/experiments/results/store-gc.txt"
-REFERENCE="${PODBOX_TEST_IMAGE:-alpine:latest}"
+REFERENCE="${PODBOX_TEST_IMAGE:-public.ecr.aws/docker/library/alpine:latest}"
 WORK="$(mktemp -d)"
 STORE="$WORK/store"
 HOLDER=""
@@ -42,6 +42,14 @@ command -v flock >/dev/null 2>&1 || {
 	exit 2
 }
 
+# ⚠ NOT DOCKER HUB BY DEFAULT, AND THE REASON IS MEASURED. This script does not
+# compare anything against docker, so it needs a registry rather than THE
+# registry. Docker Hub answered
+#   HTTP 429: TOOMANYREQUESTS: You have reached your unauthenticated pull rate limit
+# on 2026-09-08 after this session's own runs, which turns a re-run of a check
+# about disk space into a check about somebody else's quota.
+# `experiments/150-image-acquisition.sh` stays on `alpine:latest` because it
+# must ask docker about the same tag. `PODBOX_TEST_IMAGE` overrides this.
 echo "== conditions"
 printf 'date              %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 printf 'host kernel       %s\n' "$(uname -r)"
@@ -191,8 +199,14 @@ if PODBOX_STORE="$STORE2" timeout 600 "$BIN" pull "$REFERENCE" \
 		canary_clause="survived, unnamed"
 	fi
 else
-	echo "  SKIP: the second pull failed" >&2
+	# ⛔ EXIT 2, not 0. A clause that could not run must never read as one that
+	# passed: TODO/RULES.md section 6. Measured here on 2026-09-08, when Docker
+	# Hub answered 429 TOOMANYREQUESTS and this script reported success having
+	# never exercised the containment check at all.
+	echo "  SKIP: the second pull failed, so the containment check did not run" >&2
+	sed 's/^/    /' "$WORK/pull2.err" >&2
 	canary_clause="could not pull"
+	exit 2
 fi
 
 {

@@ -1,5 +1,5 @@
 # podbox probe cache, TODO/probe.md T-0111
-# taken 2026-09-08T16:40:08Z on kernel 6.18.44-fc-v24
+# taken 2026-09-08T16:51:04Z on kernel 6.18.44-fc-v24
 # ⛔ The boot id is the KERNEL S. Both readings below are on one kernel.
 host_rung         namespace
 host_boot_id      b538b475-930e-4dd1-9dec-3098dd77212f

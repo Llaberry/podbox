@@ -24,7 +24,7 @@ HERE="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 REPO="$(CDPATH= cd -- "$HERE/.." && pwd)"
 BIN="${PODBOX_BIN:-$REPO/target/x86_64-unknown-linux-musl/release/podbox}"
 OUT="$REPO/experiments/results/space-precheck.txt"
-REFERENCE="${PODBOX_TEST_IMAGE:-alpine:latest}"
+REFERENCE="${PODBOX_TEST_IMAGE:-public.ecr.aws/docker/library/alpine:latest}"
 WORK="$(mktemp -d)"
 SMALL="$WORK/small"
 trap 'mountpoint -q "$SMALL" 2>/dev/null && umount "$SMALL"; rm -rf "$WORK"' EXIT INT TERM
@@ -35,6 +35,14 @@ trap 'mountpoint -q "$SMALL" 2>/dev/null && umount "$SMALL"; rm -rf "$WORK"' EXI
 	exit 2
 }
 
+# ⚠ NOT DOCKER HUB BY DEFAULT, AND THE REASON IS MEASURED. This script does not
+# compare anything against docker, so it needs a registry rather than THE
+# registry. Docker Hub answered
+#   HTTP 429: TOOMANYREQUESTS: You have reached your unauthenticated pull rate limit
+# on 2026-09-08 after this session's own runs, which turns a re-run of a check
+# about disk space into a check about somebody else's quota.
+# `experiments/150-image-acquisition.sh` stays on `alpine:latest` because it
+# must ask docker about the same tag. `PODBOX_TEST_IMAGE` overrides this.
 echo "== conditions"
 printf 'date              %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 printf 'host kernel       %s\n' "$(uname -r)"
@@ -44,6 +52,17 @@ echo
 
 fail=0
 mkdir -p "$SMALL"
+
+# ⛔ A REGISTRY THAT REFUSED IS NOT A CHECK THAT FAILED. The space precheck runs
+# after the MANIFEST is fetched, because the manifest is what says how large the
+# layers are, so every clause here needs the network to reach the registry once.
+# Measured on 2026-09-08: Docker Hub answered
+#   HTTP 429: TOOMANYREQUESTS: You have reached your unauthenticated pull rate limit
+# and this script reported FAIL for a clause that had never run. TODO/RULES.md
+# section 6: "could not run" must never read as "denied".
+registry_refused() {
+	grep -qE 'HTTP [0-9]{3}|transport:' "$1"
+}
 
 # ⭐ A REAL SMALL FILESYSTEM, not a fixture. The claim under test is about
 # statfs(2) on a destination, so the destination has to be one that genuinely
@@ -72,6 +91,11 @@ msg="$(cat "$WORK/err.txt" "$WORK/out.txt")"
 printf '  exit %s\n' "$rc"
 sed 's/^/    /' "$WORK/err.txt"
 
+if registry_refused "$WORK/err.txt"; then
+	echo "  SKIP: the registry refused before the space check could run" >&2
+	sed 's/^/    /' "$WORK/err.txt" >&2
+	exit 2
+fi
 if [ "$rc" -eq 0 ]; then
 	echo "  FAIL: podbox pulled into a 1 MiB filesystem"
 	fail=1
@@ -108,22 +132,47 @@ echo "== 4. inodes are checked as well as blocks"
 # which is the error nobody can diagnose.
 umount "$SMALL" 2>/dev/null
 inode_clause="ran"
-if mount -t tmpfs -o size=256M,nr_inodes=12 podbox-precheck "$SMALL" 2>"$WORK/mount2.err"; then
+free_inodes="-"
+# ⛔ ROOMY FIRST, THEN FILLED, and that is not a detail. Mounting straight into
+# a 12-inode tmpfs is NOT DETERMINISTIC: the store's own five directories may or
+# may not fit, so the refusal comes sometimes from the inode clause and
+# sometimes from `mkdir`. Both are honest refusals and the record then flips
+# between two values on re-runs, which `result-diff.sh` reports as a finding
+# every time and which is noise rather than one. Measured here on 2026-09-08:
+# the same script reported `ran` and then `refused earlier` on two runs of one
+# machine. Building the store while inodes are plentiful and consuming the rest
+# afterwards puts the check in exactly one place.
+if mount -t tmpfs -o size=256M,nr_inodes=64 podbox-precheck "$SMALL" 2>"$WORK/mount2.err"; then
+	# `images` opens the store, which is what creates its directories.
+	PODBOX_STORE="$SMALL/store" "$BIN" images >/dev/null 2>&1
+	# Then eat inodes until fewer remain than a pull needs: one per layer plus
+	# eight, and alpine has one layer.
+	i=0
+	while [ "$(stat -f -c%d "$SMALL")" -gt 6 ] && [ "$i" -lt 200 ]; do
+		: > "$SMALL/filler.$i" || break
+		i=$((i + 1))
+	done
+	free_inodes="$(stat -f -c%d "$SMALL")"
+	printf '  free inodes       %s\n' "$free_inodes"
 	PODBOX_STORE="$SMALL/store" "$BIN" pull "$REFERENCE" >"$WORK/out2.txt" 2>"$WORK/err2.txt"
 	rc2=$?
 	printf '  exit %s\n' "$rc2"
 	sed 's/^/    /' "$WORK/err2.txt"
-	if [ "$rc2" -eq 0 ]; then
-		echo "  FAIL: podbox pulled into a filesystem with 12 inodes"
+	if registry_refused "$WORK/err2.txt"; then
+		echo "  SKIP: the registry refused before the inode check could run" >&2
+		inode_clause="could not run: the registry refused"
+		exit 2
+	elif [ "$rc2" -eq 0 ]; then
+		echo "  FAIL: podbox pulled into a filesystem with $free_inodes free inodes"
 		fail=1
 	elif grep -qF "inodes" "$WORK/err2.txt"; then
 		echo "  ok      the refusal names inodes"
 	else
-		# ⚠ Not a failure on its own: with 12 inodes the store's own
-		# directories cannot be created, so the block check or mkdir may
-		# refuse first. Recorded as what it is.
-		echo "  ⚠ RECORDED  refused, but not by the inode clause"
+		# ⛔ Now a FAILURE rather than a recorded reading. The store exists and
+		# has room in bytes, so the only thing left to refuse on is inodes.
+		echo "  FAIL: refused, but not by the inode clause"
 		inode_clause="refused earlier"
+		fail=1
 	fi
 else
 	echo "  SKIP: could not mount the second tmpfs" >&2
@@ -133,18 +182,27 @@ fi
 {
 	printf '# podbox space precheck, TODO/image.md T-0203\n'
 	printf '# taken %s on kernel %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(uname -r)"
-	printf '# A 1 MiB tmpfs and a 12-inode tmpfs, both mounted here, not fixtures.\n'
+	printf '# A 1 MiB tmpfs, and a roomy one filled until few inodes remain. Both\n'
+	printf '# are mounted by this script rather than being fixtures.\n'
 	printf 'tmpfs_mounted     %s\n' "$tmpfs_ok"
 	printf 'refused_exit      %s\n' "$rc"
 	printf 'blobs_written     %s\n' "$blobs"
 	printf 'inode_clause      %s\n' "$inode_clause"
+	printf 'inode_free_at_pull %s\n' "$free_inodes"
 	printf 'names_destination %s\n' \
 		"$(printf '%s' "$msg" | grep -qF -- "$SMALL/store" && echo yes || echo no)"
 	printf 'names_unit        %s\n' \
 		"$(printf '%s' "$msg" | grep -qF -- "iB" && echo yes || echo no)"
 	echo
 	echo '## the refusal, verbatim'
-	sed 's/^/  /' "$WORK/err.txt"
+	# ⛔ THE WORKING DIRECTORY IS REDACTED, and that is what makes this file
+	# evidence rather than noise. `mktemp -d` gives a different name every run,
+	# so a transcript carrying it CHANGES on every re-run and
+	# scripts/common/result-diff.sh reports a finding every time. 130- carries
+	# the same rule for the same reason: an absolute path in tracked evidence is
+	# one machine's directory layout recorded as though it were a fact about the
+	# measurement. `names_destination` above is what asserts the path was named.
+	sed -e "s|$WORK|<work>|g" -e 's/^/  /' "$WORK/err.txt"
 } > "$OUT"
 echo
 echo "  written to $OUT"
