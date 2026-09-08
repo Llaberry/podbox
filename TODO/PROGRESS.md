@@ -43,7 +43,8 @@ the reconstruction cannot run here and report `SKIP`.
 | a static glibc binary on `opensuse-leap-15.6` | **SIGFPE**, rc 136 | `experiments/125-across-distributions.sh` |
 | gate coverage | ⛔ not recorded here. It is **self-referential**: writing the number down changes it | `scripts/check-todo.py`, on every run |
 | the gate's checks, planted against | 15 of 16 have a case; 15 caught, 0 missed; 3 controls quiet | `scripts/plant.sh` |
-| corpus | 30 trees, 152 MB in a fresh clone plus 27 MB of git objects | `scripts/common/mine-repo.sh` |
+| corpus | 30 trees, 154 MB in a fresh clone | `scripts/common/mine-repo.sh` |
+| ⚠ git objects | 88 MB, up from 27 MB. See the debt below | `du -sh .git` on a fresh clone |
 | `alpine:3.20` `etc/shadow` ownership | uid 0, gid 42 | `experiments/70-whiteout-contract.sh` |
 | OCI layer member-name prefix | no `./` on any layer of either pinned image | `experiments/70-whiteout-contract.sh` |
 | a slash-anchored whiteout glob against a layer-root whiteout | misses it | `experiments/70-whiteout-contract.sh` |
@@ -208,6 +209,19 @@ They are worth doing when something else touches the same ground.
 ## In progress
 
 Nothing. This session opened no work it did not finish.
+
+## One debt, introduced here and not cleared
+
+⛔ **About 1400 files of an exported debian rootfs and 23 cargo artefacts were
+committed in `954030b` and untracked again three commits later.** They are gone
+from the working tree and from `HEAD`, and the gate now refuses the class
+(check 15, planted against by `scripts/plant.sh` case 15). They remain in git
+history: a fresh clone carries 88 MB of objects where it carried 27 MB.
+
+Clearing it needs a history rewrite and a force push over a pushed branch, which
+is the operator's decision and not a session's. ⚠ Until then the clone is 61 MB
+larger than it needs to be and nothing else is wrong: no tracked path names any
+of it, and `check-todo.py` fails if one ever does again.
 
 ## Open questions for the operator
 
