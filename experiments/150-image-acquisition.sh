@@ -182,8 +182,12 @@ fi
 	printf 'tag_moved         %s\n' "$race"
 	printf 'blobs_stored      %s\n' "$counted"
 	printf 'blobs_mismatched  %s\n' "$mismatched"
+	# ⛔ NO `|| echo 0` HERE. `grep -c` PRINTS 0 and EXITS 1 on zero matches, so
+	# a fallback beside it fires next to the real value and the record gets two
+	# lines where it wants one. Measured here on 2026-09-08, and it is the trap
+	# docs/AGENTS.md names twice.
 	printf 'second_pull_fetched %s\n' \
-		"$(grep -c 'Pull complete' "$WORK/pull.out" 2>/dev/null || echo 0)"
+		"$(grep -c 'Pull complete' "$WORK/pull.out" 2>/dev/null)"
 	printf 'http_refused_rc   %s\n' "$http_rc"
 	echo
 	echo '## the second pull, verbatim'
