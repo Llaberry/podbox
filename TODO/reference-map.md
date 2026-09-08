@@ -15,10 +15,12 @@ That shape is chosen over the side branch for one reason:
 `scripts/check-todo.py` asserts that **every cited path and line resolves**, and
 a gate cannot resolve a citation into a branch it is not on. The cost is a clone
 that carries it. ⚠ Re-measured on 2026-09-08 by cloning the pushed `main`
-afresh, because the earlier figures had drifted: **154 MB of working tree** and
-**51 MB of git objects** (`du -sh .git`; `git count-objects -vH` reports one
-pack of 49.48 MiB over 9,445 objects). The object figure is inflated by the debt
-[PROGRESS.md](PROGRESS.md) records and not by the corpus alone.
+afresh, twice, because the earlier figures had drifted and then the history was
+rewritten: **154 MB of working tree** and **29 MB of git objects** (`du -sh
+.git`; `git count-objects -vH` reports one pack of 27.04 MiB over 7,931
+objects). ⭐ Before the rewrite the object figure was 51 MB, and the difference
+is the artefact debt [PROGRESS.md](PROGRESS.md) records as cleared, not the
+corpus.
 
 Each directory holds `PROVENANCE.md` (the commit, the route, and what could not
 be fetched), `api/` (issues and pull requests in both states, comments, review

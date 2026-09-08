@@ -1,90 +1,112 @@
-# Session summary, 2026-09-08 (M0)
+# Session summary, 2026-09-08 (M0, the sweep, and the debt)
 
 ⭐ Saved beside the record so it survives the chat scrolling away.
 [PROGRESS.md](PROGRESS.md) is the record and carries the work order. This file
 carries only what one session moved.
 
-**Task:** M0, the probe. [milestones.md](milestones.md) T-1101 and, under it,
-[probe.md](probe.md) T-0101 through T-0110. Then [deps.md](deps.md) T-0910, the
-`cargo bloat` baseline wired into the gate. Review three times.
+**Task:** M0, the probe: [milestones.md](milestones.md) T-1101 and, under it,
+[probe.md](probe.md) T-0101 to T-0110. Then [deps.md](deps.md) T-0910, the
+`cargo bloat` baseline wired into the gate. Then, on the operator's rulings
+mid-session: the rest of the dependency sweep, and the git-object debt.
 
 | row | before | after | from |
 | --- | --- | --- | --- |
-| Commits | `beecb8b` | `62cbfd8`, 4 commits | `git log beecb8b..HEAD` |
-| Work | 12 assigned items | **10 completed, 2 partial, 0 failed** | T-0101 to T-0110, T-1101, T-0910 |
-| Changes | | 32 files, +5145 / -209 | `git diff --shortstat beecb8b..HEAD` |
-| podbox implementation code | ⛔ **none existed** | 3,952 lines of Rust across 11 files | `wc -l crates/podbox-probe/src/*.rs crates/podbox-cli/src/main.rs` |
-| Dependencies | 0 | **0**, and that is the T-0901 measurement | `cargo tree`, `[workspace.dependencies]` |
-| Release binary | 389,656 bytes (empty skeleton) | 496,184 bytes | `experiments/110-bloat-delta.sh baseline` |
+| Commits | `e8ed921` | `a05bae4`, 9 commits | `git log e8ed921..HEAD` |
+| Changes | | 59 files, +7301 / -315 | `git diff --shortstat e8ed921..HEAD` |
+| podbox implementation code | ⛔ **none existed** | 4,116 lines of Rust across 11 files | `wc -l crates/podbox-probe/src/*.rs crates/podbox-cli/src/main.rs` |
+| Release binary | 389,656 bytes (empty skeleton) | 496,184 bytes, **0 third-party crates** | `experiments/110-bloat-delta.sh baseline` |
 | TODO entries | 86 | 86 | `check-todo.py` |
-| Entry statuses | 79 open, 0 partial, 2 blocked, 5 done | 67 open, 2 partial, 2 blocked, 15 done | `check-todo.py` |
+| Entry statuses | 79 open, 0 partial, 2 blocked, 5 done | **58 open, 3 partial, 2 blocked, 23 done** | `check-todo.py` |
 | Gate checks | 16 | 17 | `scripts/check-todo.py` |
 | Plant cases | 15 caught, 0 missed | 18 caught, 0 missed, 3 controls quiet | `scripts/plant.sh` |
-| Rust tests | ⛔ **none existed** | 41 passing | `cargo test --workspace` |
+| Rust tests | ⛔ **none existed** | 44 passing | `cargo test --workspace` |
 | Experiment scripts | 12 | 14 | `ls experiments/*.sh` |
-| Committed results | 17 | 22 | `git ls-files experiments/results/` |
-| Checks | | gate 0, plant 0, markers 0, fmt 0, clippy 0, tests 0, musl build 0, `PT_INTERP` 0, `110-` 0, `130-` 0, `30-` 2 | each read unpiped |
+| Committed results | 17 | 36 | `git ls-files experiments/results/` |
+| Dependency sweep | 0 of 10 entries closed | **10 of 10** | [deps.md](deps.md) |
+| ⭐ git objects, fresh clone | 51 MB, 9,445 objects | **29 MB, 7,931 objects** | `git count-objects -vH` after `git clone` |
+| Checks | | gate 0, plant 0, markers 0, fmt 0, clippy 0, tests 0, musl build 0, `PT_INTERP` 0, `110-` 0, `130-` 0, `60-` **0 (was 2)**, `30-` 2, bootstrap 0 | each read unpiped |
 | Health | clean | clean, 0 uncommitted, pushed to `main` | `git status` |
-| Debt cleared | ⛔ the reconstruction had never run here | ⭐ `20-enter-target.sh` fixed; `attribute.txt` taken | `experiments/results/attribute.txt` |
+| Debt cleared | ⛔ the reconstruction had never run here; the artefacts were in history | ⭐ both | `experiments/results/`, `git count-objects` |
 | Debt introduced | | none | |
 
-## The acceptance, in one line each
+## Four operator rulings, recorded so an unattended session does not re-ask
 
-| clause of T-1101 | result |
+[RULES.md](RULES.md) section 11 carries all four.
+
+| question | ruling |
 | --- | --- |
-| `podbox probe` inside `20-enter-target.sh` selects `chroot` | ✅ |
-| the same binary unconfined selects `namespace` | ✅ |
-| every per-probe verdict matches `attribute.txt` row for row | ✅ 15 matched, 1 recorded divergence, 0 differed, 0 missing |
+| The commit trailer, where `docs/conventions/git.md` section 1 and the harness disagree | git.md wins: no trailer names a model, a vendor or a tool. This session's 9 commits carry none |
+| The git-object debt | rewrite history and force push, overriding git.md section 5. Done and verified |
+| [T-0803](cli.md), the `docker` name where a daemon is reachable | refuse without an explicit flag |
+| How far the dependency sweep may go | measure, and land what the measurement favours |
 
-⭐ The one divergence is the reference recording a control's **absence** as a
-denial. `kcmp(2)` needs `CONFIG_CHECKPOINT_RESTORE`; `ENOSYS` is the kernel
-saying the control is not there, which is not the control answering. That is
-[T-0109](probe.md)'s rule, and podbox reports it as a third state.
+## M0
 
-## Three defects found in this tree, each blocking the acceptance
+`podbox probe` selects `chroot` inside `experiments/20-enter-target.sh` and
+`namespace` unconfined, and 15 of 16 attribution rows match
+`experiments/results/attribute.txt` exactly.
+`experiments/130-probe-parity.sh` is that acceptance as one command.
 
-⭐ All three were found by trying to run the acceptance rather than by reading
-about it, which is `docs/methodology/gate.md` part (b) earning its place.
+⭐ **The one divergence is the reference recording a control's absence as a
+denial.** `kcmp(2)` needs `CONFIG_CHECKPOINT_RESTORE`; `ENOSYS` is the kernel
+saying the control is not there, which is not the control answering.
 
-1. **`experiments/20-enter-target.sh` had never run here.** It named
-   `$REPO/verification/{confine,probe,cprobe}`, and podbox tracks that
-   repository under `references/`. Every invocation died at `cd`.
-2. **`experiments/results/attribute.txt` did not exist.** The milestone's
-   acceptance names it and nothing had produced it.
-3. **[T-0102](probe.md)'s `Prove` asserted one host's answer as every host's.**
-   The rule underneath survives and is what podbox implements.
+## Six defects found by running things rather than reading them
+
+1. `experiments/20-enter-target.sh` named `$REPO/verification/`, which this tree
+   does not have. **The reconstruction had never run here.**
+2. `experiments/results/attribute.txt`, which the milestone compares against,
+   **did not exist**.
+3. [T-0102](probe.md)'s `Prove` asserted one host's answer as every host's.
+4. ⭐ **The probe's verdict channel was lost when a caller had fd 1 closed.**
+   `pipe2(2)` puts a pipe end on fd 1 and `dup2(1, 1)` returns without closing,
+   so the unconditional `close` after it shut the channel every child answers
+   through. Every verdict would have become a `skip`: honest, and useless.
+   Found by driving the CLI, not by a test.
+5. ⭐ **A dependency nothing calls measures as zero**, because `lto` deletes it.
+   A sweep reporting "this crate is free" has measured nothing.
+6. `Cargo.toml` repeated the sweep's byte counts and one was stale against its
+   own entry within the hour.
 
 ## Four defects found in the reference instrument
 
-Each is recorded in `crates/podbox-probe/src/probes.rs`'s module header with the
-reason it was not ported as-is: the propagation change that escapes the prober,
-two mounts left attached, scratch files overwritten, and a failed precondition
+Recorded in `crates/podbox-probe/src/probes.rs`'s module header with the reason
+each was not ported as-is: a propagation change that escapes the prober, two
+mounts left attached, scratch files overwritten, and a failed precondition
 reported as the row's denial.
 
-## What the three review passes found
+## The dependency sweep
 
-- **Pass 1 (true?)** 46 syscall numbers and 19 flag constants checked against
-  the kernel headers, every reference citation opened at its line, four guards
-  mutation-proved. Two ABI cross-checks added as tests.
-- **Pass 2 (consistent?)** Five statements had outlived their numbers:
-  `docs/AGENTS.md`, `scripts/plant.sh`, [T-1202](gate.md)'s note, the root
-  `README.md`, and `experiments/README.md`.
-- **Pass 3 (usable cold?)** ⭐ The one real defect of the three: with fd 1
-  closed at process start, `pipe2(2)` puts a pipe end on fd 1 and the child's
-  `dup2(1, 1)` plus an unconditional `close` shut the channel every probe
-  answers through. **Every verdict would have become a `skip`: honest, and
-  useless.** Found by driving the CLI, not by a test.
+Landed as pins: `rustls` with the host bundle and `webpki-roots` as the
+fallback, `ureq`, `tar` + `flate2` (`rust_backend`) + `ruzstd`, `sha2`,
+`serde_json`. Refused with a number each: `clap`, `goblin`, `oci-spec`,
+`seccompiler`, the `landlock` crate, `rustix`, `libc`.
+
+⛔ **`rustls` is pure Rust and its crypto provider is not.** `ring` ships 17 `.c`
+files and 90 `.S` files behind a `build.rs`. It does not break `crt-static`, and
+it costs a C cross-compiler.
+
+## New infrastructure
+
+- `scripts/common/bootstrap-env.sh`: one idempotent, non-interactive script that
+  brings a fresh container up to what the gate, the experiments and the builds
+  need, **including starting the docker daemon**. Its checksum guard, its
+  install path and its daemon restart were each driven rather than assumed.
+- `scripts/zig-cc.sh` and `scripts/zig-ar.sh`, wired into `.cargo/config.toml`.
+  ⭐ They also closed an open question three sessions old:
+  `experiments/60-interposer-libc.sh` **exits 0** for the first time, and its
+  check B now reproduces the cross-libc refusal with podbox's own Rust cdylib
+  rather than only with the C reference interposer.
 
 ## What did not move
 
-- **`experiments/60-interposer-libc.sh` still exits 2.** It needs a musl cross
-  toolchain carrying its own `libgcc_s`. ⚠ It blocks nothing.
 - **`experiments/30-attribution-census.sh` still exits 2.** This kernel has no
   Landlock, so the three M rows cannot run.
 - ⚠ **The `chroot` rung was selected without an LSM ever being present.** On the
-  target, `move_mount` is `EPERM` from Landlock; here it attaches. The rung came
-  out right for the reasons it should have, but the M half of the ladder is
-  untested locally. A distro kernel closes it.
+  target `move_mount` is `EPERM` from Landlock; here it attaches. The rung came
+  out right for the reasons it should have, and the M half is untested locally.
+- ⚠ **`controls_answered` is false on every run of this host**, because
+  `kcmp(2)` is not built into this kernel. Correct, and not clearable here.
 - ⛔ **`TOOL.md` section 6.1's `$store/probe.json` cache has no entry and was
-  not written.** There is no store until M1. Authoring is a separate pass from
-  implementing, so the next session should author it before M1's store lands.
+  not written.** There is no store until M1, and authoring is a separate pass
+  from implementing.

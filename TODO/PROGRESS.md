@@ -303,30 +303,43 @@ the store rather than bolted to it.
 Nothing. Every entry this session opened is closed or is `partial` with the
 remaining half named and the milestone it lands in.
 
-## One debt, introduced earlier and not cleared
+## The one debt, cleared
 
-⛔ **About 1400 files of an exported debian rootfs and 23 cargo artefacts were
-committed in `954030b` and untracked again three commits later.** They are gone
-from the working tree and from `HEAD`, and the gate refuses the class
-(check 15, planted against by `scripts/plant.sh` case 15). They remain in git
-history: a fresh clone carries 88 MB of objects where it carried 27 MB.
+⭐ **Cleared on 2026-09-08, on the operator's ruling, and the ruling was needed
+because `docs/conventions/git.md` section 5 forbids it by default.** About 1400
+files of an exported debian rootfs (`experiments/.symbols/`) and cargo <!-- known-absent -->
+artefacts (`crates/podbox-interpose/target/`) were committed in `954030b` and <!-- known-absent -->
+untracked again three commits later. ⚠ Both paths carry the `known-absent`
+token above, because check 14 of the gate is right to object to them and being
+deliberately absent is the point of naming them. They were gone from the working tree and
+from `HEAD` and still in every clone's history.
 
-Clearing it needs a history rewrite and a force push over a pushed branch, which
-is the operator's decision and not a session's. Nothing else is wrong: no
-tracked path names any of it, and `check-todo.py` fails if one ever does again.
+`git filter-repo --invert-paths` over those two prefixes, then a force push over
+`main` with `--force-with-lease` naming the exact value it expected to replace.
 
-⚠ **The size of the debt is smaller than it was recorded as, and the earlier
-figure is corrected here rather than defended.** The session that introduced it
-recorded 88 MB of objects against 27 MB before. Measured on 2026-09-08 by
-cloning the pushed `main` afresh: `du -sh .git` is **51 MB**, and
-`git count-objects -vH` reports one pack of **49.48 MiB** over 9,445 objects.
-Two readings of the same repository disagreeing is itself the finding; the
-likeliest explanation is that 88 MB was read before the server repacked, and
-`du` on a loose-object clone is not `du` on a packed one. ⛔ The **before**
-figure of 27 MB is left as the earlier session's reading and was not re-measured:
-it would need the history at `a92848d^`, and inventing a number for it is worse
-than carrying one that says whose it is. The excess is therefore unquantified
-here, not quantified wrongly.
+| | before | after |
+| --- | --- | --- |
+| `.git` on a fresh clone | 51 MB | **29 MB** |
+| the pack | 49.48 MiB | **27.04 MiB** |
+| objects | 9,445 | **7,931** |
+| those paths anywhere in history | 1,477 files | **0** |
+
+⛔ **What was verified before the push, because a rewrite that changes content
+is a rewrite that destroyed something.** `HEAD^{tree}` identical, the index
+digest over all 6,754 tracked files identical, 23 commits with the same
+subjects in the same order, and the working tree clean. Then the gate, the
+plant harness, the marker check, the tests and the build, all green, and all of
+it again on a fresh clone of the pushed result including
+`experiments/130-probe-parity.sh`.
+
+⚠ **Anyone holding a clone from before `a05bae4` must reset**, because the old
+commits are unreachable now. The pre-rewrite tip was `1aa7e16` and is kept
+locally on `backup/pre-rewrite-2026-09-08`, which was **not** pushed.
+
+⚠ The debt was also recorded larger than it was. The session that introduced it
+wrote 88 MB against 27 MB before; a fresh clone measured 51 MB, and the
+after-figure of 29 MB lands back where the before-figure said it would. The
+88 MB was probably read before the server repacked.
 
 ## Open questions for the operator
 
