@@ -55,7 +55,14 @@
      CI workflow with nothing behind it; a number in two files drifts, and the
      copy a reader trusts is the wrong one. ⚠ This check reads the COMMITTED
      evidence and never builds anything, so it runs on a fresh clone with no
-     toolchain. The build-time half is the workflow calling the script.
+     toolchain. The build-time half is the workflow calling the script;
+ 18. no experiment number carries two names. experiments/README.md rules that a
+     number is never reused, because a citation of `30-` has to keep meaning
+     what it meant, and nothing enforced it: sweeping every `Prove` against
+     experiments/ at the close of M1 found FOUR entries naming a taken number,
+     one of them M2's own acceptance. Each would have been discovered by
+     whoever implemented it, mid-flight, which is how TODO/image.md T-0203's
+     was found and what it cost. TODO/gate.md T-1205.
 
 ⛔ Read the exit code from this process, unpiped.
 Exit: 0 everything agrees, 1 something disagrees, 2 could not run.
@@ -160,7 +167,7 @@ seen = {
     "rows": 0, "entries": 0, "fields": 0, "counts": 0, "corpus": 0,
     "todo_citations": 0, "todo_links": 0, "crossrefs": 0,
     "tree_citations": 0, "tree_links": 0, "bare_citations": 0,
-    "size_ceiling": 0,
+    "size_ceiling": 0, "experiment_numbers": 0,
 }
 
 # ⛔ Check 17. The one file allowed to declare the release binary's ceiling, and
@@ -170,6 +177,16 @@ CEILING_SCRIPT = "experiments/110-bloat-delta.sh"
 CEILING_DECL = re.compile(r"^CEILING_BYTES=(\d+)$", re.M)
 BLOAT_BASELINE = "experiments/results/bloat-baseline.txt"
 BLOAT_TOTAL = re.compile(r"^total_bytes (\d+)$", re.M)
+
+# ⛔ Check 18. An experiment script named anywhere this project wrote, or
+# present in the tracked listing. `experiments/README.md` rules that a number is
+# never reused, because a citation of `30-` has to keep meaning what it meant.
+# ⚠ The number is the subject and the name is the evidence, so both are
+# captured: the finding is one number carrying two names, which is not visible
+# from either half alone.
+EXPERIMENT = re.compile(
+    r"experiments/(\d+)-([A-Za-z0-9._+-]+)\.sh"
+)
 
 
 def err(where, msg):
@@ -344,6 +361,60 @@ def check_size_ceiling(files):
             f"{limit} declared in {CEILING_SCRIPT}. Raise the ceiling "
             f"deliberately, with the delta that justifies it committed beside "
             f"the change.")
+
+
+def check_experiment_numbers(files):
+    """Check 18: one experiment number carries one name.
+
+    ⛔ Text and the tracked listing only. Nothing is executed and nothing is
+    built, so this runs on a clone with no toolchain, which is this script's own
+    constraint. TODO/gate.md T-1205.
+
+    ⚠ A line carrying the `known-absent` token is skipped, exactly as check 14
+    skips it. T-1205's own Premise records the collisions it found, old number
+    beside new, and a check that read that table would report the defect the
+    table exists to describe.
+    """
+    # number -> {name: the first place it was seen}
+    numbers = {}
+
+    def record(num, name, where):
+        seen["experiment_numbers"] += 1
+        numbers.setdefault(num, {}).setdefault(name, where)
+
+    # The listing first, so a file on disk is the place a collision is reported
+    # against rather than whichever document happened to sort first.
+    for rel in sorted(files):
+        m = EXPERIMENT.fullmatch(rel)
+        if m:
+            record(m.group(1), m.group(2), rel)
+
+    for rel in sorted(files):
+        if not is_ours(rel):
+            continue
+        if not rel.endswith(".md") and not rel.endswith(SOURCE_SUFFIXES):
+            continue
+        try:
+            text = read(os.path.join(ROOT, rel))
+        except (OSError, UnicodeDecodeError):
+            continue
+        for n, line in enumerate(text.splitlines(), 1):
+            if KNOWN_ABSENT in line:
+                continue
+            for m in EXPERIMENT.finditer(line):
+                record(m.group(1), m.group(2), f"{rel}:{n}")
+
+    for num in sorted(numbers, key=int):
+        names = numbers[num]
+        if len(names) < 2:
+            continue
+        listed = ", ".join(f"`{num}-{nm}.sh` ({w})"
+                           for nm, w in sorted(names.items()))
+        err(f"experiments/{num}-",
+            f"experiment number {num} carries {len(names)} names: {listed}. "
+            f"experiments/README.md rules that a number is never reused, "
+            f"because a citation of it has to keep meaning what it meant. "
+            f"Give the new one a free number. TODO/gate.md T-1205.")
 
 
 def main():
@@ -561,6 +632,9 @@ def main():
 
     # -- 17. the size ceiling and its committed baseline ---------------------
     check_size_ceiling(files)
+
+    # -- 18. one experiment number, one name ---------------------------------
+    check_experiment_numbers(files)
 
     # -- 16. coverage --------------------------------------------------------
     # ⭐ A check that examined nothing reports success otherwise, which is the

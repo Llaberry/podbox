@@ -154,11 +154,11 @@ the blocker named and what would clear it.
 | [T-1202](gate.md) | P0 | gate | done | Every check is planted against, and a plant that stops reaching its subject says so |
 | [T-1203](gate.md) | P1 | gate | done | A measurement taken on one host is a property of that host |
 | [T-1204](gate.md) | P1 | gate | open | Check 17 holds the newest committed reading under the ceiling, not only the baseline |
-| [T-1205](gate.md) | P1 | gate | open | The gate holds experiment numbers unique, because four Proves already collide |
+| [T-1205](gate.md) | P1 | gate | done | The gate holds experiment numbers unique, because four Proves already collide |
 
 ## Counts
 
-95 items: 60 open, 5 partial, 2 blocked, 28 done.
+95 items: 59 open, 5 partial, 2 blocked, 29 done.
 
 Counted from the rows above by `scripts/todo-count.py` and asserted
 independently by `scripts/check-todo.py`, which is the gate. A number here
@@ -167,10 +167,10 @@ that disagrees with the rows cannot reach a commit.
 | Priority | Open | Partial | Blocked | Done | Total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 26 | 3 | 1 | 14 | 44 |
-| P1 | 22 | 2 | 1 | 9 | 34 |
+| P1 | 21 | 2 | 1 | 10 | 34 |
 | P2 | 10 | 0 | 0 | 4 | 14 |
 | P3 | 2 | 0 | 0 | 1 | 3 |
-| **All** | **60** | **5** | **2** | **28** | **95** |
+| **All** | **59** | **5** | **2** | **29** | **95** |
 
 ## How the current ordering is derived
 

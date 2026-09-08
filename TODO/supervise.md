@@ -245,4 +245,4 @@ Approach:    `create`, detached `start`, `ps` shows it running, `exec` prints a
 Decision:    Twenty rather than a timed soak. A count is reproducible on a
              different machine and a duration is not, and
              `docs/methodology/authoring.md:143-148` rules out the duration form.
-Prove:       `./experiments/100-lifecycle-loop.sh 20` exits 0
+Prove:       `./experiments/230-lifecycle-loop.sh 20` exits 0

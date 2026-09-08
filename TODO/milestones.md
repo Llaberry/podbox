@@ -197,7 +197,7 @@ Approach:    The four acceptance criteria, in order, and each is a separate
              failure mode rather than a variation of one.
 Decision:    In-process extraction at entry level. Shelling out to `tar` is what
              makes this wall reach five tools instead of one.
-Prove:       `./experiments/70-whiteout-contract.sh && ./experiments/80-extract-path-safety.sh && podbox pull alpine:latest && podbox run --rm alpine:latest test -f /etc/shadow && podbox pull voidlinux/voidlinux-musl:latest && podbox run --rm voidlinux/voidlinux-musl:latest sh -c '! test -L /var/cache/xbps'`
+Prove:       `./experiments/70-whiteout-contract.sh && ./experiments/220-extract-path-safety.sh && podbox pull alpine:latest && podbox run --rm alpine:latest test -f /etc/shadow && podbox pull voidlinux/voidlinux-musl:latest && podbox run --rm voidlinux/voidlinux-musl:latest sh -c '! test -L /var/cache/xbps'`
 
 ---
 
@@ -238,7 +238,7 @@ Approach:    `create`, `start`, `ps`, `logs`, `stop`, `rm`, `exec`, `inspect`,
              it running, `exec` prints a marker, `stop`, `rm`.
 Decision:    Twenty consecutive passes, and a single failure fails the milestone.
              Retrying a failure is how a race becomes a published pass.
-Prove:       `./experiments/100-lifecycle-loop.sh 20` exits 0
+Prove:       `./experiments/230-lifecycle-loop.sh 20` exits 0
 
 ---
 
@@ -269,7 +269,7 @@ Decision:    A C toolchain rather than a trivial package. It exercises the
              ownership, the resolver, the keyring and the sandbox user at once,
              and a two-file project catches a toolchain that installed and
              cannot link.
-Prove:       `./experiments/130-distro-sweep.sh` exits 0
+Prove:       `./experiments/240-distro-sweep.sh` exits 0
 
 ---
 
@@ -345,4 +345,4 @@ Decision:    Negative tests live in `experiments/` with the positive ones and
              A refusal that regresses is the same class of defect as a feature
              that regresses, and splitting them makes one of the two easier to
              skip.
-Prove:       `./experiments/140-negative-tests.sh` exits 0
+Prove:       `./experiments/250-negative-tests.sh` exits 0

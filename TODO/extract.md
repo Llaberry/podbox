@@ -171,7 +171,7 @@ Decision:    Refuse rather than sanitize. Rewriting a hostile path to something
              safe produces an image that differs from its digest with nothing
              saying so, and the caller cannot tell a repaired layer from a
              clean one.
-Prove:       `./experiments/80-extract-path-safety.sh` exits 0
+Prove:       `./experiments/220-extract-path-safety.sh` exits 0
 
 ---
 

@@ -77,15 +77,17 @@ Problem:     A check that quietly matches nothing exits 0 exactly like a check
              the tree by hand. That verification lived in a transcript, so it
              was worth nothing to the next session.
 Premise:     ⭐ **Measured, and it found a real one on its first run.**
-             `scripts/plant.sh` plants fifteen defects and asserts each makes the
-             gate red **with that defect's own message**, and that the message
-             was not already there. Case 6 landed its mutation and the gate
+             `scripts/plant.sh` plants a defect per case and asserts each makes
+             the gate red **with that defect's own message**, and that the
+             message was not already there. On its first run, over the fifteen
+             cases it then had, case 6 landed its mutation and the gate
              stayed green: each corpus tree is named twice in
              `TODO/reference-map.md`, in the licence table and again in the
              verdicts table, so deleting one row left the other and the check
              never lost the tree. The plant now removes every mention.
-             Result on 2026-09-08: 18 plants caught, 0 missed, 3 controls
-             quiet, 0 fired, over seventeen checks. ⛔ **Every check but one has
+             Result on 2026-09-08, after [T-1205](gate.md) added check 18 and its
+             two cases: 20 plants caught, 0 missed, 3 controls
+             quiet, 0 fired, over eighteen checks. ⛔ **Every check but one has
              a case, and the harness says which on every run.** Check 16, the
              coverage floor, has none: planting it means making a check examine
              nothing, which requires editing the gate's own matchers rather than
@@ -119,7 +121,9 @@ Decision:    Assert the message, not the exit code. A gate already red for
              code passes vacuously the moment anything else breaks.
 Prove:       `./scripts/plant.sh`
 
-**Done.** Exit 0: 15 plants caught, 0 missed; 3 controls quiet, 0 fired.
+**Done.** Exit 0: 20 plants caught, 0 missed; 3 controls quiet, 0 fired.
+⚠ The pair moves whenever a check lands. `./scripts/plant.sh` prints it, and
+that is the answer; this line is a reading from the day it was taken.
 
 ---
 
@@ -250,7 +254,7 @@ Source:      Found by sweeping every `Prove` in `TODO/` against `experiments/` a
 Category:    gate
 Priority:    P1
 Effort:      S
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     `experiments/README.md` rules that a number is never reused,
              because a citation of `30-` has to keep meaning what it meant.
@@ -261,17 +265,26 @@ Premise:     ⭐ **Measured on 2026-09-08**, by matching every
              `experiments/<n>-<name>.sh` named in a `Prove` against the files on
              disk:
 
-             | the `Prove` names | the number is already |
-             | --- | --- |
-             | `experiments/80-extract-path-safety.sh` ([T-1103](milestones.md)) | `80-interposer-abi.sh` | <!-- known-absent -->
-             | `experiments/100-lifecycle-loop.sh` | `100-interpose-symbols.sh` | <!-- known-absent -->
-             | `experiments/130-distro-sweep.sh` | `130-probe-parity.sh` | <!-- known-absent -->
-             | `experiments/140-negative-tests.sh` | `140-space-precheck.sh` | <!-- known-absent -->
+             | the `Prove` named | the number was already | renumbered to |
+             | --- | --- | --- |
+             | `80-extract-path-safety.sh` ([T-1103](milestones.md), [T-0304](extract.md)) | `80-interposer-abi.sh` | `220-` | <!-- known-absent -->
+             | `100-lifecycle-loop.sh` ([T-1105](milestones.md), [T-0607](supervise.md)) | `100-interpose-symbols.sh` | `230-` | <!-- known-absent -->
+             | `130-distro-sweep.sh` ([T-1106](milestones.md)) | `130-probe-parity.sh` | `240-` | <!-- known-absent -->
+             | `140-negative-tests.sh` ([T-1109](milestones.md)) | `140-space-precheck.sh` | `250-` | <!-- known-absent -->
 
              ⚠ Four more name a free number and are fine: `120-`, `85-`, `95-`,
-             and the four this session authored at `180-` to `210-`.
-             ⛔ [T-1103](milestones.md)'s is the one that bites first: it is M2's
-             own acceptance and M2 is next in the work order.
+             and the four M1 authored at `180-` to `210-`.
+             ⛔ [T-1103](milestones.md)'s is the one that bit first: it is M2's
+             own acceptance, and M2 is the session that closed this entry.
+             ⭐ **The check reproduced the sweep.** Written before the
+             renumbering and run against the tree that carried all four, it
+             reported exactly these four numbers and named the same
+             `file:line` on each. A hand sweep and a check that agree is the
+             check having been tested against a real defect rather than a
+             planted one.
+             ⚠ The renumbering is an append, not a gap fill, and the new numbers
+             keep `experiments/README.md`'s "order they run": M2 is `220-`, M4
+             `230-`, M5 `240-`, M6 `250-`.
 Approach:    A check in `scripts/check-todo.py` that collects the leading number
              of every `experiments/<n>-*.sh` named anywhere this project wrote,
              plus every such file on disk, and fails when one number carries two
@@ -289,4 +302,30 @@ Decision:    Enforce uniqueness rather than dropping the rule. The rule exists
              already written down, and `experiments/README.md` says so; a rule
              worth writing and not worth checking is the kind that stops being
              believed.
-Prove:       `./scripts/plant.sh` reports 20 caught, 0 missed, with the new case planting a duplicate experiment number
+Prove:       `./scripts/plant.sh` reports 20 caught, 0 missed, with the two new cases planting a duplicate experiment number
+
+**Done, 2026-09-08.** Check 18 of `scripts/check-todo.py`, and cases 18a and
+18b of `scripts/plant.sh`, in this change. `./scripts/plant.sh` exits 0 with
+**20 caught, 0 missed, 3 controls quiet**.
+
+⭐ **The check was written before the renumbering and run against the tree that
+still carried all four collisions.** It reported exactly the four this entry
+records and named the same `file:line` on each. A hand sweep and a check that
+agree independently is the check having been tested against a real defect as
+well as a planted one, which is the half `scripts/plant.sh` cannot supply.
+
+⚠ **Two cases, not one, because the halves fail apart.** A number can be
+claimed by a document promising a script (all four real collisions were this
+shape) or by a second file arriving on disk. A case for one leaves the other
+unseen, which is this harness's own founding defect.
+
+⛔ **The planted number is read out of the listing at run time and never
+written into `scripts/plant.sh`.** The gate reads that file like any other, so
+a literal taken number there would put a second name on it and redden the clean
+tree, exactly as two literal citations did on 2026-09-08 and as `CEILING_NUM`
+would. The same trap, a third time, in the same file.
+
+⚠ **A line carrying the `known-absent` token is skipped**, as check 14 skips
+it. This entry's own Premise table names the four old numbers beside their new
+ones, and a check that read that table would report the defect the table exists
+to describe.

@@ -2,11 +2,11 @@
 # plant.sh - break each of the gate's checks on purpose and assert it goes red.
 #
 # ⛔ AN ASSERTION NOBODY HAS SEEN FAIL IS NOT AN ASSERTION. `check-todo.py`
-# carries seventeen checks and this script carries eighteen cases, because
-# check 17 has three assertions that fail apart. A check that quietly matches
-# nothing exits 0 exactly like a check whose assertions all passed, and the
-# second is what everybody assumes they are looking at. This script is what
-# tells them apart.
+# carries eighteen checks and this script carries twenty cases, because
+# check 17 has three assertions that fail apart and check 18 two. A check that
+# quietly matches nothing exits 0 exactly like one whose assertions all passed,
+# and the second is what everybody assumes they are looking at. This script is
+# what tells them apart.
 #
 # ⭐ READ THE FINDING, NOT THE EXIT CODE. A gate already red for another reason
 # exits 1 either way. Each case here asserts that the planted defect's OWN
@@ -47,6 +47,24 @@ command -v git >/dev/null 2>&1 || { echo "SKIP: no git" >&2; exit 2; }
 # both the backup and the restore iterate this and nothing else.
 FILES="TODO/INDEX.md TODO/PROGRESS.md TODO/probe.md TODO/reference-map.md README.md docs/conventions/prose.md experiments/110-bloat-delta.sh experiments/results/bloat-baseline.txt"
 
+# ⛔ CHECK 18'S SUBJECT IS A NUMBER THAT IS ALREADY TAKEN, so writing one here
+# literally would put a second name on it in this very file and make the clean
+# tree red, exactly as two literal citations did on 2026-09-08 and as
+# CEILING_NUM below would. It is read out of the listing at run time.
+# ⚠ No pipe: `set -o pipefail` is on above, and `ls | head -1` returns `ls`'s
+# SIGPIPE status. A glob and a `break` need neither.
+TAKEN_EXP=""
+for _f in experiments/[0-9]*-*.sh; do
+  [ -e "$_f" ] || continue
+  _b="${_f##*/}"; TAKEN_EXP="${_b%%-*}"; break
+done
+if [ -z "$TAKEN_EXP" ]; then
+  echo "SKIP: experiments/ carries no numbered script to collide with" >&2
+  exit 2
+fi
+export TAKEN_EXP
+DUP_PLANT="experiments/${TAKEN_EXP}-plantdup.sh"
+
 # ⛔ Refuse to start over staged work. Guard 2 makes the restore safe, but a
 # dirty index means the "clean" baseline below is not clean, and every case
 # then compares against a tree somebody was mid-edit on.
@@ -69,6 +87,10 @@ restore() {
   for f in $FILES; do cp "$BACKUP/$f" "$ROOT/$f"; done
   git -C "$ROOT" rm -q --cached -f --ignore-unmatch -r "$SCRATCH_PLANT" >/dev/null 2>&1
   rm -rf "${ROOT:?}/$SCRATCH_PLANT"
+  # ⚠ Case 18b stages a NEW experiment script, so the listed files going back is
+  # not enough here either.
+  git -C "$ROOT" rm -q --cached -f --ignore-unmatch "$DUP_PLANT" >/dev/null 2>&1
+  rm -f "${ROOT:?}/$DUP_PLANT"
 }
 
 # ⛔ HASH THE WHOLE WORKING STATE, not just the listed files. Guard 1 asserts
@@ -247,6 +269,19 @@ case_plant "17b a baseline over the ceiling" "at or over the ceiling" \
 
 case_plant "17c a baseline with no total" "carries no \`total_bytes <n>\` line" \
   sh -c 'sed -i -E "s/^total_bytes /total_bytes_renamed /" experiments/results/bloat-baseline.txt'
+
+# ⚠ Check 18 has two cases because its two halves fail apart, and the four real
+# collisions were all the first kind: a document promising a script at a number
+# something else already answers to. The second kind is the same number arriving
+# on disk. A case for one would leave the other unseen.
+# ⛔ NO BACKTICKS in 18a's planted line, deliberately: in backticks it is also a
+# bare path naming nothing, check 14 fires too, and the case would pass on the
+# wrong message.
+case_plant "18a a Prove at a taken number" "Give the new one a free number" \
+  sh -c 'printf "\nThe loop is driven by experiments/%s-plantdup.sh, once it exists.\n" "$TAKEN_EXP" >> README.md'
+
+case_plant "18b a second script on disk" "Give the new one a free number" \
+  sh -c 'printf "#!/bin/sh\n# a plant\n" > "experiments/${TAKEN_EXP}-plantdup.sh" && git add "experiments/${TAKEN_EXP}-plantdup.sh"'
 
 echo
 # ⛔ SAY WHAT IS NOT COVERED. A harness that lists passing cases without naming

@@ -117,7 +117,7 @@ $ ./experiments/170-probe-cache.sh
 
 ## Counts
 
-95 entries: 60 open, 5 partial, 2 blocked, 28 done.
+95 entries: 59 open, 5 partial, 2 blocked, 29 done.
 
 ⚠ Eight entries were **authored and not implemented** this session, in their own
 pass per `docs/AGENTS.md`'s routing table: [T-0206](image.md) to
