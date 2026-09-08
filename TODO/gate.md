@@ -241,3 +241,52 @@ Decision:    Every reading, not "the newest by date". A date inside a file is a
              Asserting all of them needs no ordering and fails on the same file
              either way.
 Prove:       `./scripts/plant.sh` reports 19 caught, 0 missed, with the new case planting a `total_bytes` over the ceiling into `experiments/results/bloat-image.txt`
+
+---
+
+### T-1205 The gate holds experiment numbers unique, because four Proves already collide
+
+Source:      Found by sweeping every `Prove` in `TODO/` against `experiments/` at the close of M1
+Category:    gate
+Priority:    P1
+Effort:      S
+Status:      open
+
+Problem:     `experiments/README.md` rules that a number is never reused,
+             because a citation of `30-` has to keep meaning what it meant.
+             Nothing enforces it, and four entries already name a number that is
+             taken. Each will be discovered by whoever implements it, mid-flight,
+             exactly as [T-0203](image.md)'s was.
+Premise:     ⭐ **Measured on 2026-09-08**, by matching every
+             `experiments/<n>-<name>.sh` named in a `Prove` against the files on
+             disk:
+
+             | the `Prove` names | the number is already |
+             | --- | --- |
+             | `experiments/80-extract-path-safety.sh` ([T-1103](milestones.md)) | `80-interposer-abi.sh` | <!-- known-absent -->
+             | `experiments/100-lifecycle-loop.sh` | `100-interpose-symbols.sh` | <!-- known-absent -->
+             | `experiments/130-distro-sweep.sh` | `130-probe-parity.sh` | <!-- known-absent -->
+             | `experiments/140-negative-tests.sh` | `140-space-precheck.sh` | <!-- known-absent -->
+
+             ⚠ Four more name a free number and are fine: `120-`, `85-`, `95-`,
+             and the four this session authored at `180-` to `210-`.
+             ⛔ [T-1103](milestones.md)'s is the one that bites first: it is M2's
+             own acceptance and M2 is next in the work order.
+Approach:    A check in `scripts/check-todo.py` that collects the leading number
+             of every `experiments/<n>-*.sh` named anywhere this project wrote,
+             plus every such file on disk, and fails when one number carries two
+             names. ⛔ It reads text and the filesystem listing only, so it keeps
+             working on a clone with no toolchain, which is that script's own
+             constraint.
+             ⛔ The check and its plant land in the same change:
+             `docs/AGENTS.md` and [T-1202](gate.md). The plant renames a number
+             into a collision and asserts the gate goes red with this check's own
+             message.
+             ⚠ Renumbering the four above is part of this entry, in the entries
+             that name them, and each keeps its title.
+Decision:    Enforce uniqueness rather than dropping the rule. The rule exists
+             because a number in a closed entry is a citation somebody has
+             already written down, and `experiments/README.md` says so; a rule
+             worth writing and not worth checking is the kind that stops being
+             believed.
+Prove:       `./scripts/plant.sh` reports 20 caught, 0 missed, with the new case planting a duplicate experiment number

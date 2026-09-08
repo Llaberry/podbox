@@ -22,8 +22,8 @@ T-0111, the probe cache, which lands beside the store and not before it.
 | Headroom under the ceiling | 7,503,816 | 5,869,328 of 8,000,000 | the same |
 | `PT_INTERP` | none | **still none** | `readelf -l`, the same script |
 | Third-party crates in the artefact | **0** | 88 | `cargo tree`, the same script |
-| TODO entries | 87 | **94**, seven authored and not implemented | `check-todo.py` |
-| Entry statuses | 59 open, 3 partial, 2 blocked, 23 done | **59 open, 5 partial, 2 blocked, 28 done** | `check-todo.py` |
+| TODO entries | 87 | **95**, eight authored and not implemented | `check-todo.py` |
+| Entry statuses | 59 open, 3 partial, 2 blocked, 23 done | **60 open, 5 partial, 2 blocked, 28 done** | `check-todo.py` |
 | Gate checks | 17 | 17, unchanged | `scripts/check-todo.py` |
 | Plant cases | 18 caught, 0 missed | 18 caught, 0 missed, 3 controls quiet | `scripts/plant.sh` |
 | Rust tests | 44 | **127** (10 cli, 67 image, 50 probe) | `cargo test --workspace` |
@@ -175,7 +175,7 @@ challenge-driven auth against **four registries** rather than one: Docker Hub,
    than fixed, because fixing it is not M1's scope: SIGKILL mid-blob leaves a
    `*.partial` nothing sweeps. [T-0210](image.md).
 
-## Seven entries authored, none implemented
+## Eight entries authored, none implemented
 
 Per `docs/AGENTS.md`'s routing table, authoring is its own pass.
 
@@ -187,6 +187,7 @@ Per `docs/AGENTS.md`'s routing table, authoring is its own pass.
 | [T-0209](image.md) | L | registry authentication, with no credential entering this tree |
 | [T-0210](image.md) | L | the store's concurrency contract, written down and driven by a stress run |
 | [T-1204](gate.md) | S | check 17 holds the newest committed reading, not only M0's baseline |
+| [T-1205](gate.md) | S | ⛔ four `Prove`s already name a taken experiment number, and nothing checks it |
 | [T-0807](cli.md) | S | ⭐ `done`: the review pass that found it also fixed it |
 
 ## What did not move
@@ -204,6 +205,14 @@ Per `docs/AGENTS.md`'s routing table, authoring is its own pass.
 - ⚠ **`{{.Size}}` is the compressed bytes podbox holds**, headed
   `SIZE (STORED)`. docker's is the uncompressed total, which M1 has not
   measured. [PROGRESS.md](PROGRESS.md) open question 6.
+- ⛔ **Four entries name an experiment number that is already taken**, found by
+  sweeping every `Prove` against `experiments/` at the close. One of them is
+  [T-1103](milestones.md)'s, which is M2's own acceptance and is next.
+  [T-0203](image.md) hit the same defect this session and it cost a renumbering
+  mid-flight. [T-1205](gate.md) is the check, authored and not written.
+- ⛔ **[T-1103](milestones.md)'s `Prove` needs `podbox run --rm`, which is M3.**
+  M2 can implement and drive extraction but cannot close its own acceptance
+  until M3 lands, the way [T-0204](image.md) is `partial` now.
 - ⚠ One number in the last session's own record was quoted wrong:
   `PROGRESS.md`'s acceptance block said `37 passed` where the total was 44,
   which is one crate's line quoted as the total. Measured in a worktree at

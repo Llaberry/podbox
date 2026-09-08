@@ -89,7 +89,7 @@ Acceptance, run on 2026-09-08:
 
 ```
 $ ./scripts/check-todo.py
-check-todo: 94 rows, 94 entries, 59 open, 5 partial, 2 blocked, 28 done
+check-todo: 95 rows, 95 entries, 60 open, 5 partial, 2 blocked, 28 done
 check-todo: ok
 $ ./scripts/plant.sh
   plants   18 caught, 0 missed
@@ -117,13 +117,13 @@ $ ./experiments/170-probe-cache.sh
 
 ## Counts
 
-94 entries: 59 open, 5 partial, 2 blocked, 28 done.
+95 entries: 60 open, 5 partial, 2 blocked, 28 done.
 
-⚠ Seven entries were **authored and not implemented** this session, in their own
+⚠ Eight entries were **authored and not implemented** this session, in their own
 pass per `docs/AGENTS.md`'s routing table: [T-0206](image.md) to
-[T-0210](image.md), [T-1204](gate.md) and [T-0807](cli.md). The last is `done`
-because the review pass that found it also fixed it; the other six are open and
-five of them are `L`.
+[T-0210](image.md), [T-1204](gate.md), [T-1205](gate.md) and [T-0807](cli.md).
+The last is `done` because the review pass that found it also fixed it; the
+other seven are open and five of them are `L`.
 
 Derived by `scripts/todo-count.py` and asserted by `scripts/check-todo.py`.
 [INDEX.md](INDEX.md)'s Counts block carries the per-priority breakdown, and the
@@ -334,6 +334,18 @@ capability:
   the store is a change to an unstated one.
 - [T-1204](gate.md), `S`. Check 17 holds M0's baseline under the ceiling and no
   longer holds the shipping binary, which is now four times larger.
+- ⛔ [T-1205](gate.md), `S`, **and it bites M2 on its first day.** Sweeping every
+  `Prove` against `experiments/` found **four** entries naming an experiment
+  number that is already taken, and `experiments/README.md` rules that a number
+  is never reused. One of the four is [T-1103](milestones.md)'s own acceptance,
+  which is the next milestone. [T-0203](image.md) hit the same defect this
+  session and it cost a renumbering mid-flight; nothing checks it, so it will
+  keep happening.
+
+⛔ **[T-1103](milestones.md)'s `Prove` also needs `podbox run --rm`, which is
+M3.** M2 can therefore implement and drive extraction but cannot close its own
+acceptance until M3 lands, in the same way [T-0204](image.md) is `partial` now.
+That is worth knowing before M2 starts rather than at its end.
 
 ⚠ [T-0207](image.md), [T-0208](image.md) and [T-0209](image.md) are P2 `L`
 entries and are not in the order. Each names what it needs and none blocks a
