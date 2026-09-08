@@ -37,17 +37,32 @@ impl std::fmt::Display for Bad {
     }
 }
 
-/// Expand `{{.Field}}` against `fields`, and the two escapes docker expands in
-/// a format string before the template sees it.
-pub fn render(template: &str, fields: &[(&str, String)]) -> Result<String, Bad> {
+/// Walk a template once, appending literal text to `out` and asking `value`
+/// for each field. `value` returns `None` for a name this verb does not have.
+///
+/// ⛔ One walk, used by both [`check`] and [`render`]. Two walks would be two
+/// parsers, and the one nobody exercises is the one that diverges:
+/// `docs/conventions/code.md`, one read path.
+fn walk(
+    template: &str,
+    known: &[&str],
+    mut value: impl FnMut(&str) -> Option<String>,
+    out: &mut String,
+) -> Result<(), Bad> {
     let template = template.replace("\\t", "\t").replace("\\n", "\n");
-    let known: Vec<String> = fields.iter().map(|(k, _)| format!(".{k}")).collect();
-    let mut out = String::new();
+    // ⛔ docker's `table` prefix, refused BY NAME. It is not literal text there:
+    // it selects a column layout with a header. Rendering it as text prints the
+    // word `table` beside the values, which is output shaped like something
+    // podbox does not do. Measured on 2026-09-08 by driving
+    // `--format 'table {{.Tag}}'`, which printed `table latest` and exited 0.
+    if template == "table" || template.starts_with("table ") || template.starts_with("table\t") {
+        return Err(Bad::Unsupported("table".to_string()));
+    }
     let mut rest = template.as_str();
     loop {
         let Some(at) = rest.find("{{") else {
             out.push_str(rest);
-            return Ok(out);
+            return Ok(());
         };
         out.push_str(&rest[..at]);
         let after = &rest[at + 2..];
@@ -63,16 +78,47 @@ pub fn render(template: &str, fields: &[(&str, String)]) -> Result<String, Bad> 
         if name.contains(char::is_whitespace) || name.contains('|') || name.contains('.') {
             return Err(Bad::Unsupported(expr.to_string()));
         }
-        match fields.iter().find(|(k, _)| *k == name) {
-            Some((_, v)) => out.push_str(v),
-            None => {
-                return Err(Bad::UnknownField {
-                    got: expr.to_string(),
-                    known,
-                })
-            }
+        if !known.contains(&name) {
+            return Err(Bad::UnknownField {
+                got: expr.to_string(),
+                known: known.iter().map(|k| format!(".{k}")).collect(),
+            });
+        }
+        if let Some(v) = value(name) {
+            out.push_str(&v);
         }
     }
+}
+
+/// Validate a template against a verb's field names, with no record in hand.
+///
+/// ⛔ **Called BEFORE the loop over records, and that is the whole point.**
+/// Measured on 2026-09-08 by driving the CLI: with the template validated only
+/// inside the loop, `podbox images --format '{{.Nope}}'` against an EMPTY store
+/// never ran the loop, printed nothing and exited **0**. A caller's typo read as
+/// an empty result set, which is the wrong answer that looks like a right one.
+pub fn check(template: &str, known: &[&str]) -> Result<(), Bad> {
+    let mut sink = String::new();
+    walk(template, known, |_| None, &mut sink)
+}
+
+/// Expand `{{.Field}}` against `fields`, and the two escapes docker expands in
+/// a format string before the template sees it.
+pub fn render(template: &str, fields: &[(&str, String)]) -> Result<String, Bad> {
+    let known: Vec<&str> = fields.iter().map(|(k, _)| *k).collect();
+    let mut out = String::new();
+    walk(
+        template,
+        &known,
+        |name| {
+            fields
+                .iter()
+                .find(|(k, _)| *k == name)
+                .map(|(_, v)| v.clone())
+        },
+        &mut out,
+    )?;
+    Ok(out)
 }
 
 #[cfg(test)]

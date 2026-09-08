@@ -174,6 +174,17 @@ pub fn images(args: &[String]) -> i32 {
     if o.quiet && o.format.is_none() {
         o.format = Some("{{.ID}}".to_string());
     }
+    // ⛔ Validated BEFORE the store is opened, and therefore before the loop
+    // over records. An empty store means zero iterations, and a template
+    // checked only inside the loop is never checked at all: measured on
+    // 2026-09-08, `--format '{{.Nope}}'` against an empty store printed
+    // nothing and exited 0, so a caller's typo read as an empty result set.
+    if let Some(t) = &o.format {
+        if let Err(bad) = format::check(t, IMAGE_FIELDS) {
+            eprintln!("podbox images: {bad}");
+            return EXIT_USAGE;
+        }
+    }
 
     let store = match podbox_image::open_store() {
         Ok(s) => s,
@@ -381,6 +392,16 @@ pub fn inspect(args: &[String]) -> i32 {
         eprint!("{INSPECT_USAGE}");
         return EXIT_USAGE;
     }
+    // ⛔ Before the store is even opened. Every reference may fail to resolve,
+    // and a template checked only inside the loop over what DID resolve is
+    // never checked at all. It is also the caller's own input, so it is
+    // reported before anything about the machine is.
+    if let Some(t) = &template {
+        if let Err(bad) = format::check(t, INSPECT_FIELDS) {
+            eprintln!("podbox inspect: {bad}");
+            return EXIT_USAGE;
+        }
+    }
     let store = match podbox_image::open_store() {
         Ok(s) => s,
         Err(e) => return fail(e),
@@ -415,6 +436,40 @@ pub fn inspect(args: &[String]) -> i32 {
 }
 
 // ------------------------------------------------------------------- fields
+
+/// The field names `podbox images --format` answers to.
+///
+/// ⚠ These names exist so a template can be validated with NO record in hand,
+/// which is what an empty store leaves the caller with. The test
+/// `the_field_names_are_the_names_the_builder_produces` is what stops this list
+/// and the builder below drifting: `docs/conventions/forbidden-patterns.md`
+/// forbids a value in two places with no check that they agree.
+pub const IMAGE_FIELDS: &[&str] = &[
+    "Repository",
+    "Tag",
+    "ID",
+    "Digest",
+    "CreatedSince",
+    "CreatedAt",
+    "Size",
+    "Platform",
+    "Store",
+];
+
+/// The same, for `podbox inspect --format`.
+pub const INSPECT_FIELDS: &[&str] = &[
+    "Id",
+    "Digest",
+    "RepoTags",
+    "RepoDigests",
+    "Architecture",
+    "Os",
+    "Created",
+    "Platform",
+    "Size",
+    "Store",
+    "Layers",
+];
 
 fn image_fields(r: &Record, store: &Store, no_trunc: bool) -> Vec<(&'static str, String)> {
     let id = r.config_digest.clone();
@@ -548,12 +603,40 @@ mod tests {
     }
 
     #[test]
-    fn an_image_with_no_creation_timestamp_prints_a_dash_and_not_a_guess() {
-        // ⛔ docs/AGENTS.md absolute 3.
+    fn the_field_names_are_the_names_the_builder_produces() {
+        // ⛔ The remedy docs/conventions/forbidden-patterns.md names for a value
+        // in two places: a check that they agree. The list is what validates a
+        // template with no record in hand; the builder is what fills one in.
         let store =
-            Store::open(std::env::temp_dir().join(format!("podbox-fields-{}", std::process::id())))
+            Store::open(std::env::temp_dir().join(format!("podbox-names-{}", std::process::id())))
                 .unwrap();
-        let r = Record {
+        let r = a_record();
+        let built: Vec<&str> = image_fields(&r, &store, false)
+            .iter()
+            .map(|(k, _)| *k)
+            .collect();
+        assert_eq!(built, IMAGE_FIELDS);
+        let built: Vec<&str> = inspect_fields(&r, &store).iter().map(|(k, _)| *k).collect();
+        assert_eq!(built, INSPECT_FIELDS);
+        let _ = std::fs::remove_dir_all(store.root());
+    }
+
+    #[test]
+    fn a_template_naming_a_field_no_verb_has_is_refused_without_any_record() {
+        // ⭐ The defect this pass found: with the check inside the loop, an
+        // empty store made `--format '{{.Nope}}'` print nothing and exit 0.
+        assert!(format::check("{{.Nope}}", IMAGE_FIELDS).is_err());
+        assert!(format::check("{{.Tag", IMAGE_FIELDS).is_err());
+        assert!(format::check("table {{.Tag}}", IMAGE_FIELDS).is_err());
+        assert!(format::check("{{.Digest}}", IMAGE_FIELDS).is_ok());
+        // ⚠ The two verbs do not have the same fields, and each is checked
+        // against its own list.
+        assert!(format::check("{{.RepoTags}}", IMAGE_FIELDS).is_err());
+        assert!(format::check("{{.RepoTags}}", INSPECT_FIELDS).is_ok());
+    }
+
+    fn a_record() -> Record {
+        Record {
             repository: "docker.io/library/alpine".into(),
             tag: Some("latest".into()),
             digest: format!("sha256:{}", "1".repeat(64)),
@@ -567,8 +650,16 @@ mod tests {
             os: "linux".into(),
             created: None,
             pulled_at: clock::now(),
-        };
-        let f = image_fields(&r, &store, false);
+        }
+    }
+
+    #[test]
+    fn an_image_with_no_creation_timestamp_prints_a_dash_and_not_a_guess() {
+        // ⛔ docs/AGENTS.md absolute 3.
+        let store =
+            Store::open(std::env::temp_dir().join(format!("podbox-fields-{}", std::process::id())))
+                .unwrap();
+        let f = image_fields(&a_record(), &store, false);
         assert_eq!(pick(&f, "CreatedSince"), "-");
         assert_eq!(pick(&f, "CreatedAt"), "-");
         assert_eq!(pick(&f, "ID"), "333333333333");
