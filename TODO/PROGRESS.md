@@ -26,8 +26,8 @@ is a control of the bogus-argument discriminator, and the consequence is
 
 | what | value | taken by |
 | --- | --- | --- |
-| release binary, M0 complete, `x86_64-unknown-linux-musl` | 496,184 bytes | `stat -c%s`, T-1101 |
-| third-party crates in that binary | **0** | `cargo tree`, and `[workspace.dependencies]` is empty |
+| release binary, M0 complete, `x86_64-unknown-linux-musl` | 496,184 bytes | `experiments/110-bloat-delta.sh`, T-0910 |
+| third-party crates in that binary | **0** | `cargo tree`, same script |
 | release binary, empty skeleton, same target | 389,656 bytes | `cargo build --release`, T-1100 |
 | `PT_INTERP` in the M0 binary | none. static-pie | `readelf -l`, T-1001 |
 | `podbox probe` rung, unconfined on this host | `namespace` | `experiments/130-probe-parity.sh` |
@@ -55,7 +55,7 @@ is a control of the bogus-argument discriminator, and the consequence is
 | distinct `nsswitch` `passwd` shapes across those 11 | 6 | `experiments/125-across-distributions.sh` |
 | a static glibc binary on `opensuse-leap-15.6` | **SIGFPE**, rc 136 | `experiments/125-across-distributions.sh` |
 | gate coverage | ⛔ not recorded here. It is **self-referential**: writing the number down changes it | `scripts/check-todo.py`, on every run |
-| the gate's checks, planted against | 15 of 16 have a case; 15 caught, 0 missed; 3 controls quiet | `scripts/plant.sh` |
+| the gate's checks, planted against | 17 checks, 18 cases; see the acceptance block below | `scripts/plant.sh` |
 | corpus | 30 trees, 154 MB in a fresh clone | `scripts/common/mine-repo.sh` |
 | ⚠ git objects | 88 MB, up from 27 MB. See the debt below | `du -sh .git` on a fresh clone |
 | `alpine:3.20` `etc/shadow` ownership | uid 0, gid 42 | `experiments/70-whiteout-contract.sh` |
@@ -66,10 +66,10 @@ Acceptance, run on 2026-09-08:
 
 ```
 $ ./scripts/check-todo.py
-check-todo: 86 rows, 86 entries, 68 open, 2 partial, 2 blocked, 14 done
+check-todo: 86 rows, 86 entries, 67 open, 2 partial, 2 blocked, 15 done
 check-todo: ok
 $ ./scripts/plant.sh
-  plants   15 caught, 0 missed
+  plants   18 caught, 0 missed
   controls 3 quiet, 0 fired
 $ cargo test --workspace
 test result: ok. 37 passed; 0 failed
@@ -77,13 +77,15 @@ $ cargo build --release --target x86_64-unknown-linux-musl
     Finished `release` profile [optimized] target(s)
 $ readelf -l target/x86_64-unknown-linux-musl/release/podbox | grep -c INTERP
 0
+$ ./experiments/110-bloat-delta.sh baseline
+  total_bytes 496184   headroom 7503816   third-party crates 0
 $ ./experiments/130-probe-parity.sh
   got chroot / got namespace / 15 matched, 1 recorded divergence, 0 differed, 0 missing
 ```
 
 ## Counts
 
-86 entries: 68 open, 2 partial, 2 blocked, 14 done.
+86 entries: 67 open, 2 partial, 2 blocked, 15 done.
 
 Derived by `scripts/todo-count.py` and asserted by `scripts/check-todo.py`.
 [INDEX.md](INDEX.md)'s Counts block carries the per-priority breakdown, and the
@@ -118,6 +120,9 @@ measurement [T-0901](deps.md) asked for before a syscall crate is considered.
    evidence on stderr, `--json` and `--rows` beside it, 2 for invalid input.
 8. **[T-1101](milestones.md), the milestone, closed against a script**:
    `experiments/130-probe-parity.sh`.
+9. **[T-0910](deps.md)**, the `cargo bloat` baseline, committed, with the
+   ceiling given one home and check 17 of the gate holding it there. Three new
+   plant cases.
 
 ### Three defects found in this tree, each blocking the acceptance
 
@@ -163,18 +168,17 @@ reading and the right one.
 ⭐ **This is the only work order.** Do not take one from the index or from a
 kickoff prompt.
 
-1. **[T-0910](deps.md)**, the `cargo bloat` baseline wired into the gate. It is
-   small, and every dependency decision after it is measured against it.
-2. **M1, image acquisition.** [T-1102](milestones.md) and
+1. **M1, image acquisition.** [T-1102](milestones.md) and
    [image.md](image.md), with [T-0905](deps.md) and [T-0906](deps.md) measured
-   before either lands.
-3. **M2, extraction.** [T-1103](milestones.md) and [extract.md](extract.md).
+   before either lands. `experiments/110-bloat-delta.sh <area>` is now the
+   instrument for both.
+2. **M2, extraction.** [T-1103](milestones.md) and [extract.md](extract.md).
    The highest-risk component, and three of its four acceptance criteria are
    already measured.
-4. **M3, `run`.** [T-1104](milestones.md), [enter.md](enter.md),
+3. **M3, `run`.** [T-1104](milestones.md), [enter.md](enter.md),
    [cli.md](cli.md). ⭐ It also closes the halves [T-0107](probe.md) and
    [T-0108](probe.md) are `partial` for, and both name exactly what is left.
-5. Then M4, M5, M6, M7 in order. [T-0709](interpose.md) and
+4. Then M4, M5, M6, M7 in order. [T-0709](interpose.md) and
    [T-0410](complete.md) are both P0 and both land inside M6 and M5
    respectively; neither needs a measurement that has not been taken.
 

@@ -323,7 +323,7 @@ Source:      `TOOL.md` section 3.5; `docs/methodology/experiments.md`
 Category:    deps
 Priority:    P0
 Effort:      S
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     ⛔ A dependency that lands without a before-and-after number has not
              landed. Without a committed baseline there is no "before".
@@ -342,4 +342,27 @@ Approach:    `experiments/110-bloat-delta.sh <area>` takes the current binary
 Decision:    A ceiling on the total, not on the delta. A delta ceiling permits
              an unbounded number of small dependencies, which is how a binary
              gets large without any single decision being wrong.
-Prove:       `./experiments/110-bloat-delta.sh baseline` exits 0 and `test "$(stat -c%s target/x86_64-unknown-linux-musl/release/podbox)" -lt 8000000`
+Prove:       `./experiments/110-bloat-delta.sh baseline` exits 0, `./scripts/check-todo.py` exits 0, and `./scripts/plant.sh` reports cases 17a, 17b and 17c caught
+
+**Done 2026-09-08.** The `Prove` commands were run and exit 0. The reading is
+`experiments/results/bloat-baseline.txt`: **496,184 bytes and zero third-party
+crates**, against 389,656 for the empty skeleton of T-1100. M0's probe is the
+whole of the difference and it took no dependency, which is the measurement
+[T-0901](#t-0901-sweep-syscalls) asked for before a syscall crate is considered.
+
+⚠ **The ceiling moved house rather than moving.** Its value is unchanged; where
+it lives is not. It was a bare literal in the gate workflow with nothing behind
+it, and the same number was quoted in this entry's own `Prove`. It now lives in
+`CEILING_BYTES` in `experiments/110-bloat-delta.sh`, the workflow calls that
+script, and check 17 of `scripts/check-todo.py` refuses a tree where any other
+file this project wrote names the number. ⭐ That check fired on the first run,
+against the sentence you are reading, which is why neither it nor the `Prove`
+above spells the number out: under the check they were the second and third
+copies.
+
+⚠ The `cargo bloat` breakdown is taken from a **second build of the same
+profile with `strip` turned off**, into its own target directory, because
+`strip = "symbols"` leaves cargo-bloat nothing to read. Its proportions are the
+artefact's; its absolute sizes are not, and the file says so. Where
+`cargo-bloat` is not installed the script exits 2 and records that the
+breakdown was not taken, because a skip is not a pass.

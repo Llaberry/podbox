@@ -128,7 +128,7 @@ the blocker named and what would clear it.
 | [T-0907](deps.md) | P0 | deps | open | Sweep: tar, gzip, zstd |
 | [T-0908](deps.md) | P1 | deps | open | Sweep: digests, JSON, argument parsing, ELF |
 | [T-0909](deps.md) | P1 | deps | blocked | Vendor the memfd and userland-exec rungs, and fix the fork's regression here |
-| [T-0910](deps.md) | P0 | deps | open | The `cargo bloat` baseline, committed, and checked at the gate |
+| [T-0910](deps.md) | P0 | deps | done | The `cargo bloat` baseline, committed, and checked at the gate |
 | [T-1001](packaging.md) | P0 | packaging | **done** | A single static binary with no `PT_INTERP` |
 | [T-1002](packaging.md) | P1 | packaging | open | Embed the interposer as bytes and place it inside the rootfs |
 | [T-1003](packaging.md) | P2 | packaging | open | The launch ladder, and a single file with an embedded rootfs |
@@ -149,7 +149,7 @@ the blocker named and what would clear it.
 
 ## Counts
 
-86 items: 68 open, 2 partial, 2 blocked, 14 done.
+86 items: 67 open, 2 partial, 2 blocked, 15 done.
 
 Counted from the rows above by `scripts/todo-count.py` and asserted
 independently by `scripts/check-todo.py`, which is the gate. A number here
@@ -157,11 +157,11 @@ that disagrees with the rows cannot reach a commit.
 
 | Priority | Open | Partial | Blocked | Done | Total |
 | --- | --- | --- | --- | --- | --- |
-| P0 | 32 | 2 | 1 | 9 | 44 |
+| P0 | 31 | 2 | 1 | 10 | 44 |
 | P1 | 25 | 0 | 1 | 4 | 30 |
 | P2 | 8 | 0 | 0 | 1 | 9 |
 | P3 | 3 | 0 | 0 | 0 | 3 |
-| **All** | **68** | **2** | **2** | **14** | **86** |
+| **All** | **67** | **2** | **2** | **15** | **86** |
 
 ## How the current ordering is derived
 

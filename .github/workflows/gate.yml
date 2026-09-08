@@ -73,14 +73,29 @@ jobs:
           readelf -l target/x86_64-unknown-linux-musl/release/podbox
           test "$(readelf -l target/x86_64-unknown-linux-musl/release/podbox | grep -c INTERP)" -eq 0
 
-      # T-0910's ceiling. A dependency that lands quietly fails here rather
-      # than being noticed at release. Raise it deliberately, with the
-      # cargo bloat delta that justifies it committed beside the change.
-      - name: binary size ceiling
-        run: |
-          size=$(stat -c%s target/x86_64-unknown-linux-musl/release/podbox)
-          echo "release binary: $size bytes"
-          test "$size" -lt 8000000
+      # T-0910's ceiling and its breakdown. A dependency that lands quietly
+      # fails here rather than being noticed at release.
+      #
+      # ⛔ The script owns the number. This step used to carry its own copy of
+      # it, which is a value in two places: raising one and not the other lets
+      # a build through that the other would have refused. check-todo.py's
+      # check 17 holds that there is exactly one declaration.
+      #
+      # cargo-bloat is installed on purpose: the script exits 2 without it, and
+      # a skip is not a pass.
+      - name: cargo bloat
+        run: cargo install cargo-bloat --locked
+
+      # ⚠ Area `ci`, not `baseline`. The baseline is a committed reading from
+      # one machine on one day; a runner re-taking it would overwrite that
+      # reading with its own and call the result the same thing. `ci` writes
+      # its own file and differences it against the committed baseline, which
+      # is what a caller wants to see and is the script's whole purpose.
+      # ⛔ The delta is printed, never asserted: a different rustc on a
+      # different machine produces a different number, and that is a reading
+      # from that machine rather than a regression. The CEILING is the gate.
+      - name: binary size ceiling and breakdown
+        run: ./experiments/110-bloat-delta.sh ci
 
       # The interposer is the one artefact that is not crt-static, and it is
       # built separately for exactly that reason.

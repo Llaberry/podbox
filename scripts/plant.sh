@@ -43,7 +43,7 @@ command -v git >/dev/null 2>&1 || { echo "SKIP: no git" >&2; exit 2; }
 
 # ⛔ GUARD 3: ONE LIST. Everything any case may touch is named here once, and
 # both the backup and the restore iterate this and nothing else.
-FILES="TODO/INDEX.md TODO/PROGRESS.md TODO/probe.md TODO/reference-map.md README.md docs/conventions/prose.md"
+FILES="TODO/INDEX.md TODO/PROGRESS.md TODO/probe.md TODO/reference-map.md README.md docs/conventions/prose.md experiments/110-bloat-delta.sh experiments/results/bloat-baseline.txt"
 
 # ⛔ Refuse to start over staged work. Guard 2 makes the restore safe, but a
 # dirty index means the "clean" baseline below is not clean, and every case
@@ -156,6 +156,18 @@ export BAD_LINE_A="$G_PATH:999999"
 export BAD_LINE_B="$G_PATH:888888"
 export BAD_BARE="TODO/no-such-""category.md"
 
+# ⛔ SAME RULE, FOR CHECK 17. Its subject is a NUMBER that may appear in exactly
+# one tracked file, so writing that number literally in this source would make
+# the clean tree red and the harness would refuse to run, exactly as two
+# literal citations did on 2026-09-08. It is read out of the one file that owns
+# it, at run time.
+CEILING_NUM="$(awk -F= '/^CEILING_BYTES=/{print $2}' experiments/110-bloat-delta.sh)"
+if [ -z "$CEILING_NUM" ]; then
+  echo "SKIP: experiments/110-bloat-delta.sh declares no CEILING_BYTES" >&2
+  exit 2
+fi
+export CEILING_NUM
+
 echo "== plants"
 
 case_plant "1 row without an entry" "has a row and no entry" \
@@ -220,6 +232,19 @@ case_plant "14 a bare path naming nothing" "git tracks no such file" \
 # ignore rule was wrong, which is how the defect actually happened.
 case_plant "15 tracked experiment scratch" "build artefact or experiment scratch" \
   sh -c 'mkdir -p experiments/.plantscratch && : > experiments/.plantscratch/x.bin && git add -f experiments/.plantscratch/x.bin'
+
+# ⚠ Check 17 has three assertions and three cases, because they fail apart: a
+# second copy of the number, a baseline that outgrew it, and a baseline with
+# nothing in it to compare. One case would leave two of them unseen, which is
+# the vacuity this whole harness exists to catch.
+case_plant "17a the ceiling in a second file" "names the binary size ceiling" \
+  sh -c 'printf "\nThe release binary must stay under %s bytes.\n" "$CEILING_NUM" >> README.md'
+
+case_plant "17b a baseline over the ceiling" "at or over the ceiling" \
+  sh -c 'sed -i -E "s/^total_bytes [0-9]+$/total_bytes ${CEILING_NUM}/" experiments/results/bloat-baseline.txt'
+
+case_plant "17c a baseline with no total" "carries no \`total_bytes <n>\` line" \
+  sh -c 'sed -i -E "s/^total_bytes /total_bytes_renamed /" experiments/results/bloat-baseline.txt'
 
 echo
 # ⛔ SAY WHAT IS NOT COVERED. A harness that lists twelve passing cases against a

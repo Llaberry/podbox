@@ -47,7 +47,15 @@
      and a check whose assertions all pass produce the same exit code, and the
      first is the state this repository was actually in at its first commit.
      The coverage line below is printed on every run and a zero in it is a
-     failure, not a note.
+     failure, not a note;
+ 17. the release binary's size ceiling is declared in exactly one place, and
+     the committed baseline is under it. TODO/deps.md T-0910: a dependency that
+     lands without a before-and-after number has not landed, and without a
+     committed baseline there is no "before". The ceiling was a literal in the
+     CI workflow with nothing behind it; a number in two files drifts, and the
+     copy a reader trusts is the wrong one. ⚠ This check reads the COMMITTED
+     evidence and never builds anything, so it runs on a fresh clone with no
+     toolchain. The build-time half is the workflow calling the script.
 
 ⛔ Read the exit code from this process, unpiped.
 Exit: 0 everything agrees, 1 something disagrees, 2 could not run.
@@ -152,7 +160,16 @@ seen = {
     "rows": 0, "entries": 0, "fields": 0, "counts": 0, "corpus": 0,
     "todo_citations": 0, "todo_links": 0, "crossrefs": 0,
     "tree_citations": 0, "tree_links": 0, "bare_citations": 0,
+    "size_ceiling": 0,
 }
+
+# ⛔ Check 17. The one file allowed to declare the release binary's ceiling, and
+# the committed evidence it is checked against. Both are read as text; nothing
+# is built, so this runs on a fresh clone.
+CEILING_SCRIPT = "experiments/110-bloat-delta.sh"
+CEILING_DECL = re.compile(r"^CEILING_BYTES=(\d+)$", re.M)
+BLOAT_BASELINE = "experiments/results/bloat-baseline.txt"
+BLOAT_TOTAL = re.compile(r"^total_bytes (\d+)$", re.M)
 
 
 def err(where, msg):
@@ -266,6 +283,67 @@ def check_tree(files):
         err("docs/", f"{dangling_verbatim} dangling link(s) in the verbatim "
                      f"methodology copy; {KNOWN_VERBATIM_DANGLING} are recorded in "
                      f"docs/AGENTS.md and in this script. Reconcile both.")
+
+
+def check_size_ceiling(files):
+    """Check 17: one declaration of the ceiling, and a baseline under it."""
+    if CEILING_SCRIPT not in files:
+        err(CEILING_SCRIPT, "does not exist or is not tracked, so the release "
+                            "binary has no declared ceiling. TODO/deps.md T-0910.")
+        return
+    seen["size_ceiling"] += 1
+    m = CEILING_DECL.search(read(os.path.join(ROOT, CEILING_SCRIPT)))
+    if not m:
+        err(CEILING_SCRIPT, "declares no `CEILING_BYTES=<n>` line. That line is "
+                            "the ceiling's one home; without it every other file "
+                            "naming a size is unanchored.")
+        return
+    ceiling = m.group(1)
+
+    # ⛔ Nowhere else. A value in two places drifts, and a workflow that carries
+    # its own copy passes a build the script would have refused. `.txt` results
+    # under experiments/results/ are written BY the script and are not scanned:
+    # they are readings, and a reading quotes the ceiling it was taken against.
+    for rel in sorted(files):
+        if rel == CEILING_SCRIPT or not is_ours(rel):
+            continue
+        if not rel.endswith(".md") and not rel.endswith(SOURCE_SUFFIXES):
+            continue
+        try:
+            text = read(os.path.join(ROOT, rel))
+        except (OSError, UnicodeDecodeError):
+            continue
+        seen["size_ceiling"] += 1
+        for n, line in enumerate(text.splitlines(), 1):
+            if re.search(rf"(?<!\d){ceiling}(?!\d)", line):
+                err(f"{rel}:{n}",
+                    f"names the binary size ceiling {ceiling} itself. It is "
+                    f"declared in {CEILING_SCRIPT} and nowhere else; call that "
+                    f"script instead of copying its number.")
+
+    # The committed "before". Read, never rebuilt: this has to work on a clone
+    # with no toolchain, and the number a dependency is measured against is the
+    # one in the tree rather than the one this machine happens to produce.
+    if BLOAT_BASELINE not in files:
+        err(BLOAT_BASELINE,
+            "is not tracked. TODO/deps.md T-0910: without a committed baseline "
+            "there is no `before`, and a dependency that lands without a "
+            "before-and-after number has not landed. Take it with "
+            "`./experiments/110-bloat-delta.sh baseline`.")
+        return
+    seen["size_ceiling"] += 1
+    b = BLOAT_TOTAL.search(read(os.path.join(ROOT, BLOAT_BASELINE)))
+    if not b:
+        err(BLOAT_BASELINE, "carries no `total_bytes <n>` line, so the baseline "
+                            "cannot be compared with anything.")
+        return
+    total, limit = int(b.group(1)), int(ceiling)
+    if total >= limit:
+        err(BLOAT_BASELINE,
+            f"records total_bytes {total}, which is at or over the ceiling of "
+            f"{limit} declared in {CEILING_SCRIPT}. Raise the ceiling "
+            f"deliberately, with the delta that justifies it committed beside "
+            f"the change.")
 
 
 def main():
@@ -480,6 +558,9 @@ def main():
             err(rel, "is a build artefact or experiment scratch and is tracked. "
                      "Untrack it and make .gitignore carry a rule rather than a "
                      "list of names.")
+
+    # -- 17. the size ceiling and its committed baseline ---------------------
+    check_size_ceiling(files)
 
     # -- 16. coverage --------------------------------------------------------
     # ⭐ A check that examined nothing reports success otherwise, which is the
