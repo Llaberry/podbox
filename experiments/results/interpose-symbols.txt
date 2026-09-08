@@ -1,0 +1,46 @@
+== conditions
+date              2026-09-08T06:45:17Z
+host kernel       6.18.44-fc-v24
+host libc         ldd (Ubuntu GLIBC 2.39-0ubuntu8.7) 2.39
+cc                cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+docker            29.3.1
+subject           references/VHSgunzo__pathmap/tree/path-mapping.c
+rootfs for D      debian@sha256:2f65600e1252c5649d2213e1d1ea4d74253d26514dc6530102a875e429245929
+
+== A. an interposer that defines execve alone
+  execve   rewritable
+  execv    NOT SEEN
+  execvp   NOT SEEN
+  execl    NOT SEEN
+  execlp   NOT SEEN
+  spawn    NOT SEEN
+  spawnp   NOT SEEN
+ok   A: 1 of 7 entry points reached the interposer
+
+== B. the control: the same seven with every entry point defined
+  execve   seen
+  execv    seen
+  execvp   seen
+  execl    seen
+  execlp   seen
+  spawn    seen
+  spawnp   seen
+ok   B: 7 of 7. A's zeros are the entry points, not the harness.
+
+== C. the adopted mechanism's real exported set
+  exported text symbols 129 (16 internal, 113 libc entry points)
+  path-taking names it does NOT define: freopen64 eaccess euidaccess mount umount tmpfile
+ok   C: every exec entry point A measured as bypassable is defined here
+
+== D. the completeness test, against a pinned rootfs
+  files read from the exported rootfs: 400
+  distinct undefined symbols across the rootfs sample: 1541
+  path-taking names this rootfs actually reaches: 38
+  of those, NOT defined by the interposer: 3
+     eaccess
+     mount
+     umount
+ok   D: the gap is a number this command produces, not a list somebody maintains
+
+== verdict
+  every check that ran matched

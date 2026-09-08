@@ -41,6 +41,18 @@ jobs:
           ./scripts/todo-count.py
           git diff --exit-code -- TODO/
 
+      # ⭐ The step that makes the one above mean something. check-todo.py
+      # reports success identically whether its assertions passed or whether it
+      # examined nothing, and the second is the state this repository shipped
+      # its first commit in. plant.sh breaks each check on purpose and asserts
+      # it goes red with that check's own message.
+      #
+      # ⛔ It plants into tracked files and restores them from a copy, so it
+      # refuses to start on a dirty tree. Run it after checkout and before
+      # anything that writes.
+      - name: every check can fail
+        run: ./scripts/plant.sh
+
   build:
     name: static build, no PT_INTERP
     runs-on: ubuntu-latest

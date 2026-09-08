@@ -1,0 +1,4 @@
+LIBC=glibc
+NSSWITCH=files systemd
+SUPPLIED_PASSWD=seen
+ID=0:0

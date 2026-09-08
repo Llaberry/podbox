@@ -62,6 +62,13 @@ Approach:    Four constraints, none optional:
              `references/fritzw__ld-preload-open` paid for the other half of
              this twice: tracker PR #4 "fix memory corruption" and PR #3 "Cache
              the results of dlsym".
+             ⚠ **And forwarding re-enters the payload's allocator, which is
+             fine.** `fopen` returns a `FILE *` this object cannot construct and
+             `opendir` a `DIR *`, so forwarding through `dlsym(RTLD_NEXT, ...)`
+             is the only correct implementation, and it makes linking against a
+             libc unavoidable: there is no raw-syscall object that dodges the
+             question. What constraint 2 forbids is **this object's own**
+             allocation on an interposed path, not the payload's.
 Decision:    A `dlsym(RTLD_NEXT, ...)` result cached in a `static` per entry
              point, resolved on first use, as
              `references/VHSgunzo__pathmap/tree/path-mapping.c:603-606` does.
@@ -73,11 +80,11 @@ Prove:       `./scripts/build-interpose.sh && nm -D --defined-only crates/podbox
 
 ### T-0702 One object per libc, and it must live inside the rootfs
 
-Source:      `experiments/results/interposer-libc.txt`; `references/fritzw__ld-preload-open` tracker
+Source:      `experiments/results/interposer-abi.txt`; `references/fritzw__ld-preload-open` tracker
 Category:    interpose
 Priority:    P0
 Effort:      M
-Status:      blocked
+Status:      open
 
 Problem:     Two separate failures share this entry because the fix is the same
              artefact. A preload object built against one libc cannot serve a
@@ -105,6 +112,25 @@ Premise:     ⚠ **The premise as first written was wrong, and the correction is
              Upstream agrees at the build level:
              `references/VHSgunzo__pathmap/tree/Makefile:13-19` carries separate
              `path-mapping-glibc.so` and `path-mapping-musl.so` targets.
+             ⭐ **And the cross-libc load is now measured, in both directions,
+             with both controls.** `experiments/results/interposer-abi.txt`
+             check B, taken with `musl-gcc` installed and the C reference
+             interposer as the subject:
+
+             ```
+             control glibc object -> glibc        rc=0
+             glibc object -> musl payload         rc=127  Error relocating /i.so: __snprintf_chk: symbol not found
+             control musl object -> musl          rc=0
+             QUESTION B musl object -> glibc      rc=127  /lib/x86_64-linux-gnu/libc.so: invalid ELF header
+             ```
+
+             ⭐ The mechanism is **not** symbol versioning and not struct
+             layout: it is the **SONAME**. musl's libc declares none, so an
+             object linked against it records `libc.so` in `DT_NEEDED`, and on a
+             glibc host `/lib/x86_64-linux-gnu/libc.so` is a GNU ld script.
+             The loader rejects it at the ELF header, before a symbol is read.
+             That makes the discriminator one `readelf` away, with nothing run,
+             which is what T-0709 turns into a selection rather than an attempt.
 Approach:    Build one object per libc, embed both, and select on the payload's
              `PT_INTERP` (T-0706). Then place the selected object **inside the
              rootfs** before the chroot and set `LD_PRELOAD` to its path as the
@@ -123,12 +149,17 @@ Approach:    Build one object per libc, embed both, and select on the payload's
              and avoids that whole class.
 Decision:    Two objects, not one with runtime detection. Runtime detection
              cannot change a struct offset the compiler already emitted.
-Status note: **blocked** on a musl toolchain to measure the cross-libc load
-             with. `experiments/60-interposer-libc.sh` exits 2 and names what it
-             needs: `musl-gcc`, or a run inside an alpine container. The design
-             above does not depend on the answer; the entry stays open so the
-             measurement is not skipped.
-Prove:       `./experiments/60-interposer-libc.sh` exits 0, and `podbox run --rm alpine:latest sh -c 'grep -q "$(readlink -f /.podbox/interpose.so)" /proc/self/environ'`
+Status note: **no longer blocked.** The measurement this entry waited on is
+             taken, by `experiments/80-interposer-abi.sh`, which needs only
+             `musl-gcc` and not a musl `libgcc_s`. What remains is
+             implementation, plus one narrower gap that does not block it:
+             podbox's own Rust cdylib still cannot be linked against musl on
+             this host, because rustc passes `-lgcc_s` on that target even under
+             `panic = "abort"` and `musl-tools` ships no musl-linked
+             `libgcc_s.so.1`. `experiments/60-interposer-libc.sh` names that
+             shortage and exits 2 on it. A musl cross toolchain carrying its own
+             libgcc clears it; the design above does not wait on that.
+Prove:       `./experiments/80-interposer-abi.sh` exits 0, and `podbox run --rm alpine:latest sh -c 'grep -q "$(readlink -f /.podbox/interpose.so)" /proc/self/environ'`
 
 ---
 
@@ -151,7 +182,48 @@ Premise:     ⭐ **Measured here, and it corrects a number in the
              defined symbols**, of which **113** are libc entry points and 16
              are internals with a `_` or `pm_` prefix. 129 is the symbol count;
              113 is the entry-point count.
-Approach:    Cover the families, not a list of names: `open*`, `stat*`, `exec*`,
+             ⭐ **And the family that is easiest to under-cover is measured.**
+             `experiments/results/interpose-symbols.txt` checks A and B: an
+             interposer defining `execve` alone catches **1 of 7** exec entry
+             points, and the same seven with every entry point defined catch
+             **7 of 7**. `execvp`, `execl`, `execlp`, `posix_spawn`,
+             `posix_spawnp` and `execv` each resolve the path themselves and
+             reach glibc's internal exec, which does not go through the PLT.
+             Arm B is what makes arm A's zeros the entry points rather than a
+             broken harness.
+             ⚠ On this host `execvp` is imported by 14 shared objects,
+             `posix_spawn` by 12 and `posix_spawnp` by 7, among them
+             `libglib-2.0.so.0`, four `libpython3.*`, `libdbus-1`, `libarchive`,
+             `libmagic` and `libsystemd`. A count on another host will differ;
+             the mechanism will not.
+             ⭐ **Keep both the `64` and the plain names, and the `__xstat`
+             shape too.** Measured: all four `libpython3.*` and
+             `libglib-2.0.so.0` import only `stat64`, `lstat64` and
+             `fstatat64@GLIBC_2.33`, while `libarchive` and `libdbus-1` import
+             the plain `stat`, `lstat` and `fstatat`. Both sets are live in one
+             process, so neither can be dropped as a duplicate. `__xstat`,
+             `__lxstat` and `__fxstatat` are the pre-2.33 shape and glibc 2.39
+             still exports them at `GLIBC_2.2.5` and `GLIBC_2.4`, so they are
+             not dead code either: the **payload's** libc decides which shape
+             its libraries call, not the host the interposer was built on.
+             ⚠ The adopted mechanism already defines all of them. Measured
+             against the built object: every exec entry point above is present,
+             and the path-taking names it does not define are `fstat`, `fstat64`
+             and `fexecve`, which take a descriptor, plus `system` and `popen`,
+             which take a shell command and reach the interposer through the
+             child shell.
+Approach:    ⭐ **Do not maintain a list. Produce the gap with a command.**
+             `experiments/100-interpose-symbols.sh` check D reads a pinned
+             rootfs from outside, enumerates the path-taking libc names its own
+             binaries import, and subtracts what the interposer defines. On a
+             pinned debian rootfs on 2026-09-08 that is **38 names reached, 3
+             not defined**: `eaccess`, `mount` and `umount`. A list somebody
+             maintains rots; a number a command produces does not.
+             ⚠ Read the rootfs from **outside**. A reader run inside the image
+             measures that image's package list rather than its binaries, and
+             most images ship no `readelf` at all. It is also the wrong
+             position: podbox extracts a rootfs and inspects it from outside.
+             Cover the families, not a list of names: `open*`, `stat*`, `exec*`,
              `chdir`, `readdir`, `getcwd`, `readlink`, `realpath`, the xattr
              family, `link*`, `rename*`, `mkdir*`, `mk*temp`, `glob`, `scandir`,
              `ftw`, and the `*at` variants of each.
@@ -380,3 +452,55 @@ Decision:    Strip namespace flags from `clone` rather than failing it. Failing
              `ENETUNREACH` for every connection, which reads as a network outage
              rather than as a stripped flag. Report it.
 Prove:       `podbox run --rm alpine:latest sh -c 'mknod /tmp/n c 1 3 && test -f /tmp/n' && podbox inspect --format '{{.Interpose.Emulated.mknod}}' "$(podbox ps -lq)" | grep -q '^[1-9]'`
+
+---
+
+### T-0709 Select the interposer by `DT_NEEDED`, and refuse on the version predicate
+
+Source:      `experiments/results/interposer-abi.txt`
+Category:    interpose
+Priority:    P0
+Effort:      M
+Status:      open
+
+Problem:     T-0702 establishes that one object per libc is required. That
+             leaves the question of which object a given payload gets, and
+             answering it by trying one and seeing whether it loads costs a
+             failed container and produces an error naming a symbol, which
+             sends the reader to debug the symbol rather than the mechanism.
+Premise:     ⭐ **Both facts are one `readelf` away, measured with no run.**
+             `experiments/results/interposer-abi.txt`:
+             check A, the SONAME discriminator. glibc's libc declares SONAME
+             `libc.so.6`; musl's declares none, so an object linked against it
+             records `libc.so` in `DT_NEEDED`. There is no ambiguity and no
+             heuristic.
+             check C, the version predicate, **predicted from ELF and then
+             confirmed by the loader**: the object imports up to `GLIBC_2.34`,
+             the pinned payload libc declares up to `GLIBC_2.31`, the prediction
+             was `refused`, and the observed failure was
+             `version 'GLIBC_2.34' not found (required by /i.so)`. The loader
+             named the same version the prediction did.
+             check D, the trap that makes a naive implementation refuse
+             everything: a shipped `libc.so.6` is stripped. On this host
+             `.symtab` has **0** defined symbols and `.dynsym` has **3136**. A
+             reader asking `.symtab` concludes the payload's libc defines
+             nothing, refuses every artefact, and reads exactly like a check
+             that works.
+Approach:    At extract time, for the rootfs just written:
+             1. read the rootfs's libc `DT_NEEDED` and SONAME and pick the
+                matching object;
+             2. for every symbol the chosen object imports, assert the payload's
+                libc defines it, **at a symbol version that libc declares**,
+                reading `.dynsym` and never `.symtab`. Comparing names alone
+                misses the common real failure, which is a build host newer than
+                the target;
+             3. on a mismatch, refuse **by name**: say which libc the rootfs
+                carries and which the object was built against. T-0706 owns the
+                refusal channel and T-0108 the wording.
+             ⚠ A coarse guard in front of it is one glob and its value is the
+             message: a rootfs carrying `ld-musl-*` handed a glibc object should
+             say so in those words, not through a relocation error.
+Decision:    Select and assert, never try. The assertion is cheap, it runs
+             before anything is executed, and it turns a runtime failure inside
+             somebody's container into a refusal with a reason.
+Prove:       `./experiments/80-interposer-abi.sh` exits 0 and `podbox run --rm alpine:latest true 2>&1 | grep -qv 'symbol not found'`

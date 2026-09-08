@@ -54,6 +54,7 @@ the blocker named and what would clear it.
 | [deps](deps.md) | the whole tree | `TOOL.md` section 3.5 |
 | [packaging](packaging.md) | the artefact | `TOOL.md` section 3.4, section 5 M7 |
 | [milestones](milestones.md) | the gates | `TOOL.md` section 5 |
+| [gate](gate.md) | `scripts/` | `docs/methodology/gate.md` |
 
 ## Entries
 
@@ -90,6 +91,7 @@ the blocker named and what would clear it.
 | [T-0407](complete.md) | P1 | complete | open | apt: the sandbox user, https sources and the CA bundle |
 | [T-0408](complete.md) | P2 | complete | open | zypper: fix the RIS index, not `repos.d` |
 | [T-0409](complete.md) | P2 | complete | open | Ownership failures from `dpkg`, `rpm` and `xbps` are warnings |
+| [T-0410](complete.md) | P0 | complete | open | Supply `/etc/nsswitch.conf`, or the supplied `/etc/passwd` is a no-op |
 | [T-0501](enter.md) | P0 | enter | open | Open every descriptor before the root changes |
 | [T-0502](enter.md) | P0 | enter | open | Resolve the program inside the new root, in the process that changed it |
 | [T-0503](enter.md) | P1 | enter | open | Probe `/dev/ptmx`, and refuse `-t` by name where it is absent |
@@ -103,13 +105,14 @@ the blocker named and what would clear it.
 | [T-0606](supervise.md) | P0 | supervise | blocked | The notification tier: probe three legs, refuse the tier, never fall back per call |
 | [T-0607](supervise.md) | P0 | supervise | open | The lifecycle, twenty times, twenty passes |
 | [T-0701](interpose.md) | P0 | interpose | open | The cdylib build constraints |
-| [T-0702](interpose.md) | P0 | interpose | blocked | One object per libc, and it must live inside the rootfs |
+| [T-0702](interpose.md) | P0 | interpose | open | One object per libc, and it must live inside the rootfs |
 | [T-0703](interpose.md) | P0 | interpose | open | Path virtualization: the entry-point set and `*at` resolution |
 | [T-0704](interpose.md) | P0 | interpose | open | Ownership virtualization: the half a path interposer does not have |
 | [T-0705](interpose.md) | P1 | interpose | open | Reverse mapping, so the payload reads back what it wrote |
 | [T-0706](interpose.md) | P0 | interpose | open | Classify the payload and decline with a named reason |
 | [T-0707](interpose.md) | P1 | interpose | open | The paths that must not be rewritten |
 | [T-0708](interpose.md) | P2 | interpose | open | Intercept the operations the runtime cannot provide |
+| [T-0709](interpose.md) | P0 | interpose | open | Select the interposer by `DT_NEEDED`, and refuse on the version predicate |
 | [T-0801](cli.md) | P0 | cli | open | The verb and flag parity table |
 | [T-0802](cli.md) | P0 | cli | open | docker's exit codes, unaltered |
 | [T-0803](cli.md) | P1 | cli | open | Answer to `docker` and `podman` on PATH |
@@ -140,10 +143,13 @@ the blocker named and what would clear it.
 | [T-1107](milestones.md) | P1 | milestones | open | M6 the interposer |
 | [T-1108](milestones.md) | P2 | milestones | open | M7 packaging |
 | [T-1109](milestones.md) | P1 | milestones | open | The negative tests, which are tests |
+| [T-1201](gate.md) | P0 | gate | done | The gate reaches every file this project wrote |
+| [T-1202](gate.md) | P0 | gate | done | Every check is planted against, and a plant that stops reaching its subject says so |
+| [T-1203](gate.md) | P1 | gate | done | A measurement taken on one host is a property of that host |
 
 ## Counts
 
-81 items: 76 open, 0 partial, 3 blocked, 2 done.
+86 items: 79 open, 0 partial, 2 blocked, 5 done.
 
 Counted from the rows above by `scripts/todo-count.py` and asserted
 independently by `scripts/check-todo.py`, which is the gate. A number here
@@ -151,11 +157,11 @@ that disagrees with the rows cannot reach a commit.
 
 | Priority | Open | Partial | Blocked | Done | Total |
 | --- | --- | --- | --- | --- | --- |
-| P0 | 36 | 0 | 2 | 2 | 40 |
-| P1 | 28 | 0 | 1 | 0 | 29 |
+| P0 | 39 | 0 | 1 | 4 | 44 |
+| P1 | 28 | 0 | 1 | 1 | 30 |
 | P2 | 9 | 0 | 0 | 0 | 9 |
 | P3 | 3 | 0 | 0 | 0 | 3 |
-| **All** | **76** | **0** | **3** | **2** | **81** |
+| **All** | **79** | **0** | **2** | **5** | **86** |
 
 ## How the current ordering is derived
 

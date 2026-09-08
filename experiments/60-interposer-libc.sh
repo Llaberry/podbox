@@ -9,12 +9,37 @@
 #      own `-C target-feature=+crt-static`?
 #   B. can a musl-linked preload object be loaded into a glibc payload?
 #
+# ⭐ **B IS ANSWERED, and not here.** `experiments/80-interposer-abi.sh` answers
+# it with both controls: no, and the reason is the SONAME rather than any
+# symbol. musl's libc declares no SONAME, so an object linked against it records
+# `libc.so` in DT_NEEDED, and on a glibc host `/lib/x86_64-linux-gnu/libc.so` is
+# a GNU ld script. The loader rejects it at the ELF header, before a symbol is
+# looked at. 80- also shows the same refusal in the other direction. What
+# remains of this script is the pair of facts about podbox's OWN Rust object,
+# which 80- does not measure because it uses the C reference as its subject.
+#
 # ⚠ B needs a musl libc on the build host. `--target x86_64-unknown-linux-musl`
 # with `-crt-static` hands the link to the host's own C toolchain, so on a host
 # with no musl the resulting object records `libc.so.6` in DT_NEEDED and is a
 # glibc object under a musl target name. This script reads DT_NEEDED and exits
 # 2 rather than answering B from that object: an object that is not musl-linked
 # cannot measure whether a musl-linked one loads.
+#
+# ⛔ AND A MUSL TOOLCHAIN IS NOT ENOUGH FOR THIS CRATE. Measured on 2026-09-08
+# with `musl-tools` 1.2.4-2 installed and `musl-gcc` on PATH:
+#
+#     RUSTFLAGS="-C target-feature=-crt-static -C linker=musl-gcc" \
+#       cargo build --release --target x86_64-unknown-linux-musl
+#     /usr/bin/ld: cannot find libgcc_s.so.1: No such file or directory
+#
+# rustc passes `-lgcc_s` for the unwinder on this target even though the crate
+# sets `panic = "abort"`, and `-C link-arg=-static-libgcc` does not remove it.
+# `musl-tools` ships no musl-linked `libgcc_s.so.1`. This is the same shortage
+# that makes a glibc-linked Rust object fail inside alpine with
+# `_Unwind_Resume: symbol not found`. A musl build of THIS crate needs a musl
+# cross toolchain that carries its own libgcc, not just `musl-gcc`.
+# `TODO/interpose.md` T-0702 carries it, and 80- is what settles the design
+# question in the meantime.
 #
 # Inputs pinned: the toolchain named by rust-toolchain.toml, the two targets
 # named below, and this host's own /usr/bin/env as the glibc payload. No
@@ -122,17 +147,28 @@ case "$MUSL_NEEDED" in
   *libc.so.6*)
     echo "== B: COULD NOT RUN on this host"
     echo "  The musl-target object records libc.so.6 in DT_NEEDED, so it was"
-    echo "  linked against this host's glibc and is not a musl object. There is"
-    echo "  no musl libc here to link one against:"
+    echo "  linked against this host's glibc and is not a musl object."
     # ⚠ Captured without a pipe. Under `pipefail`, `ldd --version | head -1`
     # returns ldd's SIGPIPE status and the `||` branch fires beside the value.
     _ldd="$(ldd --version 2>&1)"
     printf '    host libc     %s\n' "${_ldd%%$'\n'*}"
     printf '    musl-gcc      %s\n' "$(command -v musl-gcc || echo absent)"
-    printf '    ld-musl      %s\n' \
+    printf '    ld-musl       %s\n' \
       "$([ -e /lib/ld-musl-x86_64.so.1 ] && echo present || echo absent)"
-    echo "  Re-run on a host with musl-gcc, or inside an alpine container."
-    echo "  TODO/interpose.md T-0702 stays open with this as its blocker."
+    printf '    musl libgcc_s %s\n' \
+      "$(ls /usr/lib/x86_64-linux-musl/libgcc_s.so.1 2>/dev/null || echo absent)"
+    # ⛔ NAME THE ACTUAL SHORTAGE. A musl libc being present is not the same as
+    # this crate being buildable against it: rustc passes -lgcc_s on this target
+    # regardless of `panic = "abort"`, and musl-tools ships no musl-linked
+    # libgcc_s.so.1. Saying "no musl here" when musl-gcc is on PATH sends the
+    # next session to install a toolchain it already has.
+    echo "  What is missing is a musl-linked libgcc_s.so.1, not musl itself."
+    echo "  ⭐ This does not leave B unanswered. Run"
+    echo "     ./experiments/80-interposer-abi.sh, which answers it against the C"
+    echo "     reference interposer and needs only musl-gcc, not a musl libgcc."
+    echo "  TODO/interpose.md T-0702 carries what is still open here: a musl"
+    echo "  build of podbox's own Rust cdylib, which needs a cross toolchain"
+    echo "  carrying its own libgcc_s. See this script's header."
     exit 2
     ;;
 esac

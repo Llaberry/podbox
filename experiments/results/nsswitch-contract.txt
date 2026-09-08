@@ -1,0 +1,39 @@
+== conditions
+date              2026-09-08T06:45:12Z
+host kernel       6.18.44-fc-v24
+host libc         ldd (Ubuntu GLIBC 2.39-0ubuntu8.7) 2.39
+cc                cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+docker            29.3.1
+strace            strace -- version 6.8
+
+== A. is a supplied /etc/passwd consulted? nsswitch decides
+  nsswitch=files  -> FOUND
+  nsswitch=other  -> NOTFOUND
+ok   A: the supplied /etc/passwd is read under 'files' and IGNORED otherwise
+     ⛔ podbox-complete must supply /etc/nsswitch.conf too, or assert it
+        already names files. Supplying /etc/passwd alone is a no-op on
+        any rootfs whose nsswitch names another service.
+
+== B. what pinned images actually ship
+  ubuntu-20.04   passwd:         files
+  debian-12      passwd:         files
+  alpine-3.22    NO-NSSWITCH-FILE
+ok   B: 2 image(s) name files, 1 ship no nsswitch.conf at all
+     A musl rootfs has no NSS and reads /etc/passwd directly, so the
+     requirement in A is a glibc-rootfs requirement.
+
+== C. PT_INTERP-free is not dependency-free
+  static probe PT_INTERP headers: 0
+  objects opened after the last execve: 0
+  ld.so.cache lines seen (the trap, correctly excluded): 0
+ok   C: measured on this host with nsswitch 'passwd: files'
+     ⚠ The count is a property of THIS host's nsswitch, not of static
+        linking. A rootfs naming a non-files service is where a static
+        glibc payload reaches for a host NSS module it cannot have.
+
+== D. glibc's gconv modules and DT_NEEDED
+  253 of 253 gconv modules record DT_NEEDED libc.so.6
+ok   D: bundling gconv into a musl artefact reintroduces a second libc
+
+== verdict
+  every check that ran matched

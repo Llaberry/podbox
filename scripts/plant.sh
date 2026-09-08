@@ -1,0 +1,209 @@
+#!/usr/bin/env bash
+# plant.sh - break each of the gate's checks on purpose and assert it goes red.
+#
+# ⛔ AN ASSERTION NOBODY HAS SEEN FAIL IS NOT AN ASSERTION. `check-todo.py`
+# carries fifteen checks. A check that quietly matches nothing exits 0 exactly
+# like a check whose assertions all passed, and the second is what everybody
+# assumes they are looking at. This script is what tells them apart.
+#
+# ⭐ READ THE FINDING, NOT THE EXIT CODE. A gate already red for another reason
+# exits 1 either way. Each case here asserts that the planted defect's OWN
+# message appears and that it did not appear on the clean tree. A case that
+# only watched the exit code passes vacuously the moment anything else breaks.
+#
+# Four guards, each of which exists because the harness shape without it
+# reports success while planting nothing:
+#
+#   1. THE MUTATION MUST LAND. A `sed` that matches nothing leaves the source
+#      correct, the gate green, and the case reads as a missing assertion when
+#      what is missing is the plant. Asserted by hashing the files before and
+#      after.
+#   2. RESTORE FROM A COPY, NEVER `git checkout --`. Checkout restores from the
+#      INDEX, so anything a plant staged survives it, and a run started while
+#      work is staged restores the plant instead of the source. Measured: with
+#      a plant staged, `git checkout -- f` leaves the plant in the worktree.
+#   3. ONE FILE LIST. A restore that carries its own second copy of the list
+#      stops putting back the first file a new case learns to touch, and every
+#      later case then measures the leftovers.
+#   4. CONTROLS ARE COUNTED APART FROM PLANTS. A control stays quiet; a plant
+#      goes red. Adding them together reports more defects caught than were.
+#
+# Exit: 0 every plant was caught and every control stayed quiet, 1 a plant was
+#       missed or a control fired, 2 could not run.
+set -uo pipefail
+
+HERE="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+ROOT="$(CDPATH= cd -- "$HERE/.." && pwd)"
+BACKUP="$(mktemp -d)"
+GATE="$ROOT/scripts/check-todo.py"
+
+cd "$ROOT" || { echo "SKIP: cannot enter $ROOT" >&2; exit 2; }
+[ -x "$GATE" ] || { echo "SKIP: $GATE is not executable" >&2; exit 2; }
+command -v git >/dev/null 2>&1 || { echo "SKIP: no git" >&2; exit 2; }
+
+# ⛔ GUARD 3: ONE LIST. Everything any case may touch is named here once, and
+# both the backup and the restore iterate this and nothing else.
+FILES="TODO/INDEX.md TODO/PROGRESS.md TODO/probe.md TODO/reference-map.md README.md"
+
+# ⛔ Refuse to start over staged work. Guard 2 makes the restore safe, but a
+# dirty index means the "clean" baseline below is not clean, and every case
+# then compares against a tree somebody was mid-edit on.
+if ! git diff --quiet -- $FILES || ! git diff --cached --quiet -- $FILES; then
+  echo "SKIP: one of the files this script plants into has uncommitted changes:" >&2
+  git status --porcelain -- $FILES >&2
+  echo "Commit or stash them. This script must own the tree while it runs." >&2
+  exit 2
+fi
+
+plants_caught=0; plants_missed=0
+controls_quiet=0; controls_fired=0
+
+backup() { for f in $FILES; do mkdir -p "$BACKUP/$(dirname "$f")"; cp "$ROOT/$f" "$BACKUP/$f"; done; }
+restore() { for f in $FILES; do cp "$BACKUP/$f" "$ROOT/$f"; done; }
+hashes() { for f in $FILES; do git hash-object "$ROOT/$f"; done | tr -d '\n'; }
+
+trap 'restore; rm -rf "$BACKUP"' EXIT INT TERM
+backup
+
+echo "== baseline: the gate on the clean tree"
+base_out="$("$GATE" 2>&1)"; base_rc=$?
+printf '  exit %s\n' "$base_rc"
+if [ "$base_rc" -ne 0 ]; then
+  echo "SKIP: the gate is already red. Nothing below would be interpretable." >&2
+  printf '%s\n' "$base_out" | sed 's/^/    /' >&2
+  exit 2
+fi
+echo
+
+# case NAME EXPECTED-SUBSTRING COMMAND...
+#   The expected substring is the planted defect's OWN message. A case that
+#   matched only the exit code would pass on any unrelated failure.
+case_plant() {
+  local name="$1" want="$2"; shift 2
+  local before after out rc
+  before="$(hashes)"
+  "$@"
+  after="$(hashes)"
+  # ⛔ GUARD 1: did the mutation land?
+  if [ "$before" = "$after" ]; then
+    printf '  MISS %-34s the mutation did not land; the files are byte-identical\n' "$name"
+    plants_missed=$((plants_missed + 1)); restore; return
+  fi
+  out="$("$GATE" 2>&1)"; rc=$?
+  restore
+  if [ "$rc" -eq 0 ]; then
+    printf '  MISS %-34s the gate stayed green\n' "$name"
+    plants_missed=$((plants_missed + 1)); return
+  fi
+  # ⭐ The finding, not the exit code: this message, and not on the clean tree.
+  case "$out" in
+    *"$want"*)
+      case "$base_out" in
+        *"$want"*)
+          printf '  MISS %-34s that message is already on the clean tree\n' "$name"
+          plants_missed=$((plants_missed + 1)) ;;
+        *)
+          printf '  ok   %-34s red, and it named it\n' "$name"
+          plants_caught=$((plants_caught + 1)) ;;
+      esac ;;
+    *)
+      printf '  MISS %-34s red for another reason, not this one\n' "$name"
+      printf '%s\n' "$out" | sed -n '2,4p' | sed 's/^/         /'
+      plants_missed=$((plants_missed + 1)) ;;
+  esac
+}
+
+# A control changes something the gate must NOT object to. It proves the gate
+# is discriminating rather than merely noisy.
+case_control() {
+  local name="$1"; shift
+  local out rc
+  "$@"
+  out="$("$GATE" 2>&1)"; rc=$?
+  restore
+  if [ "$rc" -eq 0 ]; then
+    printf '  ok   %-34s quiet, as a control must be\n' "$name"
+    controls_quiet=$((controls_quiet + 1))
+  else
+    printf '  FIRE %-34s the gate objected to a legitimate edit\n' "$name"
+    printf '%s\n' "$out" | sed -n '2,4p' | sed 's/^/         /'
+    controls_fired=$((controls_fired + 1))
+  fi
+}
+
+# ⛔ THE PLANTED CITATIONS ARE ASSEMBLED AT RUN TIME, NEVER WRITTEN OUT HERE.
+# The gate reads this file like any other, so a literal bad citation in this
+# source is a permanent gate failure rather than a plant. Caught exactly that
+# way on 2026-09-08: two literals here reddened the clean-tree baseline, and
+# the harness then refused to run at all.
+G_PATH="scripts/check-todo""$(printf '.py')"
+export BAD_LINE_A="$G_PATH:999999"
+export BAD_LINE_B="$G_PATH:888888"
+export BAD_BARE="TODO/no-such-""category.md"
+
+echo "== plants"
+
+case_plant "1 row without an entry" "has a row and no entry" \
+  sh -c 'printf "| [T-9999](probe.md) | P0 | probe | open | A row naming nothing |\n" >> TODO/INDEX.md'
+
+case_plant "3 status disagreement" "disagrees with the index" \
+  sh -c 'sed -i "0,/^Status:      open$/s//Status:      blocked/" TODO/probe.md'
+
+case_plant "4 count block is stale" "the totals line is not the rows" \
+  sh -c 'sed -i "s/^81 items: 76 open/81 items: 75 open/" TODO/INDEX.md'
+
+case_plant "5 a missing field" "has no \`Decision:\` field" \
+  sh -c 'sed -i "0,/^Decision:/s//Decisionx:/" TODO/probe.md'
+
+# ⚠ EVERY mention, not the first row. Each tree is named twice in the map, in
+# the licence table and again in the verdicts table, so deleting one row leaves
+# the other and check 6 never loses the tree. Measured on 2026-09-08: this case
+# landed its mutation and stayed green until it deleted both.
+case_plant "6 a corpus tree the map lost" "is on disk and the map does not name it" \
+  sh -c 'sed -i "s|\`references/qaidvoid__onelf\`|the onelf tree|g" TODO/reference-map.md'
+
+case_plant "7 a citation past end of file" "lines" \
+  sh -c 'printf "\nSee \`%s\` for this.\n" "$BAD_LINE_A" >> TODO/probe.md'
+
+case_plant "8 a TODO link to nothing" "does not resolve" \
+  sh -c 'printf "\nSee [nothing](no-such-file.md).\n" >> TODO/probe.md'
+
+case_plant "9 a T-NNNN naming nothing" "which is not an entry" \
+  sh -c 'printf "\nBlocked behind T-8888.\n" >> TODO/probe.md'
+
+case_plant "10 PROGRESS count is stale" "the count line is not the rows" \
+  sh -c 'sed -i "s/^81 entries: 76 open/81 entries: 74 open/" TODO/PROGRESS.md'
+
+case_plant "11 a tree citation past EOF" "lines" \
+  sh -c 'printf "\nSee \`%s\` for the gate.\n" "$BAD_LINE_B" >> README.md'
+
+case_plant "12 a link out of README" "does not resolve" \
+  sh -c 'printf "\n[gone](docs/no-such-page.md)\n" >> README.md'
+
+case_plant "14 a bare path naming nothing" "git tracks no such file" \
+  sh -c 'printf "\nThe work is in \`%s\`.\n" "$BAD_BARE" >> README.md'
+
+echo
+echo "== controls"
+
+case_control "an ordinary prose edit" \
+  sh -c 'printf "\nOne more sentence that cites nothing.\n" >> README.md'
+
+case_control "a citation that does resolve" \
+  sh -c 'printf "\nThe gate is \`scripts/check-todo.py:1\`.\n" >> README.md'
+
+case_control "a forward reference to a result" \
+  sh -c 'printf "\nIt will land in \`experiments/results/not-yet-taken.txt\`.\n" >> README.md'
+
+echo
+echo "== verdict"
+printf '  plants   %s caught, %s missed\n' "$plants_caught" "$plants_missed"
+printf '  controls %s quiet, %s fired\n' "$controls_quiet" "$controls_fired"
+# ⛔ GUARD 4: these two are reported apart. A single "defects caught" number
+# adds the controls in and overstates the coverage by exactly their count.
+if [ "$plants_missed" -eq 0 ] && [ "$controls_fired" -eq 0 ]; then
+  echo "  every check that was planted against went red with its own message."
+  exit 0
+fi
+echo "  see the MISS and FIRE lines above."
+exit 1

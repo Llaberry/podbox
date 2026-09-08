@@ -17,7 +17,7 @@ their terms and this project's are the same.
 | `docs/` | [`Azathothas/TEMPLATE`](https://github.com/Azathothas/TEMPLATE) at `6206166`, by way of [`Azathothas/container-research`](https://github.com/Azathothas/container-research) at `0f155e3` | 0BSD | `references/Azathothas__TEMPLATE/tree/LICENSE` |
 | `scripts/common/mine-repo.sh`, `check-one-home.sh` | `Azathothas/TEMPLATE` at `6206166` | 0BSD | same |
 | `scripts/common/check-markers.sh` ⚠ **modified** | `Azathothas/TEMPLATE` at `6206166` | 0BSD | same |
-| `experiments/10-` through `50-`, `Dockerfile.target`, `targetfs.sh`, `src/` | `Azathothas/container-research` at `0f155e3` | 0BSD | `references/Azathothas__container-research/tree/LICENSE` |
+| the seeded experiment scripts numbered 10 through 50, `Dockerfile.target`, `targetfs.sh`, `src/` | `Azathothas/container-research` at `0f155e3` | 0BSD | `references/Azathothas__container-research/tree/LICENSE` |
 
 ⚠ **One of those files is modified**, and it is marked as such above.
 `scripts/common/check-markers.sh` excludes `references/` and `docs/`, both of

@@ -28,7 +28,7 @@ the probe.
 | [`references/`](references/) | the corpus: 30 trees at pinned commits, with their trackers. Tracked, in the tree |
 | [`experiments/`](experiments/) | the reconstruction of the target runtime, seeded from `Azathothas/container-research`, plus this project's own measurements |
 | [`scripts/`](scripts/) | the gate, the count scripts, the corpus fetcher |
-| [`docs/`](docs/) | the methodology this repository is worked under, copied verbatim from [`Azathothas/TEMPLATE`](https://github.com/Azathothas/TEMPLATE). **Binding, not advisory**: start at [`docs/README.md`](docs/README.md) |
+| [`docs/`](docs/) | the methodology this repository is worked under, copied verbatim from [`Azathothas/TEMPLATE`](https://github.com/Azathothas/TEMPLATE). **Binding, not advisory** |
 
 ## Building
 

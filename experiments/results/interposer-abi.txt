@@ -1,0 +1,44 @@
+== conditions
+date              2026-09-08T06:45:09Z
+host kernel       6.18.44-fc-v24
+host libc         ldd (Ubuntu GLIBC 2.39-0ubuntu8.7) 2.39
+cc                cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+musl-gcc          /usr/bin/musl-gcc
+docker            29.3.1
+glibc payload     ubuntu@sha256:c664f8f86ed5a386b0a340d981b8f81714e21a8b9c73f658c4bea56aa179d54a
+musl payload      alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+subject           references/VHSgunzo__pathmap/tree/path-mapping.c
+
+== build the subject against each libc
+  glibc object     96888 bytes  NEEDED: libc.so.6 
+  musl object      73704 bytes  NEEDED: libc.so 
+
+== A. the SONAME discriminator, taken with no run
+  glibc libc SONAME   libc.so.6
+  musl libc SONAME    (none declared)
+  /lib/x86_64-linux-gnu/libc.so is: ASCII text
+ok   A: the glibc object records libc.so.6, so DT_NEEDED names the libc it wants
+ok   A: the musl object records libc.so, which no glibc host serves as an object
+
+== B. the four cross-libc arms
+  control glibc object -> glibc      rc=0    
+  glibc object -> musl payload       rc=127  Error relocating /i.so: __snprintf_chk: symbol not found
+  control musl object -> musl        rc=0    
+  QUESTION B musl object -> glibc    rc=127  /usr/bin/env: error while loading shared libraries: /lib/x86_64-linux-gnu/libc.so: invalid ELF header
+
+== C. the version predicate: predict from ELF, then confirm with the loader
+  the object imports up to   GLIBC_2.34
+  the payload libc declares  GLIBC_2.31
+  PREDICTION from ELF alone: refused
+  OBSERVED                 : rc=1 /bin/true: /lib/x86_64-linux-gnu/libc.so.6: version `GLIBC_2.34' not found (required by /i.so)
+ok   C: the prediction matched and the loader named GLIBC_2.34
+
+== D. the .dynsym trap
+  .symtab defined symbols  0
+  .dynsym defined symbols  3136
+ok   D: this libc is stripped, so an ABI check must read .dynsym
+
+== verdict
+  every check that ran matched.
+  podbox selects the interposer by DT_NEEDED and refuses on the version
+  predicate, both read from ELF. TODO/interpose.md T-0702 carries this.

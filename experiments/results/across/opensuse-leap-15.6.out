@@ -1,0 +1,5 @@
+LIBC=glibc
+NSSWITCH=compat
+SUPPLIED_PASSWD=probe-crashed-rc136
+PROBE_STDERR=
+ID=0:0

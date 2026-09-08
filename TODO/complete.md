@@ -128,6 +128,9 @@ Premise:     ⭐ **Read at file and line in two projects, and the maintainer's
              same thread carries the failure mode, from 2018-08-31: "packages
              that deploy their own service users during install/config and throw
              out errors when they try to do so, stopping the install process."
+⛔ **On a glibc rootfs this entry does nothing on its own.** Whether
+             `/etc/passwd` is read at all is decided by `/etc/nsswitch.conf`,
+             measured in T-0410. The two land together.
 Approach:    Synthesize both files in the rootfs if absent, with at least `root`
              and `nobody`, and **leave them writable and persistent** so
              `useradd` inside the container works and survives. Never bind the
@@ -273,3 +276,58 @@ Decision:    Report, do not suppress and do not translate. Suppressing hides a
              real failure of the same shape; translating breaks `docker run`
              parity on exit codes, which is T-0802.
 Prove:       `podbox run --rm docker.io/voidlinux/voidlinux-musl:latest sh -c 'xbps-install -Sy gcc >/dev/null 2>&1; gcc --version'`
+
+---
+
+### T-0410 Supply `/etc/nsswitch.conf`, or the supplied `/etc/passwd` is a no-op
+
+Source:      `experiments/results/nsswitch-contract.txt`
+Category:    complete
+Priority:    P0
+Effort:      S
+Status:      open
+
+Problem:     T-0404 synthesizes `/etc/passwd` and `/etc/group`. On a glibc
+             rootfs, whether anything reads them is decided by a different file.
+             glibc resolves a user through NSS, and `/etc/nsswitch.conf` names
+             which service answers; only `files` reads `/etc/passwd`.
+Premise:     ⭐ **Measured, with a user name no distribution ships, so a hit
+             cannot come from the image's own `/etc/passwd`.**
+             `experiments/results/nsswitch-contract.txt` check A, the same
+             supplied `/etc/passwd` and the same static probe against a pinned
+             `ubuntu:20.04`:
+
+             ```
+             nsswitch=files  -> FOUND
+             nsswitch=other  -> NOTFOUND
+             ```
+
+             ⛔ Supplying `/etc/passwd` alone is a shim that silently does
+             nothing on any rootfs whose `nsswitch.conf` names another service,
+             and the failure surfaces as a user that does not exist rather than
+             as a file that was not read.
+             ⚠ **This is a glibc-rootfs requirement.** Check B reads three
+             pinned images: `ubuntu:20.04` and `debian:12` both name `files`,
+             and `alpine:3.22` ships no `nsswitch.conf` at all, because musl has
+             no NSS plugin system and reads `/etc/passwd` directly.
+             ⚠ A statically linked payload does not escape this. The probe in
+             check A is `-static` and still answered `NOTFOUND`: static linking
+             removes the `PT_INTERP`, not the NSS dispatcher.
+Approach:    Probe the rootfs rather than assuming, in this order:
+             1. no `/etc/nsswitch.conf` and no glibc in the rootfs: musl, do
+                nothing, `/etc/passwd` is read directly;
+             2. `/etc/nsswitch.conf` present and `passwd` names `files` first:
+                do nothing, it already works;
+             3. `/etc/nsswitch.conf` present and `passwd` does not name `files`:
+                ⚠ do not overwrite it. Prepend `files` to the `passwd` and
+                `group` lines, keep the rest, and report the edit on the one
+                line T-0108's banner allows;
+             4. glibc in the rootfs and no `/etc/nsswitch.conf`: write a minimal
+                one naming `files`.
+             Every write follows T-0404's rule that the payload's own later
+             writes persist.
+Decision:    Edit rather than replace. A rootfs whose `nsswitch.conf` names
+             `sss` or `systemd` may be doing so for a reason podbox cannot see,
+             and prepending `files` restores the supplied file without removing
+             what was there.
+Prove:       `./experiments/90-nsswitch-contract.sh` exits 0 and `podbox run --rm debian:12 sh -c 'id podboxsupplied'`

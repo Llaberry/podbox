@@ -1,0 +1,4 @@
+LIBC=musl
+NSSWITCH=absent
+SUPPLIED_PASSWD=seen
+ID=0:0

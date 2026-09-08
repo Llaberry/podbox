@@ -179,6 +179,12 @@ Premise:     Read. The set is not arbitrary: alpine, debian, ubuntu, archlinux,
 Approach:    Each member installs a C toolchain through its native package
              manager and builds and runs a two-file project, with no
              user-supplied fixups.
+             ⚠ **Drive it through T-1203's runner rather than writing a second
+             one.** `experiments/125-across-distributions.sh` owns the pinning,
+             the `no-pull` row, the exit-2-when-nothing-ran rule and the
+             reference qualification; this milestone supplies the subject
+             script and the row list. Two runners drift, and the one that
+             drifts is the one nobody is looking at.
 Decision:    A C toolchain rather than a trivial package. It exercises the
              ownership, the resolver, the keyring and the sandbox user at once,
              and a two-file project catches a toolchain that installed and
