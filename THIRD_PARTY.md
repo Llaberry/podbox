@@ -9,17 +9,29 @@ read at, and what may be done with each. This file is the notice.
 
 ## Copied into this tree
 
-Three things are copied rather than referenced, and all three are 0BSD, so
+Three groups of files are copied rather than referenced, and all are 0BSD, so
 their terms and this project's are the same.
 
 | what | from | licence | notice |
 | --- | --- | --- | --- |
-| `docs/` | [`Azathothas/TEMPLATE`](https://github.com/Azathothas/TEMPLATE) at `6206166`, by way of [`Azathothas/container-research`](https://github.com/Azathothas/container-research) at `0f155e3` | 0BSD | `references/Azathothas__TEMPLATE/tree/LICENSE` |
+| `docs/`, ⚠ **except `docs/AGENTS.md`** | [`Azathothas/TEMPLATE`](https://github.com/Azathothas/TEMPLATE) at `6206166`, by way of [`Azathothas/container-research`](https://github.com/Azathothas/container-research) at `0f155e3` | 0BSD | `references/Azathothas__TEMPLATE/tree/LICENSE` |
+| `docs/AGENTS.md` | ⭐ **podbox's own work.** It is the project's router, written for this project, and the template's rule is that a project writes its own | 0BSD | [`LICENSE`](LICENSE) |
 | `scripts/common/mine-repo.sh`, `check-one-home.sh` | `Azathothas/TEMPLATE` at `6206166` | 0BSD | same |
 | `scripts/common/check-markers.sh` ⚠ **modified** | `Azathothas/TEMPLATE` at `6206166` | 0BSD | same |
 | the seeded experiment scripts numbered 10 through 50, `Dockerfile.target`, `targetfs.sh`, `src/` | `Azathothas/container-research` at `0f155e3` | 0BSD | `references/Azathothas__container-research/tree/LICENSE` |
 
-⚠ **One of those files is modified**, and it is marked as such above.
+⚠ **`docs/` is verbatim apart from two deliberate changes**, both above.
+`docs/AGENTS.md` is written here, following the shape
+`references/Azathothas__TEMPLATE/tree/docs/templates/AGENTS.md` prescribes for a
+project's own router. And a `docs/README.md` that this project had written, not <!-- known-absent -->
+the template's, was deleted: `docs/conventions/docs.md` names the roles a
+document set has and a README under `docs/` is not one of them, so it was a
+third router duplicating the root `README.md` and the methodology it indexed.
+Every other file under `docs/` is byte-identical to the copy in the corpus, and
+`diff -r docs references/Azathothas__TEMPLATE/tree/docs` shows only the
+template files this project did not adopt.
+
+⚠ **One script is modified**, and it is marked as such above.
 `scripts/common/check-markers.sh` excludes `references/` and `docs/`, both of
 which are verbatim third-party text this project's prose conventions do not
 reach. The reason and a reproduction that runs the pristine upstream copy out of

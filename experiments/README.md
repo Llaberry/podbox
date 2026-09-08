@@ -33,6 +33,24 @@ Uniform across all three, per this repository's convention:
 ./experiments/50-interpose-tier.sh              # pathmap against the four walls
 ```
 
+⚠ The scripts above are seeded from `Azathothas/container-research` and measure
+the target runtime. The ones below are **this project's own** and measure
+decisions podbox has to make. Each writes its transcript to
+`experiments/results/`.
+
+```sh
+./experiments/60-interposer-libc.sh             # podbox's cdylib per libc. Exits 2 here, and names why
+./experiments/70-whiteout-contract.sh           # the OCI layer contract, against two pinned images
+./experiments/80-interposer-abi.sh              # which interposer a payload may load, decided from ELF
+./experiments/90-nsswitch-contract.sh           # whether a supplied /etc/passwd is read at all
+./experiments/100-interpose-symbols.sh          # the exec family, and the completeness test
+./experiments/125-across-distributions.sh       # ~10 min, eleven pinned distributions
+```
+
+⛔ `80-`, `90-`, `100-` and `125-` need a running docker daemon, and `80-` needs
+`musl-gcc` for its fourth arm. Each says which of its checks could not run
+rather than reporting a pass it did not earn.
+
 ## Running your own binary against it
 
 This is the point of `20-` for anyone implementing against this runtime rather

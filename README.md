@@ -30,6 +30,11 @@ the probe.
 | [`scripts/`](scripts/) | the gate, the count scripts, the corpus fetcher |
 | [`docs/`](docs/) | the methodology this repository is worked under, copied verbatim from [`Azathothas/TEMPLATE`](https://github.com/Azathothas/TEMPLATE). **Binding, not advisory** |
 
+⭐ **Working on this repository: read [`docs/AGENTS.md`](docs/AGENTS.md) and
+nothing else first.** It is the router. It says what to read for the task in
+front of you, what this environment does to a session, and what a session owes
+at its end. Everything binding is one link away from it.
+
 ## Building
 
 ```sh
