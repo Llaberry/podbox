@@ -5,7 +5,7 @@
 carries only what one session moved.
 
 **Task:** read the six issues filed against this repository, validate rather
-than accept, adopt what survives, replace `docs/README.md` with a standalone
+than accept, adopt what survives, replace `docs/README.md` with a standalone <!-- known-absent -->
 `docs/AGENTS.md`, and review three times.
 
 | row | before | after | from |
