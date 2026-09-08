@@ -97,8 +97,29 @@ fi
 echo
 
 echo "== A2. the same crate with -crt-static, one object per libc"
+# ⭐ THE MUSL ARM NEEDS A LINKER THAT CARRIES ITS OWN libgcc_s, and 2026-09-08
+# is when it got one. rustc passes `-lgcc_s` on this target even under
+# `panic = "abort"`, and `musl-tools` ships no musl-linked `libgcc_s.so.1`, so
+# the default `cc` linked the "musl" object against the HOST's glibc and B
+# below could not run. `zig cc` carries `compiler-rt`, which provides those
+# symbols. Where zig is absent the arm falls back to the default linker and
+# says so rather than reporting a musl object that is not one.
+ZIG_LINKER="$ROOT/scripts/zig-cc.sh"
+if command -v zig >/dev/null 2>&1 && [ -x "$ZIG_LINKER" ]; then
+  MUSL_LINK="-C linker=$ZIG_LINKER"
+  # ⚠ Repo-relative in the record: this file is tracked evidence and an
+  # absolute path in it is one machine's layout written down as a measurement.
+  printf '  linker for musl: %s (zig %s)\n' "scripts/zig-cc.sh" "$(zig version)"
+else
+  MUSL_LINK=""
+  echo "  ⚠ zig is absent, so the musl arm uses the default linker and will"
+  echo "    produce a glibc-linked object. Install it with"
+  echo "    ./scripts/common/bootstrap-env.sh zig"
+fi
 for t in x86_64-unknown-linux-musl x86_64-unknown-linux-gnu; do
-  if ( cd "$CRATE" && RUSTFLAGS="-C target-feature=-crt-static" \
+  link=""
+  [ "$t" = x86_64-unknown-linux-musl ] && link="$MUSL_LINK"
+  if ( cd "$CRATE" && RUSTFLAGS="-C target-feature=-crt-static $link" \
         cargo build --release --target "$t" ) >>"$OUT/a2-build.txt" 2>&1; then
     so="$CRATE/target/$t/release/libpodbox_interpose.so"
     printf '  %-30s OK   %8s bytes  %s\n' "$t" "$(stat -c%s "$so")" \

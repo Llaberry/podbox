@@ -1,0 +1,58 @@
+# cargo bloat and the release total, area=argparse
+# TODO/deps.md T-0910. One machine, one day.
+date              2026-09-08T12:02:02Z
+host kernel       6.18.44-fc-v24
+rustc             rustc 1.98.1 (48a229cea 2026-09-01)
+cargo             cargo 1.98.1 (797e8a9bc 2026-08-05)
+target            x86_64-unknown-linux-musl
+profile           release: lto=true opt-level=z codegen-units=1 strip=symbols panic=abort
+total_bytes 655928
+ceiling_bytes 8000000
+headroom_bytes 7344072
+pt_interp 0
+third_party_crates 4
+delta             159744 bytes against 496184 in bloat-baseline.txt
+unmeasured        0
+breakdown         taken from an unstripped build of the release profile
+
+## the dependency declaration this was measured with
+[workspace.dependencies]
+clap = { version = "4", features = ["std", "help", "usage", "error-context"], default-features = false }
+
+## the scaffold `main` reached
+pub fn sweep_scaffold() -> String {
+    // T-0801's shape: a TABLE of verbs and flags, not a grammar. This is the
+    // smallest clap that answers it, so the number is not inflated by a
+    // surface podbox would not use.
+    let m = clap::Command::new("podbox")
+        .subcommand(clap::Command::new("run").arg(clap::Arg::new("rm").long("rm")
+            .action(clap::ArgAction::SetTrue)))
+        .subcommand(clap::Command::new("probe"))
+        .try_get_matches_from(["podbox", "run", "--rm"]);
+    format!("parsed={}", m.is_ok())
+}
+
+## cargo bloat -n 20
+ File  .text     Size        Crate Name
+ 0.8%   4.0%  19.1KiB clap_builder <clap_builder::parser::parser::Parser>::get_matches_with
+ 0.7%   3.8%  17.9KiB          std <std::backtrace_rs::symbolize::gimli::Cache>::with_global::<std::backtrace_rs::symbolize::gimli::resolve::{closure#1}>
+ 0.7%   3.7%  17.3KiB       podbox podbox::main
+ 0.7%   3.6%  17.1KiB    [Unknown] _ZN9libunwind10CFI_ParserINS_17LocalAddressSpaceEE20parseFDEInstructionsINS_16Registers_x86_64EEEbRS1_RKNS2_8FDE_InfoERKNS2_8CIE_InfoENT_23link_hardened_reg_arg_tEiPNS2_10PrologInfoE
+ 0.5%   2.5%  11.6KiB          std <std::backtrace_rs::symbolize::gimli::Context>::new
+ 0.5%   2.4%  11.5KiB podbox_probe podbox_probe::run
+ 0.3%   1.8%   8.7KiB          std <gimli::read::dwarf::Unit<gimli::read::endian_slice::EndianSlice<gimli::endianity::LittleEndian>, usize>>::new
+ 0.3%   1.6%   7.4KiB          std <core::cell::once::OnceCell<core::result::Result<addr2line::line::Lines, gimli::read::Error>>>::try_init::<<core::cell::once::OnceCell<core::result::Result<addr2line::line::Lines, gimli::read::Error>>>::get_or_init<<addr2line::line::LazyLines>::borrow<gimli::read::endian_slice::EndianSlice<gimli::endianity::LittleEndian>>::{closure#0}>::{closure#0}, !>
+ 0.3%   1.5%   7.2KiB          std miniz_oxide::inflate::core::decompress
+ 0.2%   1.1%   5.4KiB clap_builder <clap_builder::builder::command::Command>::_build_self
+ 0.2%   1.0%   4.9KiB          std gimli::read::unit::parse_attribute::<gimli::read::endian_slice::EndianSlice<gimli::endianity::LittleEndian>>
+ 0.2%   1.0%   4.8KiB clap_builder <clap_builder::output::help_template::HelpTemplate>::write_templated_help
+ 0.2%   1.0%   4.7KiB podbox_probe podbox_probe::probes::run_payload
+ 0.2%   1.0%   4.6KiB clap_builder <clap_builder::parser::parser::Parser>::react
+ 0.2%   1.0%   4.6KiB          std <addr2line::function::Function<gimli::read::endian_slice::EndianSlice<gimli::endianity::LittleEndian>>>::parse_children
+ 0.2%   0.9%   4.3KiB clap_builder <clap_builder::output::help_template::HelpTemplate>::write_args
+ 0.2%   0.9%   4.2KiB    [Unknown] _ZN9libunwind17DwarfInstructionsINS_17LocalAddressSpaceENS_16Registers_x86_64EE13stepWithDwarfERS1_RKmmRS2_Rbb
+ 0.2%   0.8%   3.9KiB    [Unknown] _ZN9libunwind17DwarfInstructionsINS_17LocalAddressSpaceENS_16Registers_x86_64EE18evaluateExpressionEmRS1_RKS2_m
+ 0.2%   0.8%   3.9KiB    [Unknown] fmt_fp
+ 0.2%   0.8%   3.8KiB clap_builder <clap_builder::output::help_template::HelpTemplate>::write_subcommands
+12.2%  63.9% 303.0KiB              And 1266 smaller methods. Use -n N to show more.
+19.1% 100.0% 474.1KiB              .text section size, the file size is 2.4MiB

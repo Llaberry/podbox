@@ -4,8 +4,10 @@
 order. Rewritten every session. It carries no history: the history is the git
 log and the entries.
 
-**State: M0 complete. `podbox probe` exists, is measured in both environments,
-and its acceptance runs as one command. M1, image acquisition, is next.**
+**State: M0 complete and the dependency sweep is done. `podbox probe` exists,
+is measured in both environments, and its acceptance runs as one command.
+Every candidate in [deps.md](deps.md) is priced, ruled and recorded. M1, image
+acquisition, is next and has nothing left to decide before it starts.**
 Session of 2026-09-08, on `main`.
 
 [INDEX.md](INDEX.md) is the list. [RULES.md](RULES.md) is how this repository is
@@ -38,8 +40,10 @@ is a control of the bogus-argument discriminator, and the consequence is
 | `kcmp(-1,-1,...)` control, on the target | `ESRCH`: executed | `references/Azathothas__container-research/tree/verification/real/extkernel-newapi.txt:26` |
 | writable paths obtained inside the reconstruction | 4 of 8 probed: `/tmp`, `/dev/shm`, `/workspace`, `/state` | `podbox probe --json` |
 | interposer cdylib under `+crt-static` | refused by cargo | `experiments/60-interposer-libc.sh` |
-| interposer cdylib, `-crt-static`, musl target | 14,064 bytes, and **not musl-linked** | `experiments/60-interposer-libc.sh` |
-| interposer cdylib, `-crt-static`, gnu target | 267,680 bytes | `experiments/60-interposer-libc.sh` |
+| ⭐ interposer cdylib, `-crt-static`, musl target, linked by `zig cc` | 286,056 bytes, `DT_NEEDED libc.so`, genuinely musl-linked | `experiments/60-interposer-libc.sh`, which now exits **0** |
+| the same before `zig cc`, linked by the host `cc` | 14,064 bytes and **not musl-linked**: `DT_NEEDED libc.so.6` | the reading this replaces, kept because it is why the arm exited 2 |
+| interposer cdylib, `-crt-static`, gnu target | 266,632 bytes | `experiments/60-interposer-libc.sh` |
+| ⭐ podbox's own musl cdylib into a glibc payload | **refused**, `libc.so: invalid ELF header`, rc 127 | `experiments/60-interposer-libc.sh` check B |
 | musl object into a glibc payload | **refused**, `libc.so: invalid ELF header` | `experiments/80-interposer-abi.sh` |
 | glibc object into a musl payload | **refused**, `__snprintf_chk: symbol not found` | `experiments/80-interposer-abi.sh` |
 | a `GLIBC_2.34` import against a libc declaring `GLIBC_2.31` | refused, and the loader names the version | `experiments/80-interposer-abi.sh` |
@@ -57,7 +61,7 @@ is a control of the bogus-argument discriminator, and the consequence is
 | gate coverage | ⛔ not recorded here. It is **self-referential**: writing the number down changes it | `scripts/check-todo.py`, on every run |
 | the gate's checks, planted against | 17 checks, 18 cases; see the acceptance block below | `scripts/plant.sh` |
 | corpus | 30 trees, 154 MB in a fresh clone | `scripts/common/mine-repo.sh` |
-| ⚠ git objects | 88 MB, up from 27 MB. See the debt below | `du -sh .git` on a fresh clone |
+| ⚠ git objects, fresh clone | 51 MB `.git`, 49.48 MiB in one pack, 9,445 objects. See the debt below | `du -sh .git` and `git count-objects -vH` after `git clone` |
 | `alpine:3.20` `etc/shadow` ownership | uid 0, gid 42 | `experiments/70-whiteout-contract.sh` |
 | OCI layer member-name prefix | no `./` on any layer of either pinned image | `experiments/70-whiteout-contract.sh` |
 | a slash-anchored whiteout glob against a layer-root whiteout | misses it | `experiments/70-whiteout-contract.sh` |
@@ -66,7 +70,7 @@ Acceptance, run on 2026-09-08:
 
 ```
 $ ./scripts/check-todo.py
-check-todo: 86 rows, 86 entries, 67 open, 2 partial, 2 blocked, 15 done
+check-todo: 86 rows, 86 entries, 59 open, 2 partial, 2 blocked, 23 done
 check-todo: ok
 $ ./scripts/plant.sh
   plants   18 caught, 0 missed
@@ -85,7 +89,7 @@ $ ./experiments/130-probe-parity.sh
 
 ## Counts
 
-86 entries: 67 open, 2 partial, 2 blocked, 15 done.
+86 entries: 59 open, 2 partial, 2 blocked, 23 done.
 
 Derived by `scripts/todo-count.py` and asserted by `scripts/check-todo.py`.
 [INDEX.md](INDEX.md)'s Counts block carries the per-priority breakdown, and the
@@ -152,6 +156,65 @@ header of `crates/podbox-probe/src/probes.rs` carries all four.
 4. ⭐ **A failed precondition is a `skip`, never the row's denial.** Where
    `fsmount` fails, the Go instrument reports its errno as `move_mount`'s
    verdict, and `kcmp`'s `ENOSYS` as a denial. Neither operation was measured.
+
+### The dependency sweep, ruled against numbers
+
+⭐ **[deps.md](deps.md) T-0901 to T-0908 are closed**, each with a measured
+`cargo bloat` delta and its scaffold committed under `experiments/results/`.
+The operator's ruling of 2026-09-08 is that a sweep may land what the
+measurement and the entry's own recommendation agree on, and it is in
+[RULES.md](RULES.md) section 11.
+
+| area | crates | delta on 496,184 | ruling |
+| --- | --- | --- | --- |
+| `libc`, `rustix` ([T-0901](deps.md)) | 1, 3 | 0, below resolution | hand-declare |
+| `seccompiler` ([T-0902](deps.md)) | 2 | +8,192 | hand-emit |
+| `landlock` crate ([T-0903](deps.md)) | 13 | 0, below resolution | hand-declare |
+| `oci-spec` ([T-0904](deps.md)) | 40 | +69,664 | write the four structs |
+| ⭐ `rustls` + roots ([T-0905](deps.md)) | 16 | **+897,072** | **lands** |
+| ⭐ `ureq` ([T-0906](deps.md)) | 69 | +1,024,152 (+127,080 over TLS) | **lands** |
+| ⭐ `tar` + `flate2` + `ruzstd` ([T-0907](deps.md)) | 12 | **+69,632** | **lands** |
+| ⭐ `sha2`, `serde_json` ([T-0908](deps.md)) | 9, 13 | +8,192, +32,768 | **land** |
+| `clap` ([T-0908](deps.md)) | 4 | **+159,744** | no: the CLI is a table |
+| `goblin` ([T-0908](deps.md)) | 11 | +32,768 | no: a header walk |
+
+⚠ **Nothing landed is in the artefact yet.** The pins are in
+`[workspace.dependencies]`; a member takes one when the milestone that needs it
+lands, so `Cargo.lock` is unchanged and
+`experiments/results/bloat-baseline.txt` is still the "before".
+
+### Two findings the sweep produced that no entry predicted
+
+1. ⛔ **`rustls` is pure Rust and its crypto provider is not.**
+   [T-0905](deps.md)'s premise ruled OpenSSL out because it is C; `ring`
+   compiles C and assembly too, and the first musl build failed on a missing
+   cross-compiler. It does **not** break `crt-static`: the artefact still has
+   no `PT_INTERP` and no `NEEDED`. What it costs is a C cross-compiler, and
+   `scripts/zig-cc.sh` plus `.cargo/config.toml` is the answer.
+2. ⛔ **A dependency nothing calls measures as zero.** `lto = true` deletes it,
+   and a sweep that reports "this crate is free" has measured nothing at all.
+   `experiments/110-bloat-delta.sh` now refuses that run, and it distinguishes
+   it from a candidate genuinely below the instrument's resolution by
+   **running the scaffold**: if the scaffold speaks, a zero delta is a reading;
+   if it does not, the run failed to measure. Both halves were driven.
+
+### New infrastructure this session
+
+- ⭐ **`scripts/common/bootstrap-env.sh`.** Every session runs in a new
+  container, so the tools the last one installed are gone. One idempotent,
+  non-interactive script brings a barebones machine up to what the gate, the
+  experiments and the builds need: the musl target, `cargo-bloat`, go, gcc,
+  `zig`, the docker daemon **started**, and the small tools. `--check` reports
+  without changing anything. It checks blocks **and** inodes first, times
+  everything, and refuses a download whose checksum does not match. All three
+  behaviours were driven: the checksum guard on a deliberate mismatch (nothing
+  was unpacked), the real install, and a stopped docker daemon being restarted.
+- ⭐ **`scripts/zig-cc.sh` and `scripts/zig-ar.sh`**, wired into
+  `.cargo/config.toml`. `zig cc` carries its own `compiler-rt` and its own musl
+  sources, so it is both a pinned input and the answer to the `-lgcc_s`
+  shortage. ⚠ It rewrites `-target` rather than prepending one: `ring`'s build
+  script passes the four-field **Rust** triple, which zig rejects as
+  `UnknownOperatingSystem`, and a prepended flag loses to a later one.
 
 ### What the three review passes found
 
@@ -235,9 +298,21 @@ from the working tree and from `HEAD`, and the gate refuses the class
 history: a fresh clone carries 88 MB of objects where it carried 27 MB.
 
 Clearing it needs a history rewrite and a force push over a pushed branch, which
-is the operator's decision and not a session's. ⚠ Until then the clone is 61 MB
-larger than it needs to be and nothing else is wrong: no tracked path names any
-of it, and `check-todo.py` fails if one ever does again.
+is the operator's decision and not a session's. Nothing else is wrong: no
+tracked path names any of it, and `check-todo.py` fails if one ever does again.
+
+⚠ **The size of the debt is smaller than it was recorded as, and the earlier
+figure is corrected here rather than defended.** The session that introduced it
+recorded 88 MB of objects against 27 MB before. Measured on 2026-09-08 by
+cloning the pushed `main` afresh: `du -sh .git` is **51 MB**, and
+`git count-objects -vH` reports one pack of **49.48 MiB** over 9,445 objects.
+Two readings of the same repository disagreeing is itself the finding; the
+likeliest explanation is that 88 MB was read before the server repacked, and
+`du` on a loose-object clone is not `du` on a packed one. ⛔ The **before**
+figure of 27 MB is left as the earlier session's reading and was not re-measured:
+it would need the history at `a92848d^`, and inventing a number for it is worse
+than carrying one that says whose it is. The excess is therefore unquantified
+here, not quantified wrongly.
 
 ## Open questions for the operator
 
@@ -246,13 +321,16 @@ of it, and `check-todo.py` fails if one ever does again.
    mount table shows six device nodes and no `ptmx`, and an earlier account
    asserts the host `/dev/ptmx` works and published no capture. podbox probes
    and refuses by name until it is settled. [T-0503](enter.md).
-2. **A musl cross toolchain carrying its own `libgcc_s`**, to build podbox's own
-   Rust cdylib against musl. `musl-tools` is installed here and is not enough:
-   rustc passes `-lgcc_s` on that target even under `panic = "abort"`, and
-   `musl-tools` ships no musl-linked `libgcc_s.so.1`.
-   `experiments/60-interposer-libc.sh` names the shortage and exits 2 on it.
-   ⚠ This no longer blocks any design decision: `experiments/80-interposer-abi.sh`
-   answered the question that mattered using the C reference interposer.
+2. ⭐ **ANSWERED, and no longer a question for the operator.** It asked for a
+   musl cross toolchain carrying its own `libgcc_s`, because `musl-tools`
+   ships none and rustc passes `-lgcc_s` on that target even under
+   `panic = "abort"`. `zig cc` carries its own `compiler-rt`, is installed
+   pinned and checksummed by `scripts/common/bootstrap-env.sh`, and is wired
+   into `.cargo/config.toml`, and `experiments/60-interposer-libc.sh` was
+   re-run against it: it **exits 0**, having exited 2 since it was written, and
+   its check B now reproduces the cross-libc refusal with podbox's own Rust
+   cdylib rather than only with the C reference interposer.
+   [T-0702](interpose.md) carries both readings.
 3. **A kernel with Landlock**, to run the three M-mechanism rows of
    `experiments/30-attribution-census.sh`. Any distro kernel has it. This host
    does not, so those rows report `SKIP` and the script exits 2. ⭐ It would also

@@ -1,8 +1,8 @@
 == conditions
-date              2026-09-08T06:46:21Z
+date              2026-09-08T12:13:06Z
 host kernel       6.18.44-fc-v24
-rustc             rustc 1.94.1 (e408947bf 2026-03-25)
-cargo             cargo 1.94.1 (29ea6fb6a 2026-03-24)
+rustc             rustc 1.98.1 (48a229cea 2026-09-01)
+cargo             cargo 1.98.1 (797e8a9bc 2026-08-05)
 targets installed x86_64-unknown-linux-gnu x86_64-unknown-linux-musl 
 
 == A. cdylib under the workspace's +crt-static
@@ -10,28 +10,22 @@ REFUSED, as expected:
   error: cannot produce cdylib for `podbox-interpose v0.1.0 (/home/user/podbox/crates/podbox-interpose)` as the target `x86_64-unknown-linux-musl` does not support these crate types
 
 == A2. the same crate with -crt-static, one object per libc
-  x86_64-unknown-linux-musl      OK      14064 bytes  3 NEEDED entries
-  x86_64-unknown-linux-gnu       OK     267680 bytes  3 NEEDED entries
+  linker for musl: scripts/zig-cc.sh (zig 0.16.0)
+  x86_64-unknown-linux-musl      OK     286056 bytes  1 NEEDED entries
+  x86_64-unknown-linux-gnu       OK     266632 bytes  3 NEEDED entries
 
 == B. cross-libc preload reach
   payload           /usr/bin/env
   payload PT_INTERP /lib64/ld-linux-x86-64.so.2
-  musl-target DT_NEEDED   libgcc_s.so.1 libc.so.6 ld-linux-x86-64.so.2 
+  musl-target DT_NEEDED   libc.so 
   gnu-target  DT_NEEDED   libgcc_s.so.1 libc.so.6 ld-linux-x86-64.so.2 
 
   glibc object into a glibc payload (control): rc=0
 
-== B: COULD NOT RUN on this host
-  The musl-target object records libc.so.6 in DT_NEEDED, so it was
-  linked against this host's glibc and is not a musl object.
-    host libc     ldd (Ubuntu GLIBC 2.39-0ubuntu8.7) 2.39
-    musl-gcc      /usr/bin/musl-gcc
-    ld-musl       present
-    musl libgcc_s absent
-  What is missing is a musl-linked libgcc_s.so.1, not musl itself.
-  ⭐ This does not leave B unanswered. Run
-     ./experiments/80-interposer-abi.sh, which answers it against the C
-     reference interposer and needs only musl-gcc, not a musl libgcc.
-  TODO/interpose.md T-0702 carries what is still open here: a musl
-  build of podbox's own Rust cdylib, which needs a cross toolchain
-  carrying its own libgcc_s. See this script's header.
+  musl object into a glibc payload: rc=127
+    /usr/bin/env: error while loading shared libraries: /lib/x86_64-linux-gnu/libc.so: invalid ELF header
+
+== verdict
+  one object per libc is REQUIRED: the musl object does not load into a
+  glibc payload while the glibc object does. TOOL.md section 6.7 does not say
+  this; TODO/interpose.md T-0702 carries it.

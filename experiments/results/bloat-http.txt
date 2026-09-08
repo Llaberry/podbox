@@ -1,0 +1,58 @@
+# cargo bloat and the release total, area=http
+# TODO/deps.md T-0910. One machine, one day.
+date              2026-09-08T12:00:48Z
+host kernel       6.18.44-fc-v24
+rustc             rustc 1.98.1 (48a229cea 2026-09-01)
+cargo             cargo 1.98.1 (797e8a9bc 2026-08-05)
+target            x86_64-unknown-linux-musl
+profile           release: lto=true opt-level=z codegen-units=1 strip=symbols panic=abort
+total_bytes 1520336
+ceiling_bytes 8000000
+headroom_bytes 6479664
+pt_interp 0
+third_party_crates 69
+delta             1024152 bytes against 496184 in bloat-baseline.txt
+unmeasured        0
+breakdown         taken from an unstripped build of the release profile
+
+## the dependency declaration this was measured with
+[workspace.dependencies]
+ureq = { version = "2", default-features = false, features = ["tls", "gzip"] }
+
+## the scaffold `main` reached
+pub fn sweep_scaffold() -> String {
+    // What podbox actually needs of an HTTP client, per T-0906: GET and HEAD,
+    // redirects, chunked bodies, a Range header, and a bearer token.
+    let agent = ureq::AgentBuilder::new().redirects(5).build();
+    let req = agent
+        .get("https://index.docker.io/v2/")
+        .set("Range", "bytes=0-1")
+        .set("Authorization", "Bearer none");
+    let head = agent.head("https://index.docker.io/v2/");
+    format!("built={} head={}", req.url(), head.url())
+}
+
+## cargo bloat -n 20
+ File  .text     Size        Crate Name
+ 0.9%   3.6%  33.3KiB       rustls <rustls::msgs::handshake::HandshakeMessagePayload>::read_version
+ 0.5%   2.0%  18.0KiB          std <std::backtrace_rs::symbolize::gimli::Cache>::with_global::<std::backtrace_rs::symbolize::gimli::resolve::{closure#1}>
+ 0.4%   1.9%  17.1KiB    [Unknown] _ZN9libunwind10CFI_ParserINS_17LocalAddressSpaceEE20parseFDEInstructionsINS_16Registers_x86_64EEEbRS1_RKNS2_8FDE_InfoERKNS2_8CIE_InfoENT_23link_hardened_reg_arg_tEiPNS2_10PrologInfoE
+ 0.4%   1.8%  16.6KiB       rustls <webpki::verify_cert::ChainOptions<webpki::verify_cert::KeyUsage>>::build_chain_inner
+ 0.4%   1.6%  14.4KiB       podbox podbox::main
+ 0.3%   1.3%  11.8KiB         ring ring_core_0_17_14__chacha20_poly1305_seal_avx2
+ 0.3%   1.3%  11.6KiB          std <std::backtrace_rs::symbolize::gimli::Context>::new
+ 0.3%   1.3%  11.5KiB podbox_probe podbox_probe::run
+ 0.3%   1.1%   9.8KiB       rustls rustls::client::hs::emit_client_hello_for_retry
+ 0.2%   1.0%   9.5KiB         ring ring_core_0_17_14__chacha20_poly1305_open_avx2
+ 0.2%   1.0%   9.4KiB         ureq <rustls::conn::ConnectionCommon<rustls::client::client_conn::ClientConnectionData>>::complete_io::<alloc::boxed::Box<dyn ureq::stream::ReadWrite>>
+ 0.2%   1.0%   9.1KiB       rustls <rustls::client::hs::ExpectServerHello as rustls::common_state::State<rustls::client::client_conn::ClientConnectionData>>::handle
+ 0.2%   0.9%   8.7KiB       rustls <rustls::msgs::handshake::ServerExtensions as rustls::msgs::codec::Codec>::read
+ 0.2%   0.9%   8.7KiB          std <gimli::read::dwarf::Unit<gimli::read::endian_slice::EndianSlice<gimli::endianity::LittleEndian>, usize>>::new
+ 0.2%   0.9%   8.5KiB         ring ring_core_0_17_14__chacha20_poly1305_seal_sse41
+ 0.2%   0.9%   8.4KiB         ring ring_core_0_17_14__chacha20_poly1305_open_sse41
+ 0.2%   0.8%   7.4KiB          std <core::cell::once::OnceCell<core::result::Result<addr2line::line::Lines, gimli::read::Error>>>::try_init::<<core::cell::once::OnceCell<core::result::Result<addr2line::line::Lines, gimli::read::Error>>>::get_or_init<<addr2line::line::LazyLines>::borrow<gimli::read::endian_slice::EndianSlice<gimli::endianity::LittleEndian>>::{closure#0}>::{closure#0}, !>
+ 0.2%   0.8%   7.4KiB         ureq <alloc::sync::Arc<rustls::client::client_conn::ClientConfig> as ureq::stream::TlsConnector>::connect
+ 0.2%   0.8%   7.2KiB       webpki <webpki::cert::Cert>::from_der
+ 0.2%   0.8%   7.2KiB  miniz_oxide miniz_oxide::inflate::core::decompress
+17.7%  73.7% 674.6KiB              And 2584 smaller methods. Use -n N to show more.
+24.0% 100.0% 915.7KiB              .text section size, the file size is 3.7MiB

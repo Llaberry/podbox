@@ -39,7 +39,7 @@ be a container.
 | [`crates/`](crates/) | the workspace of `TOOL.md` section 4.3. `podbox-probe` and the `probe` verb of `podbox-cli` are implemented; the rest are skeletons |
 | [`references/`](references/) | the corpus: 30 trees at pinned commits, with their trackers. Tracked, in the tree |
 | [`experiments/`](experiments/) | the reconstruction of the target runtime, seeded from `Azathothas/container-research`, plus this project's own measurements |
-| [`scripts/`](scripts/) | the gate, the count scripts, the corpus fetcher |
+| [`scripts/`](scripts/) | the gate, the count scripts, the corpus fetcher, the environment bootstrap, and the `zig cc` wrappers |
 | [`docs/`](docs/) | the methodology this repository is worked under, copied verbatim from [`Azathothas/TEMPLATE`](https://github.com/Azathothas/TEMPLATE). **Binding, not advisory** |
 
 ⭐ **Working on this repository: read [`docs/AGENTS.md`](docs/AGENTS.md) and
@@ -48,6 +48,13 @@ front of you, what this environment does to a session, and what a session owes
 at its end. Everything binding is one link away from it.
 
 ## Building
+
+A session in a fresh container starts here. It is idempotent, so running it on
+a machine that already has everything costs a few seconds and changes nothing:
+
+```sh
+./scripts/common/bootstrap-env.sh
+```
 
 ```sh
 cargo build --release --target x86_64-unknown-linux-musl

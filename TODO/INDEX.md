@@ -119,14 +119,14 @@ the blocker named and what would clear it.
 | [T-0804](cli.md) | P0 | cli | open | The honesty rules, and one switch that makes every degradation fatal |
 | [T-0805](cli.md) | P1 | cli | open | Diagnostics that name the operation, the errno, the mechanism and the remedy |
 | [T-0806](cli.md) | P0 | cli | open | Never prompt, never wait unbounded, and check space before every large write |
-| [T-0901](deps.md) | P1 | deps | open | Sweep: syscalls |
-| [T-0902](deps.md) | P2 | deps | open | Sweep: seccomp BPF |
-| [T-0903](deps.md) | P3 | deps | open | Sweep: Landlock |
-| [T-0904](deps.md) | P1 | deps | open | Sweep: OCI registry client and types |
-| [T-0905](deps.md) | P0 | deps | open | Sweep: TLS |
-| [T-0906](deps.md) | P1 | deps | open | Sweep: HTTP |
-| [T-0907](deps.md) | P0 | deps | open | Sweep: tar, gzip, zstd |
-| [T-0908](deps.md) | P1 | deps | open | Sweep: digests, JSON, argument parsing, ELF |
+| [T-0901](deps.md) | P1 | deps | done | Sweep: syscalls |
+| [T-0902](deps.md) | P2 | deps | done | Sweep: seccomp BPF |
+| [T-0903](deps.md) | P3 | deps | done | Sweep: Landlock |
+| [T-0904](deps.md) | P1 | deps | done | Sweep: OCI registry client and types |
+| [T-0905](deps.md) | P0 | deps | done | Sweep: TLS |
+| [T-0906](deps.md) | P1 | deps | done | Sweep: HTTP |
+| [T-0907](deps.md) | P0 | deps | done | Sweep: tar, gzip, zstd |
+| [T-0908](deps.md) | P1 | deps | done | Sweep: digests, JSON, argument parsing, ELF |
 | [T-0909](deps.md) | P1 | deps | blocked | Vendor the memfd and userland-exec rungs, and fix the fork's regression here |
 | [T-0910](deps.md) | P0 | deps | done | The `cargo bloat` baseline, committed, and checked at the gate |
 | [T-1001](packaging.md) | P0 | packaging | **done** | A single static binary with no `PT_INTERP` |
@@ -149,7 +149,7 @@ the blocker named and what would clear it.
 
 ## Counts
 
-86 items: 67 open, 2 partial, 2 blocked, 15 done.
+86 items: 59 open, 2 partial, 2 blocked, 23 done.
 
 Counted from the rows above by `scripts/todo-count.py` and asserted
 independently by `scripts/check-todo.py`, which is the gate. A number here
@@ -157,11 +157,11 @@ that disagrees with the rows cannot reach a commit.
 
 | Priority | Open | Partial | Blocked | Done | Total |
 | --- | --- | --- | --- | --- | --- |
-| P0 | 31 | 2 | 1 | 10 | 44 |
-| P1 | 25 | 0 | 1 | 4 | 30 |
-| P2 | 8 | 0 | 0 | 1 | 9 |
-| P3 | 3 | 0 | 0 | 0 | 3 |
-| **All** | **67** | **2** | **2** | **15** | **86** |
+| P0 | 29 | 2 | 1 | 12 | 44 |
+| P1 | 21 | 0 | 1 | 8 | 30 |
+| P2 | 7 | 0 | 0 | 2 | 9 |
+| P3 | 2 | 0 | 0 | 1 | 3 |
+| **All** | **59** | **2** | **2** | **23** | **86** |
 
 ## How the current ordering is derived
 

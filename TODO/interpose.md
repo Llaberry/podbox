@@ -124,6 +124,31 @@ Premise:     ⚠ **The premise as first written was wrong, and the correction is
              QUESTION B musl object -> glibc      rc=127  /lib/x86_64-linux-gnu/libc.so: invalid ELF header
              ```
 
+             ⭐ **And on 2026-09-08 it was measured a second time, with podbox's
+             OWN Rust cdylib rather than the C reference interposer, which is
+             what the correction above said could not be done here.**
+             `experiments/60-interposer-libc.sh` exits **0** for the first time,
+             and `experiments/results/interposer-libc.txt` carries:
+
+             ```
+             linker for musl: scripts/zig-cc.sh (zig 0.16.0)
+             x86_64-unknown-linux-musl      OK   286056 bytes  1 NEEDED entries
+             musl-target DT_NEEDED   libc.so
+             gnu-target  DT_NEEDED   libgcc_s.so.1 libc.so.6 ld-linux-x86-64.so.2
+             musl object into a glibc payload: rc=127
+               /usr/bin/env: error while loading shared libraries:
+               /lib/x86_64-linux-gnu/libc.so: invalid ELF header
+             ```
+
+             What changed is the linker, not the conclusion. `rustc` passes
+             `-lgcc_s` on the musl target even under `panic = "abort"` and
+             `musl-tools` ships no musl-linked `libgcc_s.so.1`, so the default
+             `cc` linked the "musl" object against the host's glibc and the arm
+             could not run. `zig cc` carries its own `compiler-rt`.
+             ⭐ **Two independent objects, one C and one Rust, now give the same
+             answer through the same mechanism**, and the requirement no longer
+             rests on a single reference implementation.
+
              ⭐ The mechanism is **not** symbol versioning and not struct
              layout: it is the **SONAME**. musl's libc declares none, so an
              object linked against it records `libc.so` in `DT_NEEDED`, and on a

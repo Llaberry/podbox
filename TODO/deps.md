@@ -44,7 +44,7 @@ Source:      `TOOL.md` section 3.5
 Category:    deps
 Priority:    P1
 Effort:      M
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     Roughly every syscall podbox makes is a raw one, and `unsafe` is
              unavoidable. The question is whether a crate is saving enough of it
@@ -63,6 +63,35 @@ Decision:    Recommendation, to be confirmed by the measurement: hand-declare,
              crate is under it or not.
 Prove:       `./experiments/110-bloat-delta.sh syscalls` exits 0 and writes `experiments/results/bloat-syscalls.txt`
 
+**Done 2026-09-08.** Measured as two areas rather than one, because the entry
+names two candidates: `experiments/results/bloat-syscalls-libc.txt` and
+`experiments/results/bloat-syscalls-rustix.txt`.
+
+| candidate | crates | delta | what it covers |
+| --- | --- | --- | --- |
+| `libc` 0.2 | 1 | **0 bytes**, below the instrument's resolution | types and constants |
+| `rustix` 0.38 | 3 | **0 bytes**, below the instrument's resolution | the ordinary half |
+| hand-declared | 0 | the baseline | all of it, in 330 lines |
+
+⭐ **The size argument is void in both directions, so the decision is the one
+the entry predicted for the other reason.** Neither crate moves a static musl
+binary measurably: `libc` on this target is mostly declarations against a libc
+already linked, and `rustix`'s `linux_raw` backend emits the same instruction
+`crates/podbox-probe/src/sys.rs` emits. ⚠ Both readings passed the instrument's
+scaffold control, so a zero here is a reading and not an unmeasured run.
+
+**Ruling: hand-declare, and neither crate lands.** `crates/podbox-probe/src/sys.rs`
+is 330 lines including its documentation and its tests, and it already covers
+the half the entry expected to stay hand-written anyway: the new mount API,
+`seccomp`, `landlock_create_ruleset`, `kcmp` and `pidfd_getfd`. The 46 numbers
+and 19 constants in it were checked against the kernel's own headers, which is
+the correctness a crate would have been bought for.
+
+⚠ `libc` is priced at zero and may be taken later for a struct definition
+without re-arguing this entry. What it may not be taken for is the errno: a
+libc wrapper answers with the library's `setuid` semantics rather than the
+kernel's, which is [T-0101](probe.md)'s whole point.
+
 ---
 
 ### T-0902 Sweep: seccomp BPF
@@ -71,7 +100,7 @@ Source:      `TOOL.md` section 3.5
 Category:    deps
 Priority:    P2
 Effort:      S
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     podbox installs short filters. A crate that generalizes filter
              construction may be larger than the filters.
@@ -87,6 +116,21 @@ Decision:    Recommendation: hand-emit. Revisit if the notification tier ever
              becomes reachable and needs a larger filter surface.
 Prove:       `./experiments/110-bloat-delta.sh seccomp` exits 0 and writes `experiments/results/bloat-seccomp.txt`
 
+**Done 2026-09-08.** `experiments/results/bloat-seccomp.txt`: `seccompiler` 0.5
+costs **+8,192 bytes** and 2 crates.
+
+**Ruling: hand-emit, and it does not land.** The filter podbox installs is one
+BPF instruction, already emitted in `crates/podbox-probe/src/probes.rs` as four
+fields of a `#[repr(C)]` struct, and the reference emits a real one in about
+sixty lines. 8 KB for sixty lines fails the third row of this file's own
+vendor-and-registry table: the dependency is bigger than the code it replaces.
+
+⚠ The entry's "revisit if the notification tier becomes reachable" is now
+answered rather than pending: [T-0606](supervise.md) establishes the tier has
+neither a race-safe channel nor a way to acquire one on this runtime, and
+[T-0107](probe.md)'s rung selection refuses it for that reason. There is no
+larger filter surface coming.
+
 ---
 
 ### T-0903 Sweep: Landlock
@@ -95,7 +139,7 @@ Source:      `TOOL.md` section 3.5
 Category:    deps
 Priority:    P3
 Effort:      S
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     Three syscalls. A crate for three syscalls needs an argument.
              ⚠ podbox does not currently **install** a Landlock ruleset; it
@@ -114,6 +158,17 @@ Decision:    Recommendation: hand-declare. Three syscalls, and podbox needs the
              ABI-version probe more than the ruleset builder.
 Prove:       `./experiments/110-bloat-delta.sh landlock` exits 0 and writes `experiments/results/bloat-landlock.txt`
 
+**Done 2026-09-08.** `experiments/results/bloat-landlock.txt`: the `landlock`
+crate 0.4 costs **0 bytes** (below the instrument's resolution, scaffold
+control answered) and **13 crates**.
+
+**Ruling: hand-declare, and it does not land.** Zero bytes is not the whole
+price: thirteen crates is thirteen more things to audit, pin and rebuild for a
+mechanism podbox uses one syscall of. What podbox needs today is the ABI probe,
+and that is `landlock_create_ruleset(NULL, 0, 1)`, already one row of
+`crates/podbox-probe/src/probes.rs`. Revisit if podbox ever installs a ruleset,
+which needs a kernel that has Landlock at all.
+
 ---
 
 ### T-0904 Sweep: OCI registry client and types
@@ -122,7 +177,7 @@ Source:      `TOOL.md` section 3.5
 Category:    deps
 Priority:    P1
 Effort:      M
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     ⚠ The heaviest candidate in the list by far. `oci-client` and
              `oci-spec` cover a much larger surface than the endpoints podbox
@@ -138,6 +193,22 @@ Decision:    Recommendation, to be confirmed: write it. The endpoint set is
              least interesting part of the problem and must not be gold-plated.
 Prove:       `./experiments/110-bloat-delta.sh oci` exits 0 and writes `experiments/results/bloat-oci.txt`
 
+**Done 2026-09-08.** `experiments/results/bloat-oci.txt`: `oci-spec` 0.7 with
+only its `image` feature costs **+69,664 bytes** and **40 crates**, against
+**+32,768 bytes and 13 crates** for `serde_json` plus structs
+(`experiments/results/bloat-json.txt`).
+
+**Ruling: write it, confirming the entry's recommendation.** Twice the bytes and
+three times the crates, for four types. ⭐ The scaffold is itself part of the
+finding: `oci-spec`'s `ImageManifest` and `Descriptor` refused literals that a
+hand-written `#[derive(Deserialize)]` accepts, because it validates a larger
+surface than the endpoints of [T-0201](image.md) need. That validation is not
+free and it is not asked for.
+
+⚠ `oci-client` was NOT measured here and is not refused here: it drags an HTTP
+stack, which [T-0906](#t-0906-sweep-http) prices on its own, and measuring the
+two together would have credited one with the other's cost.
+
 ---
 
 ### T-0905 Sweep: TLS
@@ -146,7 +217,7 @@ Source:      `TOOL.md` section 3.5
 Category:    deps
 Priority:    P0
 Effort:      S
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     HTTPS is the only working transport (T-0201), so TLS is not
              optional, and the wrong choice breaks the static story.
@@ -171,6 +242,44 @@ Decision:    Recommendation: `rustls`. There is no pure-Rust alternative with a
              shipped vulnerability.
 Prove:       `./experiments/110-bloat-delta.sh tls` exits 0 and `readelf -d target/x86_64-unknown-linux-musl/release/podbox | grep -c NEEDED | grep -qx 0`
 
+**Done 2026-09-08, and it lands.** Three arms, because the entry asks for the
+root-store question to be measured separately:
+
+| arm | crates | delta | roots seen |
+| --- | --- | --- | --- |
+| bundled roots only, `webpki-roots` | 15 | +880,688 | 121 |
+| host bundle only, `rustls-pemfile` | 14 | +819,248 | 152 |
+| ⭐ host bundle, `webpki-roots` as the fallback | 16 | **+897,072** | 152 |
+
+`experiments/results/bloat-tls.txt` and `bloat-tls-hostroots.txt`. The static
+half of the `Prove` holds: `readelf -d` reports **0** `NEEDED` entries, so the
+artefact is still one static-pie file.
+
+⛔ **THE PREMISE IS CORRECTED, AND THE CORRECTION IS THE FINDING.** It reads
+that pure Rust is non-negotiable because the alternative pulls OpenSSL and
+breaks `crt-static`. `rustls` **is** pure Rust and its crypto provider is not:
+`ring` compiles C and assembly, and the first build for the musl target failed
+with
+
+```
+error occurred in cc-rs: failed to find tool "x86_64-linux-musl-gcc"
+```
+
+So the C question is not answered by choosing `rustls` over OpenSSL. What
+changes is which C, how much, and whether it is reproducible. ⭐ It does not
+break `crt-static`: the artefact still has no `PT_INTERP` and no `NEEDED`. It
+costs a C cross-compiler, and `scripts/zig-cc.sh` with `.cargo/config.toml` is
+the answer, pinned and checksummed by
+`scripts/common/bootstrap-env.sh`.
+
+**Ruling: `rustls` lands, with the host bundle first and `webpki-roots` as the
+fallback.** There is no pure-Rust-all-the-way-down alternative in a comparable
+maintenance state, and HTTPS is the only transport that works
+([T-0201](image.md)), so the alternative to this cost is no image acquisition
+at all. The host bundle is read anyway for [T-0407](complete.md), and it found
+more roots here than the bundled set (152 against 121); the bundled set is what
+makes a machine with no bundle still work.
+
 ---
 
 ### T-0906 Sweep: HTTP
@@ -179,7 +288,7 @@ Source:      `TOOL.md` section 3.5
 Category:    deps
 Priority:    P1
 Effort:      S
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     An async runtime is a large dependency with nothing to do here.
 Premise:     Read. podbox has no reason to be async: it fetches blobs
@@ -194,6 +303,27 @@ Decision:    Recommendation: `ureq`, blocking. The hand-rolled path has to
              a test suite finds slowly.
 Prove:       `./experiments/110-bloat-delta.sh http` exits 0 and writes `experiments/results/bloat-http.txt`
 
+**Done 2026-09-08, and it lands.** `experiments/results/bloat-http.txt`: `ureq`
+2 with its own TLS stack costs **+1,024,152 bytes and 69 crates** against the
+empty baseline, which is **+127,080 bytes on top of the TLS arm** that has to be
+paid either way.
+
+**Ruling: `ureq`, blocking, confirming the entry's recommendation.** 127 KB buys
+chunked transfer encoding, redirects and the `Range` header, which the entry
+argues correctly is more code than the crate and is the class that is wrong in
+ways a suite finds slowly. The scaffold exercised exactly the surface the entry
+lists: `GET`, `HEAD`, a redirect budget, a `Range` header and a bearer token.
+
+⚠ **69 crates is the real price and it is not the bytes.** It is 69 things to
+pin, audit and rebuild. The entry's premise that podbox has no reason to be
+async holds and is what keeps that number from being far larger.
+
+⭐ **One duplicate found while landing it, and the pin records it.** `ureq 2.12`
+depends on `webpki-roots 0.26.11`, which is a compatibility shim over
+`webpki-roots 1.0.9`. Naming `0.26` in `Cargo.toml` would have put podbox behind
+the shim too; naming `1` shares the crate that actually holds the roots. The
+resolve graph is quoted at the pin.
+
 ---
 
 ### T-0907 Sweep: tar, gzip, zstd
@@ -202,7 +332,7 @@ Source:      `TOOL.md` section 3.5, section 6.3
 Category:    deps
 Priority:    P0
 Effort:      M
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     Extraction is driven at **entry level, never `unpack()`** (T-0301),
              so the crate is being used for a fraction of its surface and the
@@ -222,6 +352,32 @@ Decision:    Recommendation: `tar` plus `flate2` with `rust_backend`, and a
              genuinely small, so the measurement may still say write it.
 Prove:       `./experiments/110-bloat-delta.sh archive` exits 0 and `cargo tree -e normal -p podbox-extract | grep -c ' cc ' | grep -qx 0`
 
+**Done 2026-09-08, and all three land.**
+
+| arm | crates | delta |
+| --- | --- | --- |
+| `tar` + `flate2` with `rust_backend` | 9 | +65,536 |
+| the same plus `ruzstd` | 12 | **+69,632** |
+
+`experiments/results/bloat-archive.txt` and `bloat-archive-zstd.txt`. No `cc` in
+the graph with `rust_backend` selected, which is the trap question 3 exists for
+and the reason that feature is named rather than defaulted.
+
+⭐ **The zstd question the entry left open is settled by 4,096 bytes.** Adding
+`ruzstd` costs one page over the gzip pair. A named refusal for a zstd layer
+would have been a legitimate v1 answer against a large delta; against one page
+it is a feature removed to save nothing.
+
+⚠ The scaffold used the entry-level API only, which is what [T-0301](extract.md)
+requires: a header, a path and a reader, with no implicit filesystem action.
+`unpack()` was never called and never will be, because path safety, whiteouts
+and the ownership sidecar are podbox's decisions.
+
+⚠ The `Prove`'s second half names `podbox-extract`, and the measurement was
+taken with the scaffold in `podbox-image`, which is where every arm of this
+sweep put it so the arms are comparable. The `cc` check was read from the
+workspace graph instead and is the same answer: no `cc` anywhere.
+
 ---
 
 ### T-0908 Sweep: digests, JSON, argument parsing, ELF
@@ -230,7 +386,7 @@ Source:      `TOOL.md` section 3.5
 Category:    deps
 Priority:    P1
 Effort:      M
-Status:      open
+Status:      done 2026-09-08
 
 Problem:     Four small questions with one large answer among them. ⚠ `clap` is
              large for what podbox needs from it.
@@ -247,6 +403,33 @@ Decision:    Recommendation: `sha2` and `serde_json` yes, `clap` and `goblin`
              part podbox would use least, because docker's help text is the
              text to match rather than generate.
 Prove:       `./experiments/110-bloat-delta.sh cli-json-elf` exits 0 and writes `experiments/results/bloat-cli-json-elf.txt`
+
+**Done 2026-09-08.** Measured as four areas rather than one, because the entry
+says they are independent decisions that a single "add the obvious four" would
+bundle. `experiments/results/bloat-digest.txt`, `bloat-json.txt`,
+`bloat-argparse.txt` and `bloat-elf.txt`.
+
+| candidate | crates | delta | ruling |
+| --- | --- | --- | --- |
+| `sha2` | 9 | +8,192 | ⭐ **lands** |
+| `serde_json` + `serde` | 13 | +32,768 | ⭐ **lands** |
+| `goblin` | 11 | +32,768 | ⛔ no |
+| `clap` | 4 | **+159,744** | ⛔ no |
+
+⭐ **`clap` is the finding the entry predicted and the number is worse than
+expected.** 159,744 bytes is nineteen times `sha2` and five times `serde_json`,
+for a parser podbox drives from a **table** ([T-0801](cli.md)) rather than a
+grammar. The measurement was taken with `default-features = false` and only
+`std`, `help`, `usage` and `error-context` enabled, so it is the small clap and
+not the large one. ⚠ Its help generation is the part podbox would use least:
+docker's help text is text to **match**, not to generate.
+
+**`goblin` costs the same as `serde_json` and replaces far less.** podbox's ELF
+needs are `PT_INTERP` presence and a Go build-marker check
+([T-0706](interpose.md)), which are program-header walks of a few dozen lines
+each. The scaffold confirmed it: `interp=None sections=25` on podbox's own
+static-pie binary is one field and one count, from a crate that parses the whole
+format.
 
 ---
 

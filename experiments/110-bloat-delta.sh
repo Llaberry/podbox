@@ -8,6 +8,19 @@
 #   ./110-bloat-delta.sh baseline       the "before": no dependencies at all
 #   ./110-bloat-delta.sh <area>         the "after": one entry from TODO/deps.md
 #
+# ⛔ THE CANDIDATE MUST BE REACHABLE FROM `main`, OR THIS MEASURES NOTHING.
+# `lto = true` deletes a dependency nothing calls, and the delta then reads
+# zero for a crate that is very much in the tree. Measured on 2026-09-08: a
+# scaffold in `podbox-image` that `main` never reached moved the binary by 0
+# bytes with `ring` and `rustls` compiled and linked. Wire the scaffold into a
+# path `main` can reach behind a condition the optimizer cannot fold, which in
+# practice means an environment variable:
+#
+#     if std::env::var_os("PODBOX_SWEEP").is_some() { podbox_image::probe(...); }
+#
+# The check below refuses a run where third-party crates are present and the
+# delta is zero, because that is this mistake and not a free dependency.
+#
 # Each run writes experiments/results/bloat-<area>.txt and prints its
 # conditions. An <area> other than `baseline` is also differenced against the
 # committed baseline, so the number an entry closes with is a delta and not a
@@ -60,10 +73,18 @@ echo
 # symbols and is therefore taken from a SECOND build, in its own target
 # directory, so it cannot replace the artefact this number came from.
 echo "== the total, from the shipping profile"
-if ! cargo build --release --target "$TARGET" --manifest-path "$REPO/Cargo.toml" 2>&1 | tail -3; then
+# ⛔ The exit code is read from cargo, not from a pipeline. `cargo ... | tail -3`
+# reports tail's status, so a failed build reads as green, and it also throws
+# away the diagnostic: measured on 2026-09-08, a candidate whose scaffold named
+# a type that had moved showed only "could not compile", with the line that
+# said which type three lines above the cut.
+if ! cargo build --release --target "$TARGET" --manifest-path "$REPO/Cargo.toml" \
+	>"$WORK/build.log" 2>&1; then
 	echo "FAIL: the release build did not succeed" >&2
+	grep -E "^(error|warning: unused)" -A 6 "$WORK/build.log" | head -40 >&2
 	exit 1
 fi
+tail -2 "$WORK/build.log"
 [ -f "$BIN" ] || { echo "SKIP: $BIN was not produced" >&2; exit 2; }
 total="$(stat -c%s "$BIN")"
 printf '  %s\n' "$BIN"
@@ -72,6 +93,18 @@ printf '  headroom    %s\n' "$((CEILING_BYTES - total))"
 
 interp="$(readelf -l "$BIN" 2>/dev/null | grep -c INTERP)"
 printf '  PT_INTERP   %s\n' "$interp"
+
+# ⭐ THE CONTROL, and it is not optional. A zero delta has two causes that look
+# identical in a size: a scaffold `main` cannot reach, which `lto` deleted and
+# which measured nothing; and a candidate genuinely smaller than the change a
+# linked, padded binary can show. Running the scaffold tells them apart, so the
+# instrument asks rather than assuming. TODO/probe.md T-0102 is the same
+# discipline applied to a different measurement.
+scaffold_said="$(PODBOX_SWEEP=1 timeout 60 "$BIN" version 2>/dev/null | head -1)"
+case "$scaffold_said" in
+podbox\ *) scaffold_said="" ;;  # only the version line: the scaffold said nothing
+esac
+printf '  scaffold    %s\n' "${scaffold_said:-(said nothing)}"
 
 # ------------------------------------------------------------- the breakdown
 echo
@@ -110,6 +143,7 @@ printf '  third-party crates in the normal dependency graph: %s\n' "$deps"
 
 # ------------------------------------------------------------------ the delta
 delta_line="the baseline itself; there is nothing before it"
+unmeasured=0
 if [ "$AREA" != "baseline" ]; then
 	if [ -f "$BASE" ]; then
 		before="$(awk '/^total_bytes /{print $2}' "$BASE")"
@@ -125,6 +159,29 @@ fi
 echo
 echo "== the delta"
 printf '  %s\n' "$delta_line"
+
+# ⛔ A zero delta with a dependency present is this script failing to measure,
+# not a crate that costs nothing. See the header.
+unmeasured=0
+if [ "$AREA" != "baseline" ] && [ "${deps:-0}" -gt 0 ] && [ -n "${before:-}" ] &&
+	[ "$total" -eq "$before" ]; then
+	if [ -z "$scaffold_said" ]; then
+		unmeasured=1
+		echo
+		echo "FAIL: $deps third-party crate(s) are in the graph, the binary did not" >&2
+		echo "      move by one byte, AND the scaffold said nothing when run. That is" >&2
+		echo "      a scaffold \`main\` cannot reach, deleted by lto, not a dependency" >&2
+		echo "      that is free. Wire it into a reachable path and re-run." >&2
+	else
+		# ⭐ The control answered, so the reading is real: the candidate is
+		# smaller than this instrument can show. That is a result, and a
+		# useful one, so it is recorded rather than turned into a failure.
+		delta_line="0 bytes against $before: BELOW THIS INSTRUMENT'S RESOLUTION."
+		delta_line="$delta_line The scaffold ran and printed \"$scaffold_said\", so the"
+		delta_line="$delta_line candidate is linked and reachable and still moved nothing"
+		delta_line="$delta_line a padded, stripped, lto'd binary can show."
+	fi
+fi
 
 # ------------------------------------------------------------------ the record
 {
@@ -142,7 +199,22 @@ printf '  %s\n' "$delta_line"
 	printf 'pt_interp %s\n' "$interp"
 	printf 'third_party_crates %s\n' "$deps"
 	printf 'delta             %s\n' "$delta_line"
+	printf 'unmeasured        %s\n' "$unmeasured"
+	printf 'scaffold_said     %s\n' "${scaffold_said:-(nothing)}"
 	printf 'breakdown         %s\n' "$bloat_status"
+	echo
+	# ⭐ THE SCAFFOLD TRAVELS WITH THE NUMBER. `docs/AGENTS.md`'s fourth
+	# absolute wants every measurement to ship with what took it, and for a
+	# sweep that is the dependency lines plus the code that reaches them: the
+	# same crates behind a scaffold that exercises less of the surface measure
+	# smaller, and a reader cannot tell without seeing it.
+	echo '## the dependency declaration this was measured with'
+	sed -n '/^\[workspace.dependencies\]/,/^$/p' "$REPO/Cargo.toml" | grep -vE '^\s*#|^$' || true
+	echo
+	echo '## the scaffold `main` reached'
+	if [ -f "$REPO/crates/podbox-image/src/lib.rs" ]; then
+		sed -n '/sweep_scaffold/,/^}/p' "$REPO/crates/podbox-image/src/lib.rs"
+	fi
 	echo
 	echo '## cargo bloat -n 20'
 	if [ -s "$WORK/bloat.txt" ]; then
@@ -161,6 +233,7 @@ if [ "$total" -ge "$CEILING_BYTES" ]; then
 	echo "      committed beside the change. TODO/deps.md T-0910." >&2
 	exit 1
 fi
+[ "$unmeasured" -eq 1 ] && exit 1
 case "$bloat_status" in
 "not taken:"*) exit 2 ;;
 esac

@@ -102,7 +102,20 @@ Approach:    Multicall on `argv[0]`: `docker`, `podman` and `podbox` all enter
 Decision:    Symlinks over a wrapper script. A shell wrapper is a second
              artefact, it breaks the memfd rung (T-1001), and it is the exact
              thing `references/qaidvoid__onelf` records as skipping that rung.
-Prove:       `ln -sf "$(command -v podbox)" /tmp/bin/docker && PATH=/tmp/bin:$PATH docker run --rm alpine:latest /bin/echo hi | grep -qx hi`
+             ⭐ **RULED by the operator on 2026-09-08, and no longer open:**
+             podbox **refuses** to take the `docker` name where a working
+             docker daemon is reachable, unless an explicit flag says otherwise,
+             and says why in one line. A machine with a working daemon is a
+             machine where podbox is the wrong tool.
+             The alternative considered and rejected is deferring to the real
+             daemon transparently by exec'ing it: it costs an exec on every
+             call and it hides which tool ran, which is the class of thing
+             `TOOL.md` section 4.1 exists to forbid.
+             ⚠ The check is on a **reachable daemon**, not on a `docker` binary
+             being present: on the target runtime `docker` on PATH is a podman
+             alias with no daemon behind it, so a binary check would refuse on
+             exactly the machines podbox is for.
+Prove:       `ln -sf "$(command -v podbox)" /tmp/bin/docker && PATH=/tmp/bin:$PATH docker run --rm alpine:latest /bin/echo hi | grep -qx hi`, and podbox refuses to install the `docker` symlink where `docker info` succeeds unless the flag is given
 
 ---
 

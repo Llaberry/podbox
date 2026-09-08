@@ -25,10 +25,59 @@ license = "0BSD"
 repository = "https://github.com/Llaberry/podbox"
 
 [workspace.dependencies]
-# ⛔ EMPTY, AND DELIBERATELY. TOOL.md section 3.5 is a policy, not a shopping list.
-# Every dependency answers five questions and closes with a measured
-# `cargo bloat` delta before it lands here. TODO/deps.md carries one entry per
-# candidate area.
+# ⭐ THE SWEEP RAN. `TOOL.md` section 3.5 is a policy and not a shopping list,
+# and until 2026-09-08 this block was empty because nothing had been measured.
+# TODO/deps.md T-0901 to T-0910 are now closed against numbers taken by
+# `experiments/110-bloat-delta.sh`, one area at a time, each with its scaffold
+# and its `cargo bloat` breakdown committed under `experiments/results/`.
+#
+# ⛔ EVERY LINE BELOW IS A RULING WITH A MEASUREMENT UNDER IT, and the entry it
+# closes is named beside it. A version pinned here is not an enabled
+# dependency: a member crate takes it with `foo.workspace = true` when the
+# milestone that needs it lands, so the artefact carries none of this today and
+# `experiments/results/bloat-baseline.txt` is still the "before".
+#
+# ⛔ WHAT WAS MEASURED AND REFUSED is as much of the ruling as what was taken,
+# and it is in the entries rather than here so a reader cannot take a
+# commented-out line for a plan: `clap` (T-0908, 159,744 bytes for a table),
+# `goblin` (T-0908, 32,768 bytes for a program-header walk), `oci-spec`
+# (T-0904, 40 crates for four structs), `seccompiler` (T-0902), the `landlock`
+# crate (T-0903) and `rustix` (T-0901).
+
+# T-0905. +897,072 bytes, 16 crates, and the only transport that works.
+# ⚠ `rustls` is pure Rust and its crypto provider is NOT: `ring` compiles C and
+# assembly. `scripts/zig-cc.sh` and `.cargo/config.toml` are the answer, and
+# the entry carries what that drags.
+rustls = { version = "0.23", default-features = false, features = ["std", "ring", "tls12"] }
+rustls-pki-types = "1"
+# The host bundle first, because T-0407 needs it read anyway; `webpki-roots` is
+# the fallback for a machine that has none, and costs 77,824 bytes of the total.
+rustls-pemfile = "2"
+# ⚠ `1`, not `0.26`, and the reason is measured rather than a preference.
+# `webpki-roots 0.26.11` is a compatibility SHIM that itself depends on
+# `webpki-roots 1.0.9`; `ureq 2.12` pins the 0.26 line, so the graph carries
+# the shim whichever version podbox names. Naming `0.26` here would put podbox
+# behind the shim as well and hide which crate actually holds the roots. Read
+# out of `cargo metadata`'s resolve graph on 2026-09-08:
+#     podbox-image  -> webpki-roots 1.0.9
+#     ureq 2.12.1   -> webpki-roots 0.26.11 -> webpki-roots 1.0.9
+webpki-roots = "1"
+
+# T-0906. +127,080 bytes on top of the TLS arm. Blocking, no async runtime.
+ureq = { version = "2", default-features = false, features = ["tls", "gzip"] }
+
+# T-0907. +65,536 bytes, no `cc` in the graph with `rust_backend` selected.
+tar = { version = "0.4", default-features = false }
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
+# ⭐ zstd costs 4,096 bytes over the pair above, which settles the entry's open
+# question: a named refusal for a zstd layer saves one page and is not worth it.
+ruzstd = "0.7"
+
+# T-0908. +8,192 and +32,768 bytes. The four OCI types are structs here rather
+# than `oci-spec`, which wanted 40 crates for them (T-0904).
+sha2 = { version = "0.10", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 
 [profile.release]
 lto = true

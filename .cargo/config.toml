@@ -9,3 +9,19 @@ target = "x86_64-unknown-linux-musl"
 
 [target.x86_64-unknown-linux-musl]
 rustflags = ["-C", "target-feature=+crt-static"]
+
+# ⭐ `zig cc` as the C cross-compiler for the shipping target.
+#
+# ⚠ Inert today: `[workspace.dependencies]` is empty and nothing in the tree
+# compiles C. It is here for the day a sweep in TODO/deps.md lands a candidate
+# that does, so the answer to "does it pull C" is a measurement rather than a
+# link error naming a toolchain nobody installed.
+#
+# `relative = true` resolves against the repository root, so the same config
+# works from any subdirectory. `force` is left at its default, so a machine
+# with its own cross toolchain wins by exporting the variable itself.
+# scripts/zig-cc.sh says why zig rather than musl-tools; scripts/common/bootstrap-env.sh
+# installs it, pinned and checksummed.
+[env]
+CC_x86_64_unknown_linux_musl = { value = "scripts/zig-cc.sh", relative = true }
+AR_x86_64_unknown_linux_musl = { value = "scripts/zig-ar.sh", relative = true }

@@ -1,0 +1,57 @@
+# cargo bloat and the release total, area=syscalls-libc
+# TODO/deps.md T-0910. One machine, one day.
+date              2026-09-08T12:06:20Z
+host kernel       6.18.44-fc-v24
+rustc             rustc 1.98.1 (48a229cea 2026-09-01)
+cargo             cargo 1.98.1 (797e8a9bc 2026-08-05)
+target            x86_64-unknown-linux-musl
+profile           release: lto=true opt-level=z codegen-units=1 strip=symbols panic=abort
+total_bytes 496184
+ceiling_bytes 8000000
+headroom_bytes 7503816
+pt_interp 0
+third_party_crates 3
+delta             0 bytes against 496184 in bloat-baseline.txt
+unmeasured        1
+scaffold_said     (nothing)
+breakdown         taken from an unstripped build of the release profile
+
+## the dependency declaration this was measured with
+[workspace.dependencies]
+rustix = { version = "0.38", default-features = false, features = ["std", "use-libc-auxv", "process", "fs", "thread", "mount"] }
+
+## the scaffold `main` reached
+pub fn sweep_scaffold() -> String {
+    // The ordinary half a crate covers. ⚠ T-0901 goes in expecting the new
+    // mount API, the seccomp ioctls and Landlock to stay hand-declared either
+    // way, so this exercises what rustix would actually take over.
+    let uid = rustix::process::getuid();
+    let pid = rustix::process::getpid();
+    let ok = rustix::fs::access("/tmp", rustix::fs::Access::WRITE_OK).is_ok();
+    format!("uid={} pid={:?} tmp_w={ok}", uid.as_raw(), pid)
+}
+
+## cargo bloat -n 20
+ File  .text     Size        Crate Name
+ 0.8%   5.0%  17.9KiB          std <std::backtrace_rs::symbolize::gimli::Cache>::with_global::<std::backtrace_rs::symbolize::gimli::resolve::{closure#1}>
+ 0.8%   4.8%  17.1KiB    [Unknown] _ZN9libunwind10CFI_ParserINS_17LocalAddressSpaceEE20parseFDEInstructionsINS_16Registers_x86_64EEEbRS1_RKNS2_8FDE_InfoERKNS2_8CIE_InfoENT_23link_hardened_reg_arg_tEiPNS2_10PrologInfoE
+ 0.6%   3.8%  13.5KiB       podbox podbox::main
+ 0.5%   3.3%  11.6KiB          std <std::backtrace_rs::symbolize::gimli::Context>::new
+ 0.5%   3.2%  11.4KiB podbox_probe podbox_probe::run
+ 0.4%   2.4%   8.7KiB          std <gimli::read::dwarf::Unit<gimli::read::endian_slice::EndianSlice<gimli::endianity::LittleEndian>, usize>>::new
+ 0.3%   2.1%   7.4KiB          std <core::cell::once::OnceCell<core::result::Result<addr2line::line::Lines, gimli::read::Error>>>::try_init::<<core::cell::once::OnceCell<core::result::Result<addr2line::line::Lines, gimli::read::Error>>>::get_or_init<<addr2line::line::LazyLines>::borrow<gimli::read::endian_slice::EndianSlice<gimli::endianity::LittleEndian>>::{closure#0}>::{closure#0}, !>
+ 0.3%   2.0%   7.2KiB          std miniz_oxide::inflate::core::decompress
+ 0.2%   1.4%   4.9KiB          std gimli::read::unit::parse_attribute::<gimli::read::endian_slice::EndianSlice<gimli::endianity::LittleEndian>>
+ 0.2%   1.3%   4.7KiB podbox_probe podbox_probe::probes::run_payload
+ 0.2%   1.3%   4.6KiB          std <addr2line::function::Function<gimli::read::endian_slice::EndianSlice<gimli::endianity::LittleEndian>>>::parse_children
+ 0.2%   1.2%   4.2KiB    [Unknown] _ZN9libunwind17DwarfInstructionsINS_17LocalAddressSpaceENS_16Registers_x86_64EE13stepWithDwarfERS1_RKmmRS2_Rbb
+ 0.2%   1.1%   3.9KiB    [Unknown] _ZN9libunwind17DwarfInstructionsINS_17LocalAddressSpaceENS_16Registers_x86_64EE18evaluateExpressionEmRS1_RKS2_m
+ 0.2%   1.1%   3.9KiB    [Unknown] fmt_fp
+ 0.2%   1.1%   3.8KiB          std <gimli::read::rnglists::RngListIter<gimli::read::endian_slice::EndianSlice<gimli::endianity::LittleEndian>>>::next
+ 0.2%   1.0%   3.7KiB          std <core::cell::once::OnceCell<core::result::Result<addr2line::function::Functions<gimli::read::endian_slice::EndianSlice<gimli::endianity::LittleEndian>>, gimli::read::Error>>>::try_init::<<core::cell::once::OnceCell<core::result::Result<addr2line::function::Functions<gimli::read::endian_slice::EndianSlice<gimli::endianity::LittleEndian>>, gimli::read::Error>>>::get_or_init<<addr2line::function::LazyFunctions<gimli::read::endian_slice::EndianSlice<gimli::endianity::LittleEndian>>>::borrow::{closure#0}>::{closure#0}, !>
+ 0.1%   0.9%   3.2KiB    [Unknown] printf_core
+ 0.1%   0.8%   2.9KiB    [Unknown] _ZN9libunwind10CFI_ParserINS_17LocalAddressSpaceEE9decodeFDEERS1_mPNS2_8FDE_InfoEPNS2_8CIE_InfoEb
+ 0.1%   0.8%   2.9KiB          std <std::backtrace_rs::symbolize::gimli::Mapping>::new_debug
+ 0.1%   0.8%   2.8KiB    [Unknown] _ZN9libunwind14EHHeaderParserINS_17LocalAddressSpaceEE7findFDEINS_16Registers_x86_64EEEbRS1_NT_23link_hardened_reg_arg_tEmjPNS_10CFI_ParserIS1_E8FDE_InfoEPNS9_8CIE_InfoE
+ 9.5%  59.6% 213.2KiB              And 848 smaller methods. Use -n N to show more.
+15.9% 100.0% 357.6KiB              .text section size, the file size is 2.2MiB

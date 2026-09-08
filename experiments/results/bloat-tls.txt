@@ -1,0 +1,74 @@
+# cargo bloat and the release total, area=tls
+# TODO/deps.md T-0910. One machine, one day.
+date              2026-09-08T11:59:41Z
+host kernel       6.18.44-fc-v24
+rustc             rustc 1.98.1 (48a229cea 2026-09-01)
+cargo             cargo 1.98.1 (797e8a9bc 2026-08-05)
+target            x86_64-unknown-linux-musl
+profile           release: lto=true opt-level=z codegen-units=1 strip=symbols panic=abort
+total_bytes 1393256
+ceiling_bytes 8000000
+headroom_bytes 6606744
+pt_interp 0
+third_party_crates 16
+delta             897072 bytes against 496184 in bloat-baseline.txt
+unmeasured        0
+breakdown         taken from an unstripped build of the release profile
+
+## the dependency declaration this was measured with
+[workspace.dependencies]
+rustls = { version = "0.23", default-features = false, features = ["std", "ring", "tls12"] }
+rustls-pki-types = "1"
+rustls-pemfile = "2"
+webpki-roots = "0.26"
+
+## the scaffold `main` reached
+pub fn sweep_scaffold() -> String {
+    // ⚠ Host bundle only: no webpki-roots. The file may not exist, which is
+    // the cost this arm measures against bundling.
+    let mut roots = rustls::RootCertStore::empty();
+    let pem = std::fs::read("/etc/ssl/certs/ca-certificates.crt").unwrap_or_default();
+    let mut rd = std::io::BufReader::new(&pem[..]);
+    for der in rustls_pemfile::certs(&mut rd).flatten() {
+        let _ = roots.add(der);
+    }
+    // ⭐ webpki-roots as the FALLBACK, which is the shape T-0905 proposes:
+    // the host bundle is what podbox needs anyway for T-0407, and the bundled
+    // set is what makes a machine without one still work.
+    if roots.is_empty() {
+        roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+    }
+    let n = roots.len();
+    let cfg = rustls::ClientConfig::builder()
+        .with_root_certificates(roots)
+        .with_no_client_auth();
+    let name: rustls::pki_types::ServerName =
+        "index.docker.io".to_string().try_into().expect("literal");
+    let conn = rustls::ClientConnection::new(std::sync::Arc::new(cfg), name);
+    format!("roots={n} handshake_startable={}", conn.is_ok())
+}
+
+## cargo bloat -n 20
+ File  .text     Size        Crate Name
+ 0.6%   2.4%  19.6KiB podbox_image podbox_image::sweep_scaffold
+ 0.5%   2.2%  18.0KiB          std <std::backtrace_rs::symbolize::gimli::Cache>::with_global::<std::backtrace_rs::symbolize::gimli::resolve::{closure#1}>
+ 0.5%   2.1%  17.1KiB    [Unknown] _ZN9libunwind10CFI_ParserINS_17LocalAddressSpaceEE20parseFDEInstructionsINS_16Registers_x86_64EEEbRS1_RKNS2_8FDE_InfoERKNS2_8CIE_InfoENT_23link_hardened_reg_arg_tEiPNS2_10PrologInfoE
+ 0.5%   2.0%  16.6KiB       rustls <webpki::verify_cert::ChainOptions<webpki::verify_cert::KeyUsage>>::build_chain_inner
+ 0.4%   1.7%  13.6KiB       podbox podbox::main
+ 0.3%   1.4%  11.8KiB         ring ring_core_0_17_14__chacha20_poly1305_seal_avx2
+ 0.3%   1.4%  11.6KiB          std <std::backtrace_rs::symbolize::gimli::Context>::new
+ 0.3%   1.4%  11.5KiB podbox_probe podbox_probe::run
+ 0.3%   1.2%   9.7KiB       rustls rustls::client::hs::emit_client_hello_for_retry
+ 0.3%   1.2%   9.5KiB         ring ring_core_0_17_14__chacha20_poly1305_open_avx2
+ 0.3%   1.1%   9.1KiB       rustls <rustls::client::hs::ExpectServerHello as rustls::common_state::State<rustls::client::client_conn::ClientConnectionData>>::handle
+ 0.2%   1.1%   8.7KiB          std <gimli::read::dwarf::Unit<gimli::read::endian_slice::EndianSlice<gimli::endianity::LittleEndian>, usize>>::new
+ 0.2%   1.0%   8.5KiB         ring ring_core_0_17_14__chacha20_poly1305_seal_sse41
+ 0.2%   1.0%   8.4KiB         ring ring_core_0_17_14__chacha20_poly1305_open_sse41
+ 0.2%   0.9%   7.4KiB          std <core::cell::once::OnceCell<core::result::Result<addr2line::line::Lines, gimli::read::Error>>>::try_init::<<core::cell::once::OnceCell<core::result::Result<addr2line::line::Lines, gimli::read::Error>>>::get_or_init<<addr2line::line::LazyLines>::borrow<gimli::read::endian_slice::EndianSlice<gimli::endianity::LittleEndian>>::{closure#0}>::{closure#0}, !>
+ 0.2%   0.9%   7.2KiB          std miniz_oxide::inflate::core::decompress
+ 0.2%   0.9%   7.1KiB       webpki <webpki::cert::Cert>::from_input
+ 0.2%   0.7%   6.0KiB         ring ring_core_0_17_14__x25519_sc_muladd
+ 0.2%   0.7%   5.9KiB       rustls <rustls::crypto::ring::sign::RsaSigner as rustls::crypto::signer::Signer>::sign
+ 0.2%   0.7%   5.5KiB       rustls <rustls::client::tls12::ExpectServerDone as rustls::common_state::State<rustls::client::client_conn::ClientConnectionData>>::handle
+16.8%  73.2% 597.5KiB              And 2283 smaller methods. Use -n N to show more.
+22.9% 100.0% 815.8KiB              .text section size, the file size is 3.5MiB

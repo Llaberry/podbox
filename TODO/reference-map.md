@@ -13,8 +13,12 @@ cat references/VHSgunzo__pathmap/PROVENANCE.md  # commit, route, and gaps
 
 That shape is chosen over the side branch for one reason:
 `scripts/check-todo.py` asserts that **every cited path and line resolves**, and
-a gate cannot resolve a citation into a branch it is not on. The cost is a clone that carries it: 152 MB of corpus plus 27 MB of git
-objects, measured on a fresh clone on 2026-09-08.
+a gate cannot resolve a citation into a branch it is not on. The cost is a clone
+that carries it. ⚠ Re-measured on 2026-09-08 by cloning the pushed `main`
+afresh, because the earlier figures had drifted: **154 MB of working tree** and
+**51 MB of git objects** (`du -sh .git`; `git count-objects -vH` reports one
+pack of 49.48 MiB over 9,445 objects). The object figure is inflated by the debt
+[PROGRESS.md](PROGRESS.md) records and not by the corpus alone.
 
 Each directory holds `PROVENANCE.md` (the commit, the route, and what could not
 be fetched), `api/` (issues and pull requests in both states, comments, review
@@ -22,6 +26,50 @@ comments, releases, tags), and `tree/` (the source at that commit, with `.git`
 already stripped and the commit captured first).
 
 ⛔ **Cite the commit beside every line reference.** The row below carries it.
+
+## Registry dependencies, resolved before use
+
+⛔ **The same rule, for crates rather than trees.** [deps.md](deps.md)'s
+question 4 requires the licence determination to be made before a candidate
+lands and recorded here. Every row below was read from the crate's own
+`Cargo.toml` and confirmed by a licence file present in the published crate, on
+2026-09-08, at the version `cargo metadata` resolved for the pin in the root
+`Cargo.toml`.
+
+⚠ These are **pins, not enabled dependencies**. A member crate takes one with
+`foo.workspace = true` when the milestone that needs it lands, so none of them
+is in `Cargo.lock` or in the artefact today.
+
+| Crate | Resolved | Licence | Licence file in the crate | Entry that landed it |
+| --- | --- | --- | --- | --- |
+| `rustls` | 0.23.44 | Apache-2.0 OR ISC OR MIT | yes, 3 | [T-0905](deps.md) |
+| `rustls-pki-types` | 1.15.1 | MIT OR Apache-2.0 | yes, 2 | [T-0905](deps.md) |
+| `rustls-pemfile` | 2.2.0 | Apache-2.0 OR ISC OR MIT | yes, 4 | [T-0905](deps.md) |
+| `webpki-roots` | 1.0.9 | CDLA-Permissive-2.0 | yes, 1 | [T-0905](deps.md) |
+| `ureq` | 2.12.1 | MIT OR Apache-2.0 | yes, 2 | [T-0906](deps.md) |
+| `tar` | 0.4.46 | MIT OR Apache-2.0 | yes, 2 | [T-0907](deps.md) |
+| `flate2` | 1.1.10 | MIT OR Apache-2.0 | yes, 2 | [T-0907](deps.md) |
+| `ruzstd` | 0.7.3 | MIT | yes, 1 | [T-0907](deps.md) |
+| `sha2` | 0.10.9 | MIT OR Apache-2.0 | yes, 2 | [T-0908](deps.md) |
+| `serde` | 1.0.229 | MIT OR Apache-2.0 | yes, 2 | [T-0908](deps.md) |
+| `serde_json` | 1.0.151 | MIT OR Apache-2.0 | yes, 2 | [T-0908](deps.md) |
+
+⚠ **`webpki-roots` is CDLA-Permissive-2.0 and that is not an oversight.** It is
+a **dataset** of root certificates rather than code, and CDLA-Permissive-2.0
+permits redistribution with the notice retained, which is what a 0BSD artefact
+embedding it needs.
+
+⛔ **Measured and refused**, so a later session does not re-argue them:
+`clap`, `goblin`, `oci-spec`, `seccompiler`, the `landlock` crate, `rustix` and
+`libc`. Each has a committed number under `experiments/results/` and a ruling in
+its entry.
+
+⚠ **Transitively, the landed set resolves 86 packages** on
+`x86_64-unknown-linux-musl` with every pin wired, of which `ring` is the only
+one that compiles C. Their licences are not enumerated here: what binds is that
+each direct dependency above permits redistribution, and a transitive licence
+audit belongs with the packaging entry that ships a notice file
+([T-1004](packaging.md)) rather than with the sweep that priced them.
 
 ## Licence, resolved before use
 

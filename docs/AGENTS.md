@@ -126,12 +126,24 @@ expect the number to differ.
 | [`../crates/`](../crates/) | the workspace of `TOOL.md` section 4.3 |
 | [`../references/`](../references/) | the corpus: pinned trees with their trackers. Read once, under `methodology/references.md` |
 | [`../experiments/`](../experiments/) | the reconstruction of the target runtime, and this project's own measurements. `results/` is the evidence and is tracked |
-| [`../scripts/`](../scripts/) | the gate, the count writer, the plant harness, the corpus fetcher |
+| [`../scripts/`](../scripts/) | the gate, the count writer, the plant harness, the corpus fetcher, the environment bootstrap, and `zig-cc.sh`, which is the C cross-compiler `.cargo/config.toml` names |
 | [`.`](.) | ⛔ the methodology. **Binding, not advisory.** Copied verbatim from [`Azathothas/TEMPLATE`](https://github.com/Azathothas/TEMPLATE), except this file |
 
 ---
 
 ## What this environment is, and what it does to you
+
+⭐ **Run this first, every session.** The container is new each time and carries
+none of what the last one installed:
+
+```sh
+./scripts/common/bootstrap-env.sh          # install what is missing
+./scripts/common/bootstrap-env.sh --check  # report only, change nothing
+```
+
+It is idempotent, never prompts, times everything, checks blocks **and** inodes
+before writing, verifies what it downloads against a pinned checksum, and
+**starts the docker daemon**. The table below is what it exists to handle.
 
 ⚠ **These are not general truths.** They are what this machine does, and each
 one has cost a session at least once.
@@ -165,6 +177,7 @@ trailing `|| echo absent` fires beside the real value.
 ./scripts/todo-count.py    # the writer. Re-derives the counts; --set moves row and entry together
 ./scripts/plant.sh         # breaks each check on purpose and asserts it goes red
 ./scripts/common/check-markers.sh
+./scripts/common/bootstrap-env.sh   # the environment the four above assume
 ```
 
 ⭐ **`plant.sh` is what makes the gate an assertion rather than a decoration.**

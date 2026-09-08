@@ -159,3 +159,6 @@ entry-point count.
 | 0BSD for this repository | `TOOL.md` section 0.5 |
 | The corpus is tracked in the tree, not on a side branch | [reference-map.md](reference-map.md), because the gate resolves citations |
 | The default answer to a dependency is no | `TOOL.md` section 3.5, and every candidate is an entry in [deps.md](deps.md) |
+| ⭐ A sweep in [deps.md](deps.md) may **land** the crate where the measurement and the entry's own recommendation agree | the operator, 2026-09-08. Measuring and then leaving the decision open costs a second session for a question already answered by a number |
+| ⭐ No commit trailer names a model, a vendor or a tool | `docs/conventions/git.md` section 1, reaffirmed by the operator on 2026-09-08 against the harness default. ⚠ Commits before `bcffb7a` carry one; history is not rewritten for it |
+| ⭐ podbox refuses the `docker` name where a working daemon is reachable, unless an explicit flag says otherwise | the operator, 2026-09-08. [T-0803](cli.md) carries the ruling and the rejected alternative |
