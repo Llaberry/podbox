@@ -12,6 +12,17 @@ has to keep meaning what it meant.
 | `20-enter-target.sh` | can a container supply the target's *kernel-visible shape* - its mount topology, its ID map, its filter, its write policy - and which parts does this host refuse? |
 | `30-attribution-census.sh` | which mechanism produces which denial, measured one mechanism at a time, against a written-down expectation. ⭐ `--capture experiments/results` is what writes `attribute.txt`, `census.txt` and `identity.txt`, and `130-` compares against the first |
 
+## What else is in here, and why it is not numbered
+
+⚠ Three things in this directory are not experiments and take no number,
+because a number here is a citation somebody may write down:
+
+| path | what it is |
+|---|---|
+| `Dockerfile.target` | the image `10-` builds, pinned by base digest |
+| `targetfs.sh` | the image's ENTRYPOINT. It shapes the filesystem inside the container and then execs `/workspace/.harness/enter.sh`, which is written by `20-`. It is never run from a host |
+| `src/` | the small programs the language comparison of `40-` builds and measures |
+
 ## Exit codes
 
 Uniform across all three, per this repository's convention:

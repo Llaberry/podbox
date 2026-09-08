@@ -39,19 +39,25 @@ repository = "https://github.com/Llaberry/podbox"
 #
 # ⛔ WHAT WAS MEASURED AND REFUSED is as much of the ruling as what was taken,
 # and it is in the entries rather than here so a reader cannot take a
-# commented-out line for a plan: `clap` (T-0908, 159,744 bytes for a table),
-# `goblin` (T-0908, 32,768 bytes for a program-header walk), `oci-spec`
-# (T-0904, 40 crates for four structs), `seccompiler` (T-0902), the `landlock`
-# crate (T-0903) and `rustix` (T-0901).
+# commented-out line for a plan: `clap` and `goblin` (T-0908), `oci-spec`
+# (T-0904), `seccompiler` (T-0902), the `landlock` crate (T-0903), `rustix` and
+# `libc` (T-0901).
+#
+# ⚠ NO BYTE COUNT APPEARS BELOW, DELIBERATELY. A number written in two files
+# drifts, and the copy a reader trusts is the wrong one: measured on 2026-09-08,
+# one figure here was already stale against its entry within the hour, because
+# the arm had been re-taken. Each pin names the entry that ruled it and the
+# result file that holds the number, and both of those are checked by the gate.
 
-# T-0905. +897,072 bytes, 16 crates, and the only transport that works.
+# T-0905, `experiments/results/bloat-tls.txt`. The only transport that works.
 # ⚠ `rustls` is pure Rust and its crypto provider is NOT: `ring` compiles C and
 # assembly. `scripts/zig-cc.sh` and `.cargo/config.toml` are the answer, and
 # the entry carries what that drags.
 rustls = { version = "0.23", default-features = false, features = ["std", "ring", "tls12"] }
 rustls-pki-types = "1"
 # The host bundle first, because T-0407 needs it read anyway; `webpki-roots` is
-# the fallback for a machine that has none, and costs 77,824 bytes of the total.
+# the fallback for a machine that has none. `bloat-tls-hostroots.txt` is the
+# same arm without it, which is what prices the fallback.
 rustls-pemfile = "2"
 # ⚠ `1`, not `0.26`, and the reason is measured rather than a preference.
 # `webpki-roots 0.26.11` is a compatibility SHIM that itself depends on
@@ -63,18 +69,21 @@ rustls-pemfile = "2"
 #     ureq 2.12.1   -> webpki-roots 0.26.11 -> webpki-roots 1.0.9
 webpki-roots = "1"
 
-# T-0906. +127,080 bytes on top of the TLS arm. Blocking, no async runtime.
+# T-0906, `experiments/results/bloat-http.txt`. Blocking, no async runtime.
 ureq = { version = "2", default-features = false, features = ["tls", "gzip"] }
 
-# T-0907. +65,536 bytes, no `cc` in the graph with `rust_backend` selected.
+# T-0907, `experiments/results/bloat-archive.txt`. ⛔ `rust_backend` is named
+# rather than defaulted: flate2's default backend is C.
 tar = { version = "0.4", default-features = false }
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
-# ⭐ zstd costs 4,096 bytes over the pair above, which settles the entry's open
-# question: a named refusal for a zstd layer saves one page and is not worth it.
+# ⭐ `bloat-archive-zstd.txt` against `bloat-archive.txt` settles the entry's
+# open question: zstd costs one page over the gzip pair, so a named refusal for
+# a zstd layer saves nothing worth having.
 ruzstd = "0.7"
 
-# T-0908. +8,192 and +32,768 bytes. The four OCI types are structs here rather
-# than `oci-spec`, which wanted 40 crates for them (T-0904).
+# T-0908, `experiments/results/bloat-digest.txt` and `bloat-json.txt`. The four
+# OCI types are structs here rather than `oci-spec`, which wanted three times
+# the crates for them (T-0904).
 sha2 = { version = "0.10", default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

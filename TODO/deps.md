@@ -247,13 +247,24 @@ root-store question to be measured separately:
 
 | arm | crates | delta | roots seen |
 | --- | --- | --- | --- |
+| host bundle only, `rustls-pemfile` | 14 | +831,536 | 152 |
+| ⭐ host bundle, `webpki-roots` as the fallback | 15 | **+901,168** | 152 |
 | bundled roots only, `webpki-roots` | 15 | +880,688 | 121 |
-| host bundle only, `rustls-pemfile` | 14 | +819,248 | 152 |
-| ⭐ host bundle, `webpki-roots` as the fallback | 16 | **+897,072** | 152 |
 
 `experiments/results/bloat-tls.txt` and `bloat-tls-hostroots.txt`. The static
 half of the `Prove` holds: `readelf -d` reports **0** `NEEDED` entries, so the
 artefact is still one static-pie file.
+
+⚠ **TWO RUNS OF THE SAME ARM CAN DIFFER, AND THESE DID.** The first readings of
+these arms were +819,248 and +897,072, taken before
+`experiments/110-bloat-delta.sh` recorded the dependency declaration and the
+scaffold beside the number. Re-taken so they carry both, they read +831,536 and
++901,168: 1.5% and 0.5%. The pins are version RANGES, so cargo resolves what is
+newest at the moment of the run, and the bundled-roots row above is the one
+reading not re-taken and is therefore quoted as the older one. ⭐ Nothing in the
+ruling turns on 1.5%, and the reason the difference is visible at all is that a
+result file now carries what produced it. A sweep that needs two runs to be
+comparable to the byte needs a committed lock, which no entry asks for.
 
 ⛔ **THE PREMISE IS CORRECTED, AND THE CORRECTION IS THE FINDING.** It reads
 that pure Rust is non-negotiable because the alternative pulls OpenSSL and
@@ -305,8 +316,11 @@ Prove:       `./experiments/110-bloat-delta.sh http` exits 0 and writes `experim
 
 **Done 2026-09-08, and it lands.** `experiments/results/bloat-http.txt`: `ureq`
 2 with its own TLS stack costs **+1,024,152 bytes and 69 crates** against the
-empty baseline, which is **+127,080 bytes on top of the TLS arm** that has to be
-paid either way.
+empty baseline, which is **about +123,000 bytes on top of the TLS arm** that has
+to be paid either way. ⚠ That second figure is a subtraction between two runs
+rather than a measurement, and [T-0905](#t-0905-sweep-tls) records why two runs
+of one arm can differ by a percent. The order of magnitude is what the decision
+rests on.
 
 **Ruling: `ureq`, blocking, confirming the entry's recommendation.** 127 KB buys
 chunked transfer encoding, redirects and the `Range` header, which the entry
@@ -361,7 +375,11 @@ Prove:       `./experiments/110-bloat-delta.sh archive` exits 0 and `cargo tree 
 
 `experiments/results/bloat-archive.txt` and `bloat-archive-zstd.txt`. No `cc` in
 the graph with `rust_backend` selected, which is the trap question 3 exists for
-and the reason that feature is named rather than defaulted.
+and the reason that feature is named rather than defaulted. ⭐ Read out of
+`cargo metadata`'s resolve graph rather than assumed: the whole set is
+`adler2, cfg-if, crc32fast, filetime, flate2, libc, miniz_oxide, ruzstd,
+simd-adler32, static_assertions, tar, twox-hash`, with neither `cc` nor
+`libz-sys` in it.
 
 ⭐ **The zstd question the entry left open is settled by 4,096 bytes.** Adding
 `ruzstd` costs one page over the gzip pair. A named refusal for a zstd layer

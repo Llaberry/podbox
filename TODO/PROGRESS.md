@@ -173,8 +173,8 @@ measurement and the entry's own recommendation agree on, and it is in
 | `seccompiler` ([T-0902](deps.md)) | 2 | +8,192 | hand-emit |
 | `landlock` crate ([T-0903](deps.md)) | 13 | 0, below resolution | hand-declare |
 | `oci-spec` ([T-0904](deps.md)) | 40 | +69,664 | write the four structs |
-| ⭐ `rustls` + roots ([T-0905](deps.md)) | 16 | **+897,072** | **lands** |
-| ⭐ `ureq` ([T-0906](deps.md)) | 69 | +1,024,152 (+127,080 over TLS) | **lands** |
+| ⭐ `rustls` + roots ([T-0905](deps.md)) | 15 | **+901,168** | **lands** |
+| ⭐ `ureq` ([T-0906](deps.md)) | 69 | +1,024,152 (+123,000 over TLS) | **lands** |
 | ⭐ `tar` + `flate2` + `ruzstd` ([T-0907](deps.md)) | 12 | **+69,632** | **lands** |
 | ⭐ `sha2`, `serde_json` ([T-0908](deps.md)) | 9, 13 | +8,192, +32,768 | **land** |
 | `clap` ([T-0908](deps.md)) | 4 | **+159,744** | no: the CLI is a table |
