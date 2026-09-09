@@ -35,8 +35,12 @@ impl std::fmt::Display for Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// docker's exit code for a runtime-side failure.
-pub const EXIT_RUNTIME_ERROR: i32 = 125;
+// ⛔ **docker's codes, from the one file that holds them.**
+// [`TODO/cli.md`](../../../TODO/cli.md) T-0802. This crate declared its own 125
+// as well, which made FOUR copies of one number in one binary; the deep review
+// that follows T-0802's consolidation is what found this one, after the commit
+// message had already claimed there was one.
+pub use podbox_probe::exit::EXIT_RUNTIME_ERROR;
 
 /// A fresh container id: 64 hex characters, as docker's are.
 ///

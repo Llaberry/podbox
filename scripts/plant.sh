@@ -45,7 +45,7 @@ command -v git >/dev/null 2>&1 || { echo "SKIP: no git" >&2; exit 2; }
 
 # ⛔ GUARD 3: ONE LIST. Everything any case may touch is named here once, and
 # both the backup and the restore iterate this and nothing else.
-FILES="TODO/INDEX.md TODO/PROGRESS.md TODO/probe.md TODO/reference-map.md README.md docs/conventions/prose.md experiments/110-bloat-delta.sh experiments/results/bloat-baseline.txt experiments/results/bloat-image.txt .github/workflows/gate.yml"
+FILES="TODO/INDEX.md TODO/PROGRESS.md TODO/probe.md TODO/reference-map.md README.md docs/conventions/prose.md experiments/110-bloat-delta.sh experiments/results/bloat-baseline.txt experiments/results/bloat-image.txt .github/workflows/gate.yml crates/podbox-supervise/src/lib.rs"
 
 # ⛔ CHECK 18'S SUBJECT IS A NUMBER THAT IS ALREADY TAKEN, so writing one here
 # literally would put a second name on it in this very file and make the clean
@@ -325,6 +325,22 @@ case_plant "19a a build job without its toolchain" "does not carry" \
 case_plant "19b the same, reached by a script" "runs cargo (through" \
   sh -c 'sed -i -E "/--release --target/d;
                     s/(bootstrap-env\.sh .*) $CC_COMPONENT/\\1/" .github/workflows/gate.yml'
+
+# ⛔ CHECK 20, and its subject is a SECOND DECLARATION rather than a wrong value.
+# TODO/cli.md T-0802: docker's exit codes had been written out in four files of
+# one binary and two of the copies had already diverged, so a correction
+# measured against docker reached one verb and not another.
+#
+# ⚠ THE NEEDLE IS ASSEMBLED AT RUN TIME, for the fourth time in this file. The
+# check reads every `crates/**/*.rs`, this harness is not one, but the plant
+# below writes a declaration into a crate and the message quotes it back; a
+# literal copy of that declaration written here would be a fifth one the day
+# somebody adds `scripts/` to the check's own scope. The name is built from
+# parts so this file carries no `pub const EXIT_...` of its own.
+EXIT_DECL="pub"" const EXIT_""RUNTIME_ERROR: i32 = 125;"
+export EXIT_DECL
+case_plant "20 a second exit-code declaration" "already holds docker" \
+  sh -c 'printf "\n%s\n" "$EXIT_DECL" >> crates/podbox-supervise/src/lib.rs'
 
 echo
 # ⛔ SAY WHAT IS NOT COVERED. A harness that lists passing cases without naming

@@ -177,6 +177,7 @@ seen = {
     "todo_citations": 0, "todo_links": 0, "crossrefs": 0,
     "tree_citations": 0, "tree_links": 0, "bare_citations": 0,
     "size_ceiling": 0, "experiment_numbers": 0, "ci_components": 0,
+    "exit_codes": 0,
 }
 
 # ⛔ Check 17. The one file allowed to declare the release binary's ceiling, and
@@ -578,6 +579,57 @@ def check_ci_components(files):
                     f"TODO/gate.md T-1206.")
 
 
+EXIT_CODE_HOME = "crates/podbox-probe/src/exit.rs"
+EXIT_CODE_DECL = re.compile(
+    r"^\s*pub const (EXIT_[A-Z_]+)\s*:\s*i32\s*=\s*(\d+)\s*;", re.M)
+
+
+def check_exit_codes(files):
+    """Check 20: docker's exit codes are declared in exactly one file.
+
+    ⭐ TODO/cli.md T-0802. These numbers are the first thing an automated caller
+    reads, and they had been written out in FOUR files of one binary --
+    `podbox-image::error`, `podbox-cli::main`, `podbox-enter` and
+    `podbox-supervise`. Two of the copies had already diverged: a correction
+    measured against docker landed in one and the others kept the old value, so
+    two verbs of one binary disagreed about what a flag error is.
+
+    ⛔ Text only, and it looks for the DECLARATION rather than the number. A
+    `pub use podbox_probe::exit::EXIT_RUNTIME_ERROR` is how a crate is supposed
+    to get one and is not a declaration; `pub const EXIT_RUNTIME_ERROR: i32 =
+    125;` is. ⚠ A bare `125` in a match arm or a message is not matched either:
+    the defect is a second SOURCE of the value, not a second mention of it.
+
+    ⚠ The home file is named here and nowhere else, so moving it is one edit.
+    """
+    for rel in sorted(f for f in files
+                      if f.startswith("crates/") and f.endswith(".rs")):
+        if rel == EXIT_CODE_HOME:
+            continue
+        try:
+            text = read(os.path.join(ROOT, rel))
+        except (OSError, UnicodeDecodeError):
+            continue
+        for m in EXIT_CODE_DECL.finditer(text):
+            seen["exit_codes"] += 1
+            n = text[:m.start()].count("\n") + 1
+            err(f"{rel}:{n}",
+                f"declares `{m.group(1)} = {m.group(2)}` and `{EXIT_CODE_HOME}` "
+                f"already holds docker's exit codes. A second declaration is how "
+                f"two verbs of one binary came to disagree about what a flag "
+                f"error is: `pub use podbox_probe::exit::{m.group(1)};` is the "
+                f"way to have it. TODO/cli.md T-0802.")
+    # ⚠ Counted even when nothing is wrong, so a check that matches nothing is
+    # distinguishable from one that ran: the home file's own declarations.
+    try:
+        seen["exit_codes"] += len(
+            EXIT_CODE_DECL.findall(read(os.path.join(ROOT, EXIT_CODE_HOME))))
+    except (OSError, UnicodeDecodeError):
+        err(EXIT_CODE_HOME,
+            "is where docker's exit codes live and it is not readable. "
+            "TODO/cli.md T-0802.")
+
+
 def main():
     if not os.path.isdir(TODO):
         print("check-todo: TODO/ does not exist", file=sys.stderr)
@@ -799,6 +851,7 @@ def main():
 
     # -- 19. CI installs what a cargo build needs ----------------------------
     check_ci_components(files)
+    check_exit_codes(files)
 
     # -- 16. coverage --------------------------------------------------------
     # ⭐ A check that examined nothing reports success otherwise, which is the
