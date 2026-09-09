@@ -9,12 +9,13 @@ RESOLVER=8.8.8.8
 NSSWITCH=files compat
 GETENT_ROOT=root
 PM=zypper
-INSTALL_RC=104
-INSTALL_TAIL=Package 'glibc-devel' not found. 'gcc' not found in package names. Trying capabilities. No provider of 'gcc' found. 
-CC=none
-CC_VERSION=absent
-BUILD_RC=127
-BUILT_AND_RAN=no-compiler
+INSTALL_RC=0
+INSTALL_TAIL=(22/24) Installing: glibc-devel-2.38-150600.14.46.1.x86_64 [...done] (23/24) Installing: gcc7-7.5.0+r278197-150000.4.44.1.x86_64 [..........................done] (24/24) Installing: gcc-7-3.9.1.x86_64 [..done] 
+CC=/usr/bin/cc
+CC_VERSION=cc (SUSE Linux) 7.5.0
+BUILD_RC=0
+BUILD_TAIL=
+BUILT_AND_RAN=42
 --- the completion layer said
 podbox: complete: created dev/null (dev-node, T-0401): a real character device 1:3. This machine permits mknod(2), so podbox made the node rather than a shim
 podbox: complete: created dev/zero (dev-node, T-0401): a real character device 1:5. This machine permits mknod(2), so podbox made the node rather than a shim
@@ -26,6 +27,7 @@ podbox: complete: rewrote etc/nsswitch.conf (nsswitch, T-0410): passwd or group 
 podbox: complete: rewrote etc/mtab (mtab, T-0405): it was a symlink to /proc/self/mounts, and /proc is not mounted inside a chroot, so the link does not resolve. ⛔ podbox REPLACED the link rather th
 podbox: complete: rewrote etc/ssl/ca-bundle.pem (ca-bundle, T-0407): APPENDED this machine's CA bundle (228527 bytes, announced in $SSL_CERT_FILE as /root/.ccr/ca-bundle.crt). The image's own roots ar
 podbox: complete: created etc/ssl/cert.pem (ca-bundle, T-0407): APPENDED this machine's CA bundle (228527 bytes, announced in $SSL_CERT_FILE as /root/.ccr/ca-bundle.crt). The image's own roots are kep
+podbox: complete: rewrote etc/ssl/certs (ca-hash-dir, T-0412): 22 of this machine's 152 announced roots are not in this image's CApath; written as one certificate per file (podbox-host-ca-*.pem), 22 c
 podbox: complete: rewrote etc/zypp/repos.d/repo-backports-debug-update.repo (source-scheme, T-0411): http:// -> https:// for download.opensuse.org. ⛔ The scheme only: the mirror this image chose is 
 podbox: complete: rewrote etc/zypp/repos.d/repo-backports-update.repo (source-scheme, T-0411): http:// -> https:// for download.opensuse.org. ⛔ The scheme only: the mirror this image chose is the mi
 podbox: complete: rewrote etc/zypp/repos.d/repo-debug-non-oss.repo (source-scheme, T-0411): http:// -> https:// for download.opensuse.org. ⛔ The scheme only: the mirror this image chose is the mirro
@@ -40,25 +42,12 @@ podbox: complete: rewrote etc/zypp/repos.d/repo-sle-update.repo (source-scheme, 
 podbox: complete: rewrote etc/zypp/repos.d/repo-source.repo (source-scheme, T-0411): http:// -> https:// for download.opensuse.org. ⛔ The scheme only: the mirror this image chose is the mirror podbo
 podbox: complete: rewrote etc/zypp/repos.d/repo-update-non-oss.repo (source-scheme, T-0411): http:// -> https:// for download.opensuse.org. ⛔ The scheme only: the mirror this image chose is the mirr
 podbox: complete: rewrote etc/zypp/repos.d/repo-update.repo (source-scheme, T-0411): http:// -> https:// for download.opensuse.org. ⛔ The scheme only: the mirror this image chose is the mirror podbo
-podbox: complete: 24 fixup(s) applied to this image's rootfs, 3 degraded, 0 failed; libc=glibc. ⛔ These are edits podbox made inside somebody else's image and the payload can see them
+podbox: complete: step 1 of 1: `/usr/bin/openssl rehash /etc/ssl/certs` (ca-hash-dir, T-0412): /etc/ssl/certs is a hash-indexed CApath and OpenSSL looks a certificate up there by the hash of its subje
+podbox: complete: 25 fixup(s) applied to this image's rootfs, 4 degraded, 0 failed, 1 step(s) to run inside it; libc=glibc. ⛔ These are edits podbox made inside somebody else's image and the payload
+podbox: complete: step 1 of 1: `/usr/bin/openssl rehash /etc/ssl/certs` exited 0 in 0.0 s
 --- the last of stderr
 ownership: real; network: host-shared; pids: host-shared)
 probes: clone(NEWNS)=ok mount=ok fsmount=ok move_mount=ok
         clone(NEWUTS)=ok sethostname=ok chroot=ok ptrace=ok
 this mode does NOT provide: process, network, IPC or mount isolation
 ⚠ this machine would permit `namespace`; podbox's entry sequence is `chroot` and creates no namespace and mounts nothing
---- the control: the same subject under docker, no help
-ID=0:0
-DEVNULL=usable
-DEVNULL_WRITE=ok
-RESOLVER=8.8.8.8
-NSSWITCH=compat
-GETENT_ROOT=root
-PM=zypper
-INSTALL_RC=0
-INSTALL_TAIL=(22/24) Installing: glibc-devel-2.38-150600.14.46.1.x86_64 [..done] (23/24) Installing: gcc7-7.5.0+r278197-150000.4.44.1.x86_64 [...................done] (24/24) Installing: gcc-7-3.9.1.x86_64 [..done] 
-CC=/usr/bin/cc
-CC_VERSION=cc (SUSE Linux) 7.5.0
-BUILD_RC=0
-BUILD_TAIL=
-BUILT_AND_RAN=42

@@ -9,12 +9,13 @@ RESOLVER=8.8.8.8
 NSSWITCH=files
 GETENT_ROOT=root
 PM=xbps-install
-INSTALL_RC=2
-INSTALL_TAIL=SSL_connect returned 1 ERROR: [reposync] failed to fetch file `https://repo-default.voidlinux.org/current/musl/x86_64-musl-repodata': Operation not permitted ERROR: Package 'gcc' not found in repository pool. 
-CC=none
-CC_VERSION=absent
-BUILD_RC=127
-BUILT_AND_RAN=no-compiler
+INSTALL_RC=0
+INSTALL_TAIL=gcc-14.2.1+20250405_4: installed successfully. 28 downloaded, 28 installed, 0 updated, 28 configured, 0 removed, 0 on hold. 
+CC=/usr/bin/cc
+CC_VERSION=cc (GCC) 14.2.1 20250405
+BUILD_RC=0
+BUILD_TAIL=
+BUILT_AND_RAN=42
 --- the completion layer said
 podbox: complete: created dev/null (dev-node, T-0401): a real character device 1:3. This machine permits mknod(2), so podbox made the node rather than a shim
 podbox: complete: created dev/zero (dev-node, T-0401): a real character device 1:5. This machine permits mknod(2), so podbox made the node rather than a shim
@@ -26,24 +27,13 @@ podbox: complete: created etc/mtab (mtab, T-0405): it was absent. One line, gene
 podbox: complete: rewrote etc/ssl/certs/ca-certificates.crt (ca-bundle, T-0407): APPENDED this machine's CA bundle (228527 bytes, announced in $SSL_CERT_FILE as /root/.ccr/ca-bundle.crt). The image's 
 podbox: complete: created etc/ssl/ca-bundle.pem (ca-bundle, T-0407): APPENDED this machine's CA bundle (228527 bytes, announced in $SSL_CERT_FILE as /root/.ccr/ca-bundle.crt). The image's own roots ar
 podbox: complete: created etc/ssl/cert.pem (ca-bundle, T-0407): APPENDED this machine's CA bundle (228527 bytes, announced in $SSL_CERT_FILE as /root/.ccr/ca-bundle.crt). The image's own roots are kep
-podbox: complete: 10 fixup(s) applied to this image's rootfs, 4 degraded, 0 failed; libc=musl. ⛔ These are edits podbox made inside somebody else's image and the payload can see them
+podbox: complete: rewrote etc/ssl/certs (ca-hash-dir, T-0412): 152 of this machine's 152 announced roots are not in this image's CApath; written as one certificate per file (podbox-host-ca-*.pem), 152
+podbox: complete: step 1 of 1: `/usr/bin/openssl rehash /etc/ssl/certs` (ca-hash-dir, T-0412): /etc/ssl/certs is a hash-indexed CApath and OpenSSL looks a certificate up there by the hash of its subje
+podbox: complete: 11 fixup(s) applied to this image's rootfs, 5 degraded, 0 failed, 1 step(s) to run inside it; libc=musl. ⛔ These are edits podbox made inside somebody else's image and the payload 
+podbox: complete: step 1 of 1: `/usr/bin/openssl rehash /etc/ssl/certs` exited 0 in 0.1 s
 --- the last of stderr
-ownership: real; network: host-shared; pids: host-shared)
-probes: clone(NEWNS)=ok mount=ok fsmount=ok move_mount=ok
-        clone(NEWUTS)=ok sethostname=ok chroot=ok ptrace=ok
-this mode does NOT provide: process, network, IPC or mount isolation
-⚠ this machine would permit `namespace`; podbox's entry sequence is `chroot` and creates no namespace and mounts nothing
---- the control: the same subject under docker, no help
-ID=0:0
-DEVNULL=usable
-DEVNULL_WRITE=ok
-RESOLVER=8.8.8.8
-NSSWITCH=files
-GETENT_ROOT=root
-PM=xbps-install
-INSTALL_RC=2
-INSTALL_TAIL=SSL_connect returned 1 ERROR: [reposync] failed to fetch file `https://repo-default.voidlinux.org/current/musl/x86_64-musl-repodata': Operation not permitted ERROR: Package 'gcc' not found in repository pool. 
-CC=none
-CC_VERSION=absent
-BUILD_RC=127
-BUILT_AND_RAN=no-compiler
+rehash: warning: skipping duplicate certificate in podbox-host-ca-141.pem
+rehash: warning: skipping duplicate certificate in podbox-host-ca-142.pem
+rehash: warning: skipping duplicate certificate in podbox-host-ca-143.pem
+rehash: warning: skipping duplicate certificate in vTrus_ECC_Root_CA.pem
+rehash: warning: skipping duplicate certificate in vTrus_Root_CA.pem

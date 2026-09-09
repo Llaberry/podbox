@@ -86,7 +86,7 @@ the blocker named and what would clear it.
 | [T-0211](image.md) | P1 | image | done | An image lock outlives its holder whenever anything forks |
 | [T-0212](image.md) | P0 | image | done | The platform is decided at run time, and the store holds more than one |
 | [T-0213](image.md) | P0 | image | done | A registry with no certificate, or one nothing trusts, and the refusal kept |
-| [T-0214](image.md) | P2 | image | open | A blob body cut off mid-stream is not retried, and the bounded retry is around the wrong thing |
+| [T-0214](image.md) | P2 | image | done | A blob body cut off mid-stream is not retried, and the bounded retry is around the wrong thing |
 | [T-0301](extract.md) | P0 | extract | done | Extract in-process, at entry level, never through system `tar` |
 | [T-0302](extract.md) | P0 | extract | done | Ownership-neutral extraction plus the sidecar |
 | [T-0303](extract.md) | P0 | extract | done | Whiteouts are matched on the basename, never with a path glob |
@@ -159,7 +159,7 @@ the blocker named and what would clear it.
 | [T-1103](milestones.md) | P0 | milestones | done | M2 extraction that survives the ownership wall |
 | [T-1104](milestones.md) | P0 | milestones | done | M3 `run` on the chroot rung |
 | [T-1105](milestones.md) | P0 | milestones | done | M4 the lifecycle, twenty times |
-| [T-1106](milestones.md) | P1 | milestones | partial | M5 environment completion, ten distributions |
+| [T-1106](milestones.md) | P1 | milestones | done | M5 environment completion, ten distributions |
 | [T-1107](milestones.md) | P1 | milestones | open | M6 the interposer |
 | [T-1108](milestones.md) | P2 | milestones | open | M7 packaging |
 | [T-1109](milestones.md) | P1 | milestones | partial | The negative tests, which are tests |
@@ -172,7 +172,7 @@ the blocker named and what would clear it.
 
 ## Counts
 
-109 items: 21 open, 3 partial, 2 blocked, 83 done.
+109 items: 20 open, 2 partial, 2 blocked, 85 done.
 
 Counted from the rows above by `scripts/todo-count.py` and asserted
 independently by `scripts/check-todo.py`, which is the gate. A number here
@@ -181,10 +181,10 @@ that disagrees with the rows cannot reach a commit.
 | Priority | Open | Partial | Blocked | Done | Total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 5 | 0 | 1 | 43 | 49 |
-| P1 | 6 | 3 | 1 | 30 | 40 |
-| P2 | 7 | 0 | 0 | 9 | 16 |
+| P1 | 6 | 2 | 1 | 31 | 40 |
+| P2 | 6 | 0 | 0 | 10 | 16 |
 | P3 | 3 | 0 | 0 | 1 | 4 |
-| **All** | **21** | **3** | **2** | **83** | **109** |
+| **All** | **20** | **2** | **2** | **85** | **109** |
 
 ## How the current ordering is derived
 

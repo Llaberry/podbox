@@ -909,6 +909,23 @@ impl Write for StagedFile {
     }
 }
 
+/// ⭐ [`TODO/image.md`](../../../TODO/image.md) T-0214. A transfer that was cut
+/// short starts again on this same file, under the same lock and at the same
+/// name: the alternative is a second staging path per attempt, and a sweep that
+/// has to tell them apart.
+///
+/// ⛔ Truncate AND rewind. `set_len(0)` alone leaves the offset where the failed
+/// attempt left it, so the next byte lands two megabytes in and the file is a
+/// hole followed by the retry.
+impl crate::registry::Restart for StagedFile {
+    fn restart(&mut self) -> std::io::Result<()> {
+        use std::io::Seek;
+        self.file.set_len(0)?;
+        self.file.seek(std::io::SeekFrom::Start(0))?;
+        Ok(())
+    }
+}
+
 /// An advisory lock held for as long as this value lives.
 pub struct Lock {
     fd: i64,
@@ -1109,6 +1126,27 @@ mod tests {
         let (b, _fb) = s.stage("layer").unwrap();
         assert_ne!(a, b, "one process staged two blobs over one name");
         assert!(a.is_file() && b.is_file());
+        let _ = std::fs::remove_dir_all(s.root());
+    }
+
+    /// ⭐ T-0214. A restarted transfer writes byte zero at offset zero, and the
+    /// file holds ONLY the second attempt.
+    ///
+    /// ⛔ Truncate AND rewind, which is what this asserts by writing something
+    /// SHORTER the second time: `set_len(0)` alone leaves the offset where the
+    /// cut-short attempt left it, so the retry lands past a hole and the file is
+    /// longer than what arrived. ⚠ On a sparse filesystem that hole reads back
+    /// as NUL bytes and the digest fails a long way from the cause.
+    #[test]
+    fn a_restarted_staging_file_holds_only_the_second_attempt() {
+        use crate::registry::Restart;
+        let s = scratch("restart");
+        let (path, mut f) = s.stage("layer").unwrap();
+        f.write_all(b"the first attempt, cut short").unwrap();
+        f.restart().unwrap();
+        f.write_all(b"second").unwrap();
+        f.flush().unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"second");
         let _ = std::fs::remove_dir_all(s.root());
     }
 

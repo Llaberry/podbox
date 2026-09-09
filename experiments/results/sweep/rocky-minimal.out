@@ -32,7 +32,7 @@ podbox: complete: rewrote etc/yum.repos.d/rocky-devel.repo (source-scheme, T-041
 podbox: complete: rewrote etc/yum.repos.d/rocky-extras.repo (source-scheme, T-0411): http:// -> https:// for dl.rockylinux.org. ⛔ The scheme only: the mirror this image chose is the mirror podbox us
 podbox: complete: rewrote etc/yum.repos.d/rocky-security.repo (source-scheme, T-0411): http:// -> https:// for dl.rockylinux.org. ⛔ The scheme only: the mirror this image chose is the mirror podbox 
 podbox: complete: rewrote etc/yum.repos.d/rocky.repo (source-scheme, T-0411): http:// -> https:// for dl.rockylinux.org. ⛔ The scheme only: the mirror this image chose is the mirror podbox uses
-podbox: complete: 15 fixup(s) applied to this image's rootfs, 3 degraded, 0 failed; libc=glibc. ⛔ These are edits podbox made inside somebody else's image and the payload can see them
+podbox: complete: 15 fixup(s) applied to this image's rootfs, 3 degraded, 0 failed, 0 step(s) to run inside it; libc=glibc. ⛔ These are edits podbox made inside somebody else's image and the payload
 --- the last of stderr
 ownership: real; network: host-shared; pids: host-shared)
 probes: clone(NEWNS)=ok mount=ok fsmount=ok move_mount=ok

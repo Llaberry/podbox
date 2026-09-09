@@ -25,6 +25,17 @@ use crate::digest::{Digest, Verifier};
 use crate::error::{Error, Result};
 use crate::oci;
 
+/// A sink a cut-short transfer can start over on.
+///
+/// ⭐ [`TODO/image.md`](../../../TODO/image.md) T-0214. `blob` owns the retry, so
+/// it has to own "throw away what arrived": a caller that reset a sink it did
+/// not fill is a second place to get the same thing wrong, and the verifier
+/// already owns the question of whether every byte arrived.
+pub trait Restart {
+    /// Discard everything written so far and be ready to receive byte zero.
+    fn restart(&mut self) -> std::io::Result<()>;
+}
+
 /// ⚠ Bounds a stalled read, not a large transfer. A blob is streamed, so an
 /// overall deadline would fail a slow but healthy download; this fails a
 /// connection that has stopped producing bytes.
@@ -221,23 +232,82 @@ impl Client {
     /// checks a payload's hash before an in-memory exec; a layer about to be
     /// extracted as root is the same case. The caller receives the sink back
     /// only when both the digest and the byte count matched.
-    pub fn blob<W: Write>(
+    /// ⭐ **[`TODO/image.md`](../../../TODO/image.md) T-0214. The retry is around
+    /// the WHOLE transfer and not around the request that starts it.**
+    ///
+    /// ⛔ [`Registry::get`] retries the request; a body that dies after the
+    /// first byte is past it. Measured on 2026-09-09 by
+    /// `experiments/240-distro-sweep.sh`: the `fedora` row reported `no-pull`
+    /// twice, both times with `response body closed before all bytes were read`
+    /// after **2,097,153** bytes -- two mebibytes and one byte, which is a proxy
+    /// cutting a transfer rather than a registry ending one -- and both times
+    /// the identical pull succeeded on the next attempt.
+    ///
+    /// ⛔ **A partial body is never committed and never counted**: the sink is
+    /// restarted and a fresh [`Verifier`] hashes the next attempt, so the digest
+    /// is always over one whole transfer.
+    ///
+    /// ⛔ **A `Range` request is NOT the mechanism.** Resuming at an offset means
+    /// trusting that the prefix already on disk is the prefix of the blob podbox
+    /// asked for, which is exactly what the digest exists to establish and
+    /// cannot establish until the last byte.
+    ///
+    /// ⚠ Only a TRANSPORT failure is retried. A digest or size mismatch is a
+    /// registry serving different bytes, and asking it again is a spiral.
+    pub fn blob<W: Write + Restart>(
         &mut self,
         endpoint: &str,
         repository: &str,
         want: &Digest,
         size: Option<u64>,
-        sink: W,
+        mut sink: W,
+        out: &mut dyn Write,
     ) -> Result<W> {
         let path = format!("/v2/{repository}/blobs/{want}");
         let scope = format!("repository:{repository}:pull");
-        let resp = self.get(&path, endpoint, &scope, None)?;
+        let mut last: Option<Error> = None;
+        for attempt in 0..ATTEMPTS {
+            if attempt > 0 {
+                // ⛔ ANNOUNCED, one line. podbox's audience is automated, and a
+                // pull that quietly took three tries is a link degrading with
+                // nothing to show for it.
+                let _ = writeln!(
+                    out,
+                    "{}: the body was cut short; retrying it, attempt {} of \
+                     {ATTEMPTS}",
+                    want.short(),
+                    attempt + 1
+                );
+                std::thread::sleep(backoff(attempt, None));
+                sink.restart()
+                    .map_err(|e| Error::io(format!("restarting blob {want}"), e))?;
+            }
+            let resp = self.get(&path, endpoint, &scope, None)?;
+            match Client::drain(resp, &mut sink, want, size, &path) {
+                Ok(()) => return Ok(sink),
+                // ⚠ Anything that is not a transport failure is the registry's
+                // answer and not the link's.
+                Err(e @ Error::Http { .. }) => last = Some(e),
+                Err(e) => return Err(e),
+            }
+        }
+        Err(last.expect("ATTEMPTS is at least 1 and the loop only exits on Ok or Err"))
+    }
+
+    /// One whole body, hashed and counted as it is written.
+    fn drain<W: Write>(
+        resp: ureq::Response,
+        sink: &mut W,
+        want: &Digest,
+        size: Option<u64>,
+        path: &str,
+    ) -> Result<()> {
         let mut verifier = Verifier::new(sink);
         let mut reader = resp.into_reader();
         let mut buf = vec![0u8; 128 * 1024];
         loop {
             let n = reader.read(&mut buf).map_err(|e| Error::Http {
-                what: format!("GET {}", redact(&path)),
+                what: format!("GET {}", redact(path)),
                 detail: format!(
                     "reading the blob body after {} byte(s): {e}",
                     verifier.written()
@@ -250,7 +320,8 @@ impl Client {
                 .write_all(&buf[..n])
                 .map_err(|e| Error::io(format!("blob {want}"), e))?;
         }
-        verifier.finish(&format!("blob {want}"), want, size)
+        verifier.finish(&format!("blob {want}"), want, size)?;
+        Ok(())
     }
 
     /// One GET, with the bearer dance and the bounded retry around it.

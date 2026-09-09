@@ -26,10 +26,13 @@ podbox: complete: rewrote etc/hosts (hosts, T-0403): localhost
 podbox: complete: rewrote etc/mtab (mtab, T-0405): it was a symlink to ../proc/self/mounts, and /proc is not mounted inside a chroot, so the link does not resolve. ⛔ podbox REPLACED the link rather 
 podbox: complete: rewrote etc/ssl/certs/ca-certificates.crt (ca-bundle, T-0407): APPENDED this machine's CA bundle (228527 bytes, announced in $SSL_CERT_FILE as /root/.ccr/ca-bundle.crt). The image's 
 podbox: complete: created etc/ssl/ca-bundle.pem (ca-bundle, T-0407): APPENDED this machine's CA bundle (228527 bytes, announced in $SSL_CERT_FILE as /root/.ccr/ca-bundle.crt). The image's own roots ar
-podbox: complete: 9 fixup(s) applied to this image's rootfs, 3 degraded, 0 failed; libc=glibc. ⛔ These are edits podbox made inside somebody else's image and the payload can see them
+podbox: complete: rewrote etc/ssl/certs (ca-hash-dir, T-0412): 152 of this machine's 152 announced roots are not in this image's CApath; written as one certificate per file (podbox-host-ca-*.pem), 152
+podbox: complete: step 1 of 1: `/usr/bin/openssl rehash /etc/ssl/certs` (ca-hash-dir, T-0412): /etc/ssl/certs is a hash-indexed CApath and OpenSSL looks a certificate up there by the hash of its subje
+podbox: complete: 10 fixup(s) applied to this image's rootfs, 4 degraded, 0 failed, 1 step(s) to run inside it; libc=glibc. ⛔ These are edits podbox made inside somebody else's image and the payload
+podbox: complete: step 1 of 1: `/usr/bin/openssl rehash /etc/ssl/certs` exited 0 in 0.1 s
 --- the last of stderr
-ownership: real; network: host-shared; pids: host-shared)
-probes: clone(NEWNS)=ok mount=ok fsmount=ok move_mount=ok
-        clone(NEWUTS)=ok sethostname=ok chroot=ok ptrace=ok
-this mode does NOT provide: process, network, IPC or mount isolation
-⚠ this machine would permit `namespace`; podbox's entry sequence is `chroot` and creates no namespace and mounts nothing
+rehash: warning: skipping duplicate certificate in podbox-host-ca-141.pem
+rehash: warning: skipping duplicate certificate in podbox-host-ca-142.pem
+rehash: warning: skipping duplicate certificate in podbox-host-ca-143.pem
+rehash: warning: skipping duplicate certificate in vTrus_ECC_Root_CA.pem
+rehash: warning: skipping duplicate certificate in vTrus_Root_CA.pem

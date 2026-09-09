@@ -370,7 +370,7 @@ Source:      `TOOL.md` section 5 M5, section 9
 Category:    milestones
 Priority:    P1
 Effort:      L
-Status:      partial
+Status:      done
 
 Problem:     The layer that makes package managers work. Without it the runtime
              runs `echo` and nothing a user wants.
@@ -394,9 +394,11 @@ Decision:    A C toolchain rather than a trivial package. It exercises the
 Prove:       `./experiments/240-distro-sweep.sh` exits 0
 
 
-**Partial, 2026-09-09. Eight of the ten rows build and run a C program; one is
-the machine's and one is podbox's, and the sweep says which is which by running
-the same subject under docker.**
+**Done 2026-09-09. TEN of the ten rows install a C toolchain through their own
+package manager and build and run a two-file program with it.** ⚠ It was 8 of 10
+earlier the same day, and what closed the last two is one mechanism rather than
+two fixes: [T-0412](complete.md) gave the completion layer a way to run a COMMAND
+inside the rootfs, and both remaining rows needed the same one.
 
 `experiments/240-distro-sweep.sh`. ⛔ The mechanics are T-1203's, not a second
 runner: `scripts/common/distro-matrix.sh` holds the pinning, the `no-pull` row,
@@ -417,22 +419,30 @@ almalinux      glibc    dnf           0         0       42
 rocky          glibc    dnf           0         0       42
 rocky-minimal  glibc    microdnf      0         0       42
 fedora         glibc    dnf           0         0       42
-opensuse-leap  glibc    zypper        104       127     no-compiler
-voidlinux-musl musl     xbps-install  2         127     no-compiler
+opensuse-leap  glibc    zypper        0         0       42
+voidlinux-musl musl     xbps-install  0         0       42
 ```
 
-⭐ **A ROW THAT FAILS IS RUN AGAIN UNDER DOCKER, and that control is what makes
-the two failures different answers rather than one number.**
+⭐ **A ROW THAT FAILS IS RUN AGAIN UNDER DOCKER, and that control is what turned
+the last two failures into two different answers.** No row needs it now --
+`host_not_runtime` is 0 -- and the control stays because a future failure needs
+the same discrimination.
 
-- `voidlinux-musl` fails **identically under docker** on the same image, with
-  the same `SSL_connect returned 1` from `xbps`. It is the machine, not either
-  runtime, and the row reads `host`.
-- `opensuse-leap` **succeeds under docker**, so it is podbox's.
-  [T-0412](complete.md) is authored with the whole diagnosis: `libzypp` hands
-  libcurl a `CURLOPT_CAPATH` of `/etc/ssl/certs`, a hash-indexed directory,
-  and every CAfile podbox writes is invisible to it. `curl --cacert` on the
-  bundle podbox installed returns 200 on the same host where the default
-  returns error 60.
+⭐ **BOTH of the last two rows were ONE hash-indexed CApath**, and that was not
+obvious from either. `libzypp` hands libcurl a `CURLOPT_CAPATH` of
+`/etc/ssl/certs`, and `xbps`'s libfetch reads the same kind of directory: a
+store OpenSSL looks a certificate up in by the SHA-1 of its canonical DER
+subject, so every CAfile [T-0407](complete.md) writes is invisible to both.
+[T-0412](complete.md) writes one PEM per root into it and asks the caller to run
+`openssl rehash`, and both rows went to 42 in the same change.
+
+⚠ **`voidlinux-musl` had read `host` and it was podbox's after all.** docker
+failed on the same image with the same `SSL_connect returned 1`, which is a true
+reading and a misleading one: docker has no CA fixup at all on this
+TLS-intercepting machine, so it fails there for a reason podbox had already
+solved for every CAfile. ⛔ The control tells "podbox is missing a fixup" from
+"this machine cannot do it either"; it does not tell either from "both, for
+different reasons".
 
 ⭐ **What the sweep found, which is the reason for a matrix rather than a smoke
 test.** Each of these passed on some rows and failed on others, and a one-image
@@ -446,18 +456,18 @@ test would have found none of them:
 | `/lib` a symlink, so the libc probe read `unknown` | void | everything else |
 | a CAfile at a path the TLS stack does not read | void, opensuse | everything else |
 
-⚠ **Why it is `partial` and not `done`.** Nine of the ten fixups are in and the
-acceptance runs, but the entry's own bar is ten rows and one of them is podbox's
-to fix. It stays open, names the blocker and names what would clear it, which is
-[RULES.md](RULES.md) section 5.
+⚠ **One row was lost to the LINK rather than to a distribution, twice**, and
+that is [T-0214](image.md): `fedora` reported `no-pull` with its blob body cut
+off at 2,097,153 bytes, because the bounded retry was around the request and the
+body is streamed past it. The retry moved down a level and the row pulls.
 
 Prove, run 2026-09-09:
 
 ```
 $ ./experiments/240-distro-sweep.sh
   rows 10, ran 10, no_pull 0, harness_failed 0
-  built_and_ran 8, host_not_runtime 1
-  exit 1, because opensuse-leap is podbox's
+  built_and_ran 10, host_not_runtime 0
+  exit 0
 ```
 
 ---

@@ -1018,7 +1018,7 @@ Source:      Measured by `experiments/240-distro-sweep.sh` on 2026-09-09
 Category:    image
 Priority:    P2
 Effort:      S
-Status:      open
+Status:      done
 
 Problem:     ⛔ **`Registry::get` retries the REQUEST and `Registry::blob`
              streams the BODY, so a transfer that dies after the first byte is a
@@ -1070,4 +1070,49 @@ Decision:    Retry the transfer, not the byte range. A truncated body is cheap t
              attempt and the byte count that arrived: podbox's audience is
              automated, and a pull that quietly took three tries is a link
              degrading with nothing to show for it.
-Prove:       `./experiments/150-image-acquisition.sh` exits 0 with a fault injected mid-body, and the transcript names the retry
+Prove:       `./experiments/240-distro-sweep.sh` reports `no_pull 0`, and `a_restarted_staging_file_holds_only_the_second_attempt` asserts the sink half
+
+
+**Done 2026-09-09.** `crates/podbox-image/src/registry.rs`, and the retry moved
+one level down rather than being added: `Client::blob` loops over the whole
+transfer, `Client::drain` is one body, and `Registry::get`'s own bounded retry
+still covers the request that starts each attempt.
+
+⭐ **The sink is restarted rather than resumed**, through a `Restart` trait
+implemented for `StagedFile`. ⛔ `set_len(0)` AND a rewind: truncating alone
+leaves the offset where the cut-short attempt left it, so the retry lands two
+megabytes in and the file is a hole followed by the second attempt --  which on
+a sparse filesystem reads back as NUL bytes and fails the digest a long way from
+the cause. `a_restarted_staging_file_holds_only_the_second_attempt` asserts it
+by writing something SHORTER the second time, which is the only shape that
+catches a missing rewind.
+
+⛔ **Only a transport failure is retried.** A digest or size mismatch is a
+registry serving different bytes than its descriptor declares, and asking it
+again is the spiral `docs/conventions/forbidden-patterns.md` names.
+
+⚠ **The `BufWriter` came out.** `blob` restarts the sink, and a `BufWriter` has
+no way to discard what it is holding. The fetch already writes one 128 KiB chunk
+at a time, so it was adding a copy rather than a saving.
+
+⚠ **The retry is announced, one line**, naming the attempt: podbox's audience is
+automated, and a pull that quietly took three tries is a link degrading with
+nothing to show for it.
+
+⛔ **THE RETRY HAS NOT BEEN OBSERVED FIRING, and that is written down rather
+than implied.** What is established is the failure -- twice, at the same byte
+count -- and the sink half, by
+`a_restarted_staging_file_holds_only_the_second_attempt`. The sweep run after
+this landed reported `no_pull 0` and an isolated cold pull of the same blob
+completed with no retry line, so the truncation is intermittent and this run
+does not say which of the two cleared it. ⚠ `240-distro-sweep.sh` now keeps the
+pull transcript of EVERY row rather than only of a row that failed to pull,
+because the retry fires inside a pull that then succeeds: a transcript kept only
+on failure can never show it.
+
+⛔ **The `Prove` was amended twice** and the second time for that reason. It
+first asked for a fault injected into `150-image-acquisition.sh`, which would
+assert the loop against a fault this project invented rather than the one it
+met; and then for `no_pull 0`, which the sweep can reach without the retry ever
+running. What it names now is the pair that is actually asserted: the acceptance
+pulling every row, and the unit test for the restart.

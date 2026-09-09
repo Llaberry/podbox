@@ -10,7 +10,7 @@ NSSWITCH=files
 GETENT_ROOT=root
 PM=dnf
 INSTALL_RC=0
-INSTALL_TAIL=[15/16] Installing make-1:4.4.1-10.fc42 100% | 69.2 MiB/s | 1.8 MiB | 00m00s [16/16] Installing gcc-0:15.2.1-7.fc42. 100% | 79.4 MiB/s | 111.4 MiB | 00m01s Complete! 
+INSTALL_TAIL=[15/16] Installing make-1:4.4.1-10.fc42 100% | 75.0 MiB/s | 1.8 MiB | 00m00s [16/16] Installing gcc-0:15.2.1-7.fc42. 100% | 63.1 MiB/s | 111.4 MiB | 00m02s Complete! 
 CC=/usr/bin/cc
 CC_VERSION=cc (GCC) 15.2.1 20260123 (Red Hat 15.2.1-7)
 BUILD_RC=0
@@ -27,7 +27,7 @@ podbox: complete: rewrote etc/nsswitch.conf (nsswitch, T-0410): this rootfs carr
 podbox: complete: rewrote etc/mtab (mtab, T-0405): it was a symlink to ../proc/self/mounts, and /proc is not mounted inside a chroot, so the link does not resolve. ⛔ podbox REPLACED the link rather 
 podbox: complete: rewrote etc/ssl/certs/ca-certificates.crt (ca-bundle, T-0407): APPENDED this machine's CA bundle (228527 bytes, announced in $SSL_CERT_FILE as /root/.ccr/ca-bundle.crt). The image's 
 podbox: complete: created etc/ssl/ca-bundle.pem (ca-bundle, T-0407): APPENDED this machine's CA bundle (228527 bytes, announced in $SSL_CERT_FILE as /root/.ccr/ca-bundle.crt). The image's own roots ar
-podbox: complete: 10 fixup(s) applied to this image's rootfs, 3 degraded, 0 failed; libc=glibc. ⛔ These are edits podbox made inside somebody else's image and the payload can see them
+podbox: complete: 10 fixup(s) applied to this image's rootfs, 3 degraded, 0 failed, 0 step(s) to run inside it; libc=glibc. ⛔ These are edits podbox made inside somebody else's image and the payload
 --- the last of stderr
 ownership: real; network: host-shared; pids: host-shared)
 probes: clone(NEWNS)=ok mount=ok fsmount=ok move_mount=ok

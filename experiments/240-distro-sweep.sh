@@ -239,6 +239,12 @@ while IFS='|' read -r ref name libc digest; do
 	row_rc=$?
 	{
 		printf '# %s\n# pinned %s\n# podbox run exit %s\n' "$name" "$pinned" "$row_rc"
+		# ⚠ THE PULL TRANSCRIPT TRAVELS WITH EVERY ROW, not only with a row that
+		# failed to pull. T-0214's retry fires inside a pull that then succeeds,
+		# and a transcript kept only on failure can never show it: the run that
+		# needed it is exactly the run that no longer fails.
+		echo "--- the pull"
+		tail -4 "$WORK/pull.$name" | cut -c1-200
 		echo "--- stdout"
 		cat "$WORK/out.$name"
 		echo "--- the completion layer said"

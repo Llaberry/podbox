@@ -203,20 +203,16 @@ pub fn pull(
         // ⚠ A staged file left behind by a failed fetch is removed here rather
         // than swept later: it is named by this process's pid and nothing else
         // will ever claim it.
+        // ⚠ No `BufWriter`. T-0214 restarts this sink on a body that was cut
+        // short, and a `BufWriter` has no way to discard what it is holding; the
+        // fetch already writes one 128 KiB chunk at a time, so the buffer was
+        // adding a copy rather than a saving.
         let result = client
-            .blob(
-                &endpoint,
-                &repository,
-                &d,
-                Some(descriptor.size),
-                std::io::BufWriter::new(file),
-            )
+            .blob(&endpoint, &repository, &d, Some(descriptor.size), file, out)
             .and_then(|mut w| {
                 w.flush()
                     .map_err(|e| Error::io(staged.display().to_string(), e))?;
-                w.into_inner()
-                    .map_err(|e| Error::io(staged.display().to_string(), e.into_error()))?
-                    .sync_all()
+                w.sync_all()
                     .map_err(|e| Error::io(staged.display().to_string(), e))
             })
             .and_then(|()| store.commit(&staged, &d));
