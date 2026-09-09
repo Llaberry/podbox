@@ -185,7 +185,7 @@ $ ./experiments/320-cli-contract.sh
 
 ## Counts
 
-109 entries: 19 open, 2 partial, 2 blocked, 86 done.
+109 entries: 17 open, 3 partial, 2 blocked, 87 done.
 
 ⭐ **Fifteen entries closed and three are `partial`.** [T-0503](enter.md) waits
 on a machine nobody here can reach; [T-1106](milestones.md) is 8 of 10 rows and

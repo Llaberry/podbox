@@ -1,0 +1,34 @@
+/* The version script. TODO/interpose.md T-0701 constraint 1.
+ *
+ * ⛔ A default Rust cdylib exports `rust_eh_personality` and the rest of its
+ * runtime into every process it is loaded into, and this object is loaded into
+ * every process of a container. What is global here is exactly the set of libc
+ * entry points podbox interposes; everything else is local.
+ *
+ * ⚠ The list is the same one `src/lib.rs` exports with `#[no_mangle]`, and
+ * `experiments/105-interpose-ownership.sh` check A asserts the two agree: a
+ * symbol in one and not the other is either a silent non-interposition or a
+ * symbol some other library in the payload's process resolves to podbox.
+ */
+{
+  global:
+    chown;
+    lchown;
+    fchown;
+    fchownat;
+    stat;
+    lstat;
+    fstat;
+    fstatat;
+    stat64;
+    lstat64;
+    fstat64;
+    fstatat64;
+    __xstat;
+    __lxstat;
+    __fxstat;
+    __fxstatat;
+    statx;
+  local:
+    *;
+};

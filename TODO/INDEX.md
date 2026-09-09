@@ -120,10 +120,10 @@ the blocker named and what would clear it.
 | [T-0606](supervise.md) | P0 | supervise | blocked | The notification tier: probe three legs, refuse the tier, never fall back per call |
 | [T-0607](supervise.md) | P0 | supervise | done | The lifecycle, twenty times, twenty passes |
 | [T-0608](supervise.md) | P1 | supervise | done | A detached container that reads `exited` with no launcher, seen twice and not reproduced |
-| [T-0701](interpose.md) | P0 | interpose | open | The cdylib build constraints |
+| [T-0701](interpose.md) | P0 | interpose | done | The cdylib build constraints |
 | [T-0702](interpose.md) | P0 | interpose | open | One object per libc, and it must live inside the rootfs |
 | [T-0703](interpose.md) | P0 | interpose | open | Path virtualization: the entry-point set and `*at` resolution |
-| [T-0704](interpose.md) | P0 | interpose | open | Ownership virtualization: the half a path interposer does not have |
+| [T-0704](interpose.md) | P0 | interpose | partial | Ownership virtualization: the half a path interposer does not have |
 | [T-0705](interpose.md) | P1 | interpose | open | Reverse mapping, so the payload reads back what it wrote |
 | [T-0706](interpose.md) | P0 | interpose | open | Classify the payload and decline with a named reason |
 | [T-0707](interpose.md) | P1 | interpose | open | The paths that must not be rewritten |
@@ -172,7 +172,7 @@ the blocker named and what would clear it.
 
 ## Counts
 
-109 items: 19 open, 2 partial, 2 blocked, 86 done.
+109 items: 17 open, 3 partial, 2 blocked, 87 done.
 
 Counted from the rows above by `scripts/todo-count.py` and asserted
 independently by `scripts/check-todo.py`, which is the gate. A number here
@@ -180,11 +180,11 @@ that disagrees with the rows cannot reach a commit.
 
 | Priority | Open | Partial | Blocked | Done | Total |
 | --- | --- | --- | --- | --- | --- |
-| P0 | 5 | 0 | 1 | 43 | 49 |
+| P0 | 3 | 1 | 1 | 44 | 49 |
 | P1 | 5 | 2 | 1 | 32 | 40 |
 | P2 | 6 | 0 | 0 | 10 | 16 |
 | P3 | 3 | 0 | 0 | 1 | 4 |
-| **All** | **19** | **2** | **2** | **86** | **109** |
+| **All** | **17** | **3** | **2** | **87** | **109** |
 
 ## How the current ordering is derived
 

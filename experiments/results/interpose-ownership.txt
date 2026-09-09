@@ -1,0 +1,65 @@
+== conditions
+date              2026-09-09T18:33:56Z
+host kernel       6.18.44-fc-v24
+host libc         ldd (Ubuntu GLIBC 2.39-0ubuntu8.7) 2.39
+zig               0.16.0
+docker            29.3.1
+glibc payload     quay.io/fedora/fedora@sha256:e78cd1a688cd079c23864f289a89a49a3f4ad66d817864e325e1d058310ee95c
+glibc too old     ubuntu@sha256:c664f8f86ed5a386b0a340d981b8f81714e21a8b9c73f658c4bea56aa179d54a
+musl payload      alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+
+== A. the exported set, against the version script
+  declared in interpose.map  17
+  exported by the gnu object 17
+  exported by the musl object 17
+ok   A: the gnu object exports exactly what interpose.map declares
+ok   A: the musl object exports exactly what interpose.map declares
+  rust_eh_personality in the gnu object: 0
+  rust_eh_personality in the musl object: 0
+
+== B. struct stat offsets, by offsetof and under both libcs
+  glibc  sizeof=144 dev=0 ino=8 mode=24 uid=28 gid=32
+  musl   sizeof=144 dev=0 ino=8 mode=24 uid=28 gid=32
+ok   B: both libcs agree, and with the offsets src/lib.rs carries
+
+== C. the control: a machine that CAN chown, with the object loaded
+  CHOWN_RC=0
+  CHOWN_ERR=
+  STAT=0:42
+  MEMO=none
+ok   C: the real chown worked and podbox wrote no memo
+
+== D. the wall, glibc: root WITHOUT CAP_CHOWN
+  without the object:
+    CHOWN_RC=1
+    CHOWN_ERR=chown: changing ownership of '/tmp/f': Operation not permitted
+    STAT=0:0
+    MEMO=none
+  with the object:
+    CHOWN_RC=0
+    CHOWN_ERR=
+    STAT=0:42
+    MEMO=32
+ok   D: the bare chown failed (rc=1) and podbox's answered 0:42
+
+== E. the wall, musl, with the musl-linked object
+  without the object:
+    CHOWN_RC=1
+    CHOWN_ERR=chown: /tmp/f: Operation not permitted
+    STAT=0:0
+    MEMO=none
+  with the object:
+    CHOWN_RC=0
+    CHOWN_ERR=
+    STAT=0:42
+    MEMO=32
+ok   E: the musl object answered 0:42 where the bare chown failed (rc=1)
+
+== F. the pair podbox must refuse BEFORE loading anything
+  podbox system abi: rc=1 refused: crates/podbox-interpose/target/x86_64-unknown-linux-gnu/release/libpodbox_interpose.so impo
+  and the loader:    GLIBC_2.34' not found
+ok   F: the reader refused the pair from ELF and the loader agreed
+
+== verdict
+  every check ran and matched. podbox's own object clears the ownership
+  wall and stays quiet where there is none.

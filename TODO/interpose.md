@@ -23,7 +23,7 @@ Source:      `TOOL.md` section 6.7; `experiments/results/interposer-libc.txt`
 Category:    interpose
 Priority:    P0
 Effort:      M
-Status:      open
+Status:      done
 
 Problem:     This object runs inside other people's processes. A default Rust
              cdylib exports `rust_eh_personality` and friends into every process
@@ -74,7 +74,50 @@ Decision:    A `dlsym(RTLD_NEXT, ...)` result cached in a `static` per entry
              `references/VHSgunzo__pathmap/tree/path-mapping.c:603-606` does.
              The alternative, resolving on every call, is a `dlsym` inside every
              intercepted `open`.
-Prove:       `./scripts/build-interpose.sh && nm -D --defined-only crates/podbox-interpose/target/x86_64-unknown-linux-gnu/release/libpodbox_interpose.so | grep -c ' T rust_eh_personality' | grep -qx 0`
+Prove:       `./experiments/105-interpose-ownership.sh` exits 0, and its check A asserts the exported set against `interpose.map` and that `rust_eh_personality` is not in it
+
+
+**Done 2026-09-09.** `crates/podbox-interpose/`, and all four constraints are
+asserted rather than intended.
+
+⭐ **`interpose.map` is the version script and check A compares the OBJECT with
+it**, in both directions and for both libcs: 17 declared, 17 exported, and 0
+`rust_eh_personality`. ⛔ Comparing the object with the script rather than
+counting exports is what makes it a check: a name in the script that `src/lib.rs`
+does not define is a silent non-interposition, and one the object exports that
+the script does not list is a symbol some other library in the payload's process
+resolves to podbox.
+
+⛔ **`scripts/build-interpose.sh` produced TWO GLIBC OBJECTS and exited 0.** The
+`x86_64-unknown-linux-musl` object recorded `libc.so.6`, `libgcc_s.so.1` and
+`ld-linux-x86-64.so.2` in `DT_NEEDED`, because `rustc` passes `-lgcc_s` on that
+target even under `panic = "abort"` and the host `cc` then linked it against the
+host's glibc. The script passes `scripts/zig-cc.sh` as the linker now and
+**asserts `DT_NEEDED` after every build**, on an exact word: `libc.so.6` contains
+`libc.so`, so a substring test would call a glibc object musl-linked, which is
+the very mistake being caught.
+
+The four constraints, and how each is met:
+
+1. **the version script**, above;
+2. ⭐ **no allocation and no lock on an interposed path.** Every buffer is on the
+   stack, the `dlsym` cache is one `AtomicPtr` per entry point resolved on first
+   use, and the memo needs no lock at all because `O_APPEND` makes the kernel do
+   the serialising. ⚠ The constraint as written is too strong and this entry
+   already said so: what it forbids is THIS object's allocation, and forwarding
+   re-enters the payload's allocator unavoidably;
+3. **no `println!`**: `src/say.rs` writes to fd 2 with one `write(2)` out of a
+   512-byte stack buffer, because stdout belongs to the payload;
+4. **it survives a fork**: nothing is registered with `atfork`, nothing is held
+   across one but a function address in an `AtomicPtr`, and the memo is a file
+   rather than memory precisely so a `fork` and an `execve` both keep it.
+
+⚠ **`dlsym` is the one import that decides which payloads this object can
+serve**, and check F asserts what happens: built on glibc 2.39 it imports
+`dlsym@GLIBC_2.34`, and against the pinned 2.31 payload
+[T-0709](#t-0709-select-the-interposer-by-dt_needed-and-refuse-on-the-version-predicate)'s
+reader refuses the pair from ELF with nothing loaded, and the loader then says
+`version 'GLIBC_2.34' not found` when the pair is forced.
 
 ---
 
@@ -174,16 +217,30 @@ Approach:    Build one object per libc, embed both, and select on the payload's
              and avoids that whole class.
 Decision:    Two objects, not one with runtime detection. Runtime detection
              cannot change a struct offset the compiler already emitted.
-Status note: **no longer blocked.** The measurement this entry waited on is
-             taken, by `experiments/80-interposer-abi.sh`, which needs only
-             `musl-gcc` and not a musl `libgcc_s`. What remains is
-             implementation, plus one narrower gap that does not block it:
-             podbox's own Rust cdylib still cannot be linked against musl on
-             this host, because rustc passes `-lgcc_s` on that target even under
-             `panic = "abort"` and `musl-tools` ships no musl-linked
-             `libgcc_s.so.1`. `experiments/60-interposer-libc.sh` names that
-             shortage and exits 2 on it. A musl cross toolchain carrying its own
-             libgcc clears it; the design above does not wait on that.
+Status note: **no longer blocked, and the musl gap is closed.** The measurement
+             this entry waited on is taken by `experiments/80-interposer-abi.sh`.
+             ⭐ And podbox's own Rust cdylib IS musl-linked now:
+             `scripts/build-interpose.sh` passes `scripts/zig-cc.sh` as the
+             linker for that target and asserts the resulting `DT_NEEDED`, so
+             the object records `libc.so` where it recorded `libc.so.6` before.
+             ⛔ Without the assertion the script exited 0 having produced TWO
+             GLIBC OBJECTS, which is the whole requirement inverted and reads as
+             success.
+             ⚠ **What is left is the EMBEDDING and it is a fork nobody has
+             ruled on.** This `Approach` says "embed both", and the two objects
+             are built by a script rather than by cargo, so `include_bytes!` in
+             `podbox-cli` makes an ordinary `cargo build` fail on a tree where
+             the script has not run -- which breaks `cargo test --workspace`,
+             the acceptance and every contributor's first command. The three
+             shapes are: a `build.rs` that runs the script (a cargo build that
+             invokes a linker for two other targets); a `build.rs` that refuses
+             with a named reason (loud, and still breaks the plain build); or
+             the objects committed as artefacts (⛔ `docs/conventions/git.md`
+             section 4 forbids build output in the tree). ⚠ Recommend the
+             FIRST, with the script's own skip behaviour preserved so a machine
+             without zig still builds podbox and gets a refusal from
+             [T-0706](#t-0706-classify-the-payload-and-decline-with-a-named-reason)'s
+             channel at run time rather than at compile time.
 Prove:       `./experiments/80-interposer-abi.sh` exits 0, and `podbox run --rm alpine:latest sh -c 'grep -q "$(readlink -f /.podbox/interpose.so)" /proc/self/environ'`
 
 ---
@@ -280,7 +337,7 @@ Source:      `TOOL.md` section 6.7, `paper_final.md` section 9.3; `references/sa
 Category:    interpose
 Priority:    P0
 Effort:      L
-Status:      open
+Status:      partial
 
 Problem:     `chown 0:42` fails identically with and without a path interposer
              loaded. This is the wall that stops the most tools, and clearing it
@@ -318,7 +375,74 @@ Approach:    Intercept the `chown` family and return success after recording the
 Decision:    Probe once and cache, rather than fakeroot's environment variable.
              A user who has to know to set a variable has to know the wall
              exists, and the audience is automated.
-Prove:       `podbox run --rm alpine:latest sh -c 'chown 0:42 /tmp/f && stat -c %u:%g /tmp/f' | grep -qx '0:42'`
+Prove:       `./experiments/105-interpose-ownership.sh` exits 0, and then `podbox run --rm alpine:latest sh -c 'chown 0:42 /tmp/f && stat -c %u:%g /tmp/f' | grep -qx '0:42'` once T-0702 places the object
+
+
+**Partial, 2026-09-09.** The object does it and it is measured under both libcs;
+what is not in is the wiring that puts the object inside a rootfs `podbox run`
+enters, which is
+[T-0702](#t-0702-one-object-per-libc-and-it-must-live-inside-the-rootfs), and the
+identity half of the `Approach`.
+
+⛔ **THE SIDECAR CANNOT BE THE MEMO, and this `Approach` said it would be.**
+`crates/podbox-extract/src/sidecar.rs` writes JSONL **beside the rootfs in the
+store**, and this object runs after the `chroot`, where the store does not exist.
+It is also JSON, and parsing it would allocate on an interposed path, which
+[T-0701](#t-0701-the-cdylib-build-constraints) constraint 2 forbids. The memo is
+a fixed-width binary file at `/.podbox/ownership.memo`, **inside** the rootfs,
+keyed by `(dev, ino)` rather than by path: a path is renamed, hard-linked and
+resolved through symlinks, and the question is about the inode.
+
+⛔ **AND IT MUST CROSS PROCESSES, which rules out a table in memory.** This
+entry's own `Prove` is `sh -c 'chown 0:42 /tmp/f && stat -c %u:%g /tmp/f'`, and
+those are two `execve`s: a memo in this object's memory would be gone before the
+question was asked. fakeroot solves that with a DAEMON, `faked`, which podbox has
+no room for inside somebody else's chroot. `O_APPEND` and one 32-byte write per
+record is what replaces the daemon and the lock both.
+
+⛔ **`statx` IS NOT A DUPLICATE OF `stat`, and leaving it out made the glibc arm
+report `0:0` while the memo was written correctly.** Measured on 2026-09-09:
+coreutils' `stat` on a glibc 2.41 payload asks `statx(2)` and never reaches
+`stat`, `stat64` or `__xstat`; busybox's `stat` on musl does call `stat`. ⚠ So
+the musl arm passed and the glibc one did not, and **a one-libc test would have
+shipped it**. That is the same shape as T-0703's finding about the `64` names
+and one libc's importers.
+
+⚠ The errno correction this entry predicted is real and is implemented: the
+object swallows `EPERM` **and** `EINVAL`, where fakeroot tests `EPERM` alone at
+eight sites. `--cap-drop=CHOWN` gives `EPERM` and is what checks D and E use;
+the runtime podbox targets gives `EINVAL` for an unmapped id.
+
+⛔ **The control comes first and it is the one that could have made every other
+arm pass for the wrong reason.** On a machine that CAN chown, the object must
+change nothing and write no memo: check C asserts `stat` reports `0:42` because
+the KERNEL did it and `/.podbox/ownership.memo` does not exist. An interposer
+that reported the caller's intent where the real call would have worked is weaker
+than the bare chroot it replaces.
+
+⚠ **What is not in**, and it is named rather than left to be discovered:
+
+- **`setuid`, `setgid` and `setgroups`**, which this `Approach` asks for in one
+  sentence. They need a per-PROCESS identity memo that survives an `execve`, and
+  an inode-keyed file cannot carry one. fakeroot's answer is an environment
+  variable, which this entry's `Decision` rejected for the file question and
+  which may be right for this one; it is a fork nobody has ruled on;
+- **the wiring**: nothing sets `LD_PRELOAD` yet, so `podbox run` does not load
+  this object at all. T-0702 is that entry, and until it lands the `Prove` above
+  runs through `docker run -v` rather than through podbox.
+
+Prove, run 2026-09-09:
+
+```
+$ ./experiments/105-interpose-ownership.sh
+  A: both objects export exactly what interpose.map declares, 17 each,
+     and rust_eh_personality is in neither
+  B: sizeof=144 dev=0 ino=8 mode=24 uid=28 gid=32, under both libcs
+  C: the real chown worked and podbox wrote no memo
+  D: the bare chown failed (rc=1) and podbox's answered 0:42     glibc
+  E: the musl object answered 0:42 where the bare chown failed   musl
+  F: the reader refused the too-old pair from ELF and the loader agreed
+```
 
 ---
 
