@@ -229,6 +229,57 @@ fn supervise(
     // holds no controlling terminal. T-0603's other half.
     let _ = sys::setsid();
 
+    // ⛔ **AND ITS OWN STDIO GOES TO /dev/null. THIS IS
+    // [`TODO/supervise.md`](../../../TODO/supervise.md) T-0608.**
+    //
+    // A `clone` copies every descriptor and this process never execs, so
+    // without this it holds the CALLER's stdin, stdout and stderr for the
+    // container's whole life. ⭐ The caller then cannot finish reading its own
+    // stdout: `id=$(podbox run -d ...)` is the way every script writes it, and
+    // command substitution reads the pipe to EOF, which does not come until the
+    // last holder closes it. Measured on 2026-09-09 by
+    // `experiments/340-detached-stdio.sh`: `run -d` with a `sleep 25` payload
+    // returned its id in under a second when stdout was a file and took 25
+    // seconds under `$( )`, and the launcher's `/proc/<pid>/fd/1` was the
+    // caller's pipe.
+    //
+    // ⚠ **This is what was seen as "`-d` returned an id and the container had
+    // already exited".** It had: the caller was released when the payload
+    // ended, and by then the launcher had written the terminal record. The two
+    // candidates T-0608 wrote down -- the readiness bound, and `reconcile`
+    // racing `start` -- were both wrong, which is why the entry refused to act
+    // on either.
+    //
+    // ⛔ A refusal rather than a shrug when `/dev/null` cannot be opened: a
+    // launcher that cannot let go of the caller's stdio will hang it, and
+    // hanging silently is the failure this whole comment is about.
+    match sys::CBuf::new("/dev/null")
+        .ok_or(sys::Errno(2))
+        .and_then(|c| {
+            let fd = sys::open(&c, sys::O_RDWR, 0)?;
+            for target in [0i64, 1, 2] {
+                if fd != target {
+                    sys::dup2(fd, target)?;
+                }
+            }
+            if fd > 2 {
+                let _ = sys::close(fd);
+            }
+            Ok(0)
+        }) {
+        Ok(_) => {}
+        Err(e) => {
+            say(&format!(
+                "err the launcher could not put its own stdio on /dev/null: {} \
+                 ({}). It would hold the caller's stdout open for the whole life \
+                 of the container (T-0608)",
+                e.name(),
+                e.0
+            ));
+            return 1;
+        }
+    }
+
     // ⛔ THE LOCK BEFORE ANYTHING IS WRITTEN. T-0604: this lock IS the statement
     // "a launcher is alive for this container", and a reconciler reads it by
     // trying to take it. Taking it after writing `running` leaves a window in

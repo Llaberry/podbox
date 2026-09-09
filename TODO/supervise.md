@@ -388,7 +388,7 @@ Source:      Observed on 2026-09-09 while writing `experiments/250-negative-test
 Category:    supervise
 Priority:    P1
 Effort:      M
-Status:      open
+Status:      done
 
 Problem:     ⛔ **`podbox run -d` returned a container id, and one second later
              `inspect` read `exited`, pid `0`, launcher pid `0`, exit code `0`,
@@ -434,4 +434,61 @@ Decision:    An entry rather than a note in `PROGRESS.md`, because an
              intermittent that nobody is assigned to reproduce is one that is
              rediscovered instead of fixed. ⚠ P1 and not P0: it was not seen in
              any acceptance run, and the acceptance is what a release gates on.
-Prove:       `./experiments/230-lifecycle-loop.sh 40` under a concurrent `cargo build --release` reproduces it, and the same command after the fix does not
+Prove:       `./experiments/340-detached-stdio.sh 40` reproduced it on iteration 1 before the fix and reports 40 of 40 after it
+
+
+**Done 2026-09-09.** `crates/podbox-supervise/src/launcher.rs`, and ⛔ **neither
+of the two candidates above was it.** The entry refused to act on either and
+that was right.
+
+⭐ **THE LAUNCHER KEPT THE CALLER'S STDOUT.** `clone` copies every descriptor and
+the launcher never execs, so it inherited the caller's stdin, stdout and stderr
+and held them for the container's whole life. `podbox run -d` prints a container
+id, so every caller captures it -- `id="$(podbox run -d ...)"` -- and command
+substitution reads that pipe **to EOF**. The id was written in the first second;
+the shell was released when the container ended.
+
+⚠ **The sighting was accurate and the timing was the other way round.** "`run -d`
+returned an id and one second later `inspect` read `exited`, pid 0, launcher pid
+0, code 0" is what a caller sees when it is released at the END: the launcher had
+already written the terminal record, and `pid` and `launcher_pid` are `None` on
+that path by design.
+
+Measured on 2026-09-09, before the fix:
+
+```
+$ id=$(podbox run -d --name subst <arch> /bin/sleep 20)   # took 20 s
+$ ls -l /proc/<launcher>/fd/1
+  l-wx------ 1 root root 64 ... 1 -> pipe:[93367]
+```
+
+⛔ And with stdout redirected to a file rather than captured, the same command
+returned in under a second, which is why eight `run -d` in a row had looked fine:
+**the instrument was the caller's own stdout**, and a shell that is not reading
+the pipe never waits on it.
+
+⚠ **THE LOAD WAS NOT THE CAUSE**, and the entry's warning about it was still
+worth having: it reproduces on an idle machine in one iteration. Both sightings
+happened to be under a four-CPU build because that is when somebody was watching.
+`experiments/340-detached-stdio.sh` keeps the load anyway -- a scheduler under
+pressure is where a handoff bug would hide, and removing the one condition the
+entry named would be answering a different question.
+
+The fix is one `dup2` triple after `setsid()`: the launcher's own 0, 1 and 2 go
+to `/dev/null`, which is what daemonising has always meant. ⛔ It **refuses**
+rather than shrugging where `/dev/null` cannot be opened, because a launcher that
+cannot let go of the caller's stdio will hang it, and hanging silently is exactly
+this defect.
+
+⚠ **The payload's own stdio was never the problem** and is unchanged: `0` is
+`/dev/null` and `1` and `2` are the container log, handed over before the chroot
+([T-0605](#t-0605-the-container-log-and-what-podbox-may-claim-about-it)).
+
+Prove, run 2026-09-09:
+
+```
+$ ./experiments/340-detached-stdio.sh 40
+  before the fix: ⛔ iteration 1 REPRODUCED IT
+  after:          detached starts that returned promptly and read running: 40 of 40
+                  the longest `run -d` took: 1s, against a bound of 5s
+```

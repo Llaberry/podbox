@@ -1,0 +1,11 @@
+# T-0608: does `podbox run -d` return before its payload ends?
+# TODO/supervise.md T-0608. Taken 2026-09-09T18:16:43Z on kernel 6.18.44-fc-v24
+# ⛔ the caller captures the id with $( ), which reads to EOF
+iterations         40
+cpus               4
+load               busy-loop shells, one per cpu
+payload_seconds    20
+prompt_bound_s     5
+prompt_and_running 40
+slowest_run_d_s    1
+reproduced         0
