@@ -371,14 +371,17 @@ warning: it is what makes `/etc/mtab` load-bearing
 ([T-0405](#t-0405-etcmtab-is-a-symlink-and-writing-through-it-escapes-the-rootfs)),
 and Arch ships it commented out.
 
-⛔ **The keyring half is a READING and not an edit, and that is a limit rather
-than a choice.** `pacman-key --init` and `--populate` run `gpg` INSIDE the
-rootfs, and the completion layer runs on the host before the chroot. podbox
-reports whether `/etc/pacman.d/gnupg/trustdb.gpg` is there and, where it is not,
-says which two commands to run and marks the row degraded. ⚠ Measured on the
-pinned `ghcr.io/pkgforge-dev/archlinux` image: it ships an initialized keyring,
-so the row reads `Unchanged` there and the diagnostic is for a rootfs that does
-not.
+⭐ **The keyring half is a STEP, closed by [T-0412](#t-0412-a-fixup-that-has-to-run-inside-the-rootfs-and-podbox-runs-it-from-outside)
+on 2026-09-09.** `pacman-key --init` and `--populate` run `gpg` INSIDE the
+rootfs, and the completion layer runs on the host before the chroot, so this was
+a reading for one session: podbox reported whether
+`/etc/pacman.d/gnupg/trustdb.gpg` was there and printed the two commands a reader
+would have to type. It now emits them as two `Step`s, named on the banner with
+their argv before either runs, and runs them. ⛔ Where `--no-steps` refuses them,
+or where the rootfs ships no `pacman-key` to run, the row is degraded and says
+which of the two it is. ⚠ Measured on the pinned `ghcr.io/pkgforge-dev/archlinux`
+image: it ships an initialized keyring, so the row reads `Unchanged` there, no
+step is emitted, and both are for a rootfs that does not.
 
 Prove, run 2026-09-09 through `experiments/240-distro-sweep.sh`, against
 `ghcr.io/pkgforge-dev/archlinux:latest` rather than the Docker Hub tag the
@@ -764,7 +767,7 @@ Source:      Measured by `experiments/240-distro-sweep.sh` on 2026-09-09, and
 Category:    complete
 Priority:    P1
 Effort:      M
-Status:      open
+Status:      done
 
 Problem:     ⛔ **The completion layer runs on the host, before the chroot, so
              every fixup it can make is a WRITE. Two of the ten distributions
@@ -814,6 +817,9 @@ Approach:    Give the completion layer a second kind of output beside a fixup: a
              ⚠ The first two steps are `pacman-key --init && pacman-key
              --populate` where the keyring is empty, and openSUSE's
              `update-ca-certificates` where the host announced a CA bundle.
+             ⛔ **The second of those was wrong and the correction is under
+             `Done`**: `update-ca-certificates` cannot be the step, because it
+             needs `/dev/fd` and a chroot has no `/proc`.
 Decision:    A step list the CALLER runs, rather than the completion layer
              calling `podbox_enter` itself. The completion layer is a library
              that writes files and returns a report; a library that forks and
@@ -821,4 +827,85 @@ Decision:    A step list the CALLER runs, rather than the completion layer
              command before it runs, which only the caller can order correctly.
              ⛔ Not a shell: an argv, so nothing is word-split and no payload
              filename can become an argument.
-Prove:       `./experiments/240-distro-sweep.sh opensuse-leap` reports `built_and_ran 42`, and the banner names `update-ca-certificates` before it runs
+Prove:       `./experiments/240-distro-sweep.sh opensuse-leap` reports `built_and_ran 1`, and the banner names the step before it runs
+
+
+**Done 2026-09-09.** `crates/podbox-complete/src/lib.rs` carries the `Step`,
+`crates/podbox-complete/src/pkg.rs` produces them, `podbox_enter::Child::wait_bounded`
+runs one under a bound and `crates/podbox-cli/src/complete.rs` orders them.
+⭐ **openSUSE installs a C toolchain under podbox now, and the M5 sweep is 10 of
+10.**
+
+⛔ **`update-ca-certificates` CANNOT be the step, and the `Approach` above said
+it could.** Measured on 2026-09-09 inside podbox on
+`registry.opensuse.org/opensuse/leap:15.6`, unpiped:
+
+```
+$ /usr/sbin/update-ca-certificates; echo $?
+/usr/sbin/update-ca-certificates: line 83: /dev/fd/62: No such file or directory
+1
+```
+
+Line 83 is `done < <(find "$hooksdir1" ... )`. ⭐ **bash's process substitution
+opens `/dev/fd/N`, which is `/proc/self/fd/N`, and `/proc` is not mounted inside
+a chroot** -- the same shape as `/etc/mtab -> /proc/self/mounts` in
+[T-0405](#t-0405-etcmtab-is-a-symlink-and-writing-through-it-escapes-the-rootfs).
+The hook loop is where every certificate is actually extracted, so the command
+exits 1 having done nothing. ⚠ podbox cannot fix it: `/dev/fd` has no substitute
+without `/proc`, and mounting one would be the mount `podbox_enter::ENTERED_RUNG`
+says podbox does not perform.
+
+⭐ **What works is `openssl rehash`, and the fixup is in two halves.**
+
+1. **the write**, from the host: one PEM per root, `podbox-host-ca-NNN.pem`, into
+   every hash-indexed CApath the image already has. ⛔ **Only the roots the image
+   does NOT already carry**: 22 of this machine's 152 announced roots on
+   openSUSE, and writing all 152 made `openssl rehash` print a `skipping
+   duplicate certificate` line per copy and left 130 files nothing needed;
+2. **the step**, inside: `openssl rehash /etc/ssl/certs`, which is one C program
+   and needs no `/proc`.
+
+⚠ **One certificate per file, measured rather than assumed.** A file holding
+three is refused with `skipping three.pem, it does not contain exactly one
+certificate or CRL` and NOTHING in the directory is linked.
+
+⛔ **The step is asked for only where the LINKS are missing**, checked by reading
+the hash symlinks rather than by "podbox wrote something this run": the rootfs is
+content-addressed and shared between containers ([T-0204](image.md)), so a second
+container must not pay for a rehash the first already did, and a payload that
+deleted the links must get them back.
+
+Four rules the mechanism carries, each of them the reason a step is not just a
+`system()`:
+
+- ⛔ **Every step is named on the banner before it runs**, with its argv, its id
+  and the entry that asked for it. podbox is about to execute a command inside
+  somebody else's image that the caller did not write;
+- ⛔ **An argv and never a shell line**, so nothing is word-split and no filename
+  inside the image can become an argument. The program is *found* in the rootfs
+  by the completion layer, so a step announced on the banner cannot turn out not
+  to be there;
+- ⛔ **Bounded**, at 300 s, on a pidfd through `ppoll`, and `SIGKILL`ed on the
+  bound. `TODO/RULES.md` section 8 makes that podbox's requirement and not only
+  the agent's;
+- ⛔ **A step that fails is a `Failed` row and never a failed run**, and its
+  stdout goes to podbox's STDERR: the payload owns stdout ([T-1104](milestones.md)).
+
+⭐ **`--strict` refuses a run that would take a step, and it refuses BEFORE any
+of them runs.** podbox executing a command the caller did not write is exactly
+the difference `--strict` exists to refuse, and acting and then declining to have
+acted is worse than either. `--no-steps` refuses them without refusing the run,
+and then each fixup says what the caller gave up.
+
+Prove, run 2026-09-09:
+
+```
+$ ./experiments/240-distro-sweep.sh opensuse-leap
+  opensuse-leap  glibc  zypper  install 0  build 0  ran 42
+  rows 1, ran 1, built_and_ran 1
+  and on stderr, before it ran:
+  podbox: complete: step 1 of 1: `/usr/bin/openssl rehash /etc/ssl/certs`
+    (ca-hash-dir, T-0412): /etc/ssl/certs is a hash-indexed CApath and OpenSSL
+    looks a certificate up there by the hash of its subject …
+  podbox: complete: step 1 of 1: `/usr/bin/openssl rehash /etc/ssl/certs` exited 0
+```

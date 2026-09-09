@@ -14,6 +14,9 @@
 //! 1. ⛔ **Every write goes through [`write::Root`]**, which resolves each
 //!    component with symlinks refused and replaces by unlink-then-create. T-0405
 //!    is that mechanism and not a special case for `/etc/mtab`;
+//!    ⚠ and where a fixup needs a COMMAND rather than a write, this crate
+//!    returns a [`Step`] and the caller runs it. T-0412: a library that forks
+//!    and chroots is one no test can drive;
 //! 2. ⛔ **Every fixup is reported, on the banner, per file.** podbox has
 //!    edited a file inside somebody else's image and the payload can see it.
 //!    [`TODO/cli.md`](../../../TODO/cli.md) T-0804's honesty rules have no
@@ -83,6 +86,16 @@ pub struct Options {
     /// Where the host's resolver is read from. ⚠ A field rather than a constant
     /// so the tests can drive T-0402 without a host `/etc/resolv.conf`.
     pub host_resolv_conf: String,
+    /// ⭐ T-0412. May podbox ask the caller to run a COMMAND inside the rootfs?
+    /// `--no-steps` clears it, and then every fixup whose remedy is a command
+    /// reports what the caller gave up instead of asking for one.
+    ///
+    /// ⛔ It gates the fixup and not only the command. The openSUSE arm writes
+    /// one PEM per root into a hash-indexed directory, and a certificate in
+    /// such a directory that nothing has hash-linked is a file no TLS stack
+    /// reads: writing it and then refusing to link it would leave litter in
+    /// somebody else's image for no benefit.
+    pub steps: bool,
 }
 
 impl Default for Options {
@@ -93,6 +106,7 @@ impl Default for Options {
             source_fixup: true,
             host_cas: true,
             host_resolv_conf: "/etc/resolv.conf".to_string(),
+            steps: true,
         }
     }
 }
@@ -108,6 +122,11 @@ pub enum Action {
     Rewrote,
     /// podbox put back what the image shipped, undoing an earlier fixup.
     Restored,
+    /// ⭐ T-0412. podbox ran a [`Step`] inside the rootfs and it succeeded.
+    /// ⚠ It counts as a change: a command podbox executed inside somebody
+    /// else's image edited it, and the container record has to carry that as
+    /// much as it carries a file podbox wrote.
+    Ran,
     /// Nothing to do: the image already carries what podbox would have written.
     Unchanged,
     /// podbox did not act, and the reason is in the detail.
@@ -122,6 +141,7 @@ impl Action {
             Action::Created => "created",
             Action::Rewrote => "rewrote",
             Action::Restored => "restored",
+            Action::Ran => "ran",
             Action::Unchanged => "unchanged",
             Action::Skipped => "skipped",
             Action::Failed => "failed",
@@ -130,7 +150,10 @@ impl Action {
 
     /// Did this fixup change a byte in the image?
     pub fn changed(self) -> bool {
-        matches!(self, Action::Created | Action::Rewrote | Action::Restored)
+        matches!(
+            self,
+            Action::Created | Action::Rewrote | Action::Restored | Action::Ran
+        )
     }
 }
 
@@ -176,10 +199,42 @@ impl Fixup {
     }
 }
 
-/// Everything the completion layer did to one rootfs.
+/// A command podbox needs run **inside** the rootfs, which this crate cannot
+/// run itself.
+///
+/// ⭐ [`TODO/complete.md`](../../../TODO/complete.md) T-0412. The completion
+/// layer runs on the host, before the chroot, so every fixup it can make is a
+/// write. Two are not: `pacman-key --init` runs `gpg` inside the rootfs
+/// (T-0406), and a hash-indexed CA directory is indexed by a program that reads
+/// the certificates (T-0412). This crate returns them and the caller orders
+/// them, because the banner has to name a command before it runs and only the
+/// caller knows what else it is about to print.
+///
+/// ⛔ **An argv, never a shell line.** Nothing here is word-split, so no
+/// filename inside the image can become an argument.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Step {
+    /// The entry that owns it, so a reader can find the reasoning.
+    pub entry: &'static str,
+    /// A stable, greppable id, shared with the fixup row that asked for it.
+    pub id: &'static str,
+    /// ⛔ Absolute inside the rootfs, and the program was found there by this
+    /// crate rather than looked up on a `PATH` at exec time: a step announced
+    /// on the banner and then not found is a command podbox promised and did
+    /// not run.
+    pub argv: Vec<String>,
+    /// What the payload gets if it runs, said in the banner before it does.
+    pub why: String,
+}
+
+/// Everything the completion layer did to one rootfs, and what it could not do
+/// from outside it.
 #[derive(Debug, Clone, Default)]
 pub struct Report {
     pub fixups: Vec<Fixup>,
+    /// ⭐ T-0412. Commands the caller runs inside the rootfs, in this order,
+    /// before the payload.
+    pub steps: Vec<Step>,
     /// What [`identity::probe`] found, because three other fixups branch on it
     /// and `inspect` prints it.
     pub libc: Libc,
@@ -208,6 +263,20 @@ impl Report {
                 }
             ));
         }
+        // ⭐ T-0412 rule 3. Every step is NAMED HERE, before the caller runs it,
+        // because podbox is about to execute a command inside somebody else's
+        // image that the caller did not write.
+        for (i, st) in self.steps.iter().enumerate() {
+            s.push_str(&format!(
+                "podbox: complete: step {} of {}: `{}` ({}, {}): {}\n",
+                i + 1,
+                self.steps.len(),
+                st.argv.join(" "),
+                st.id,
+                st.entry,
+                st.why
+            ));
+        }
         let changed = self.fixups.iter().filter(|f| f.action.changed()).count();
         let failed = self
             .fixups
@@ -217,11 +286,13 @@ impl Report {
         let degraded = self.degradations().len();
         s.push_str(&format!(
             "podbox: complete: {} fixup(s) applied to this image's rootfs, {} \
-             degraded, {} failed; libc={}. ⛔ These are edits podbox made inside \
-             somebody else's image and the payload can see them\n",
+             degraded, {} failed, {} step(s) to run inside it; libc={}. ⛔ These \
+             are edits podbox made inside somebody else's image and the payload \
+             can see them\n",
             changed,
             degraded,
             failed,
+            self.steps.len(),
             self.libc.word()
         ));
         s
@@ -254,7 +325,19 @@ impl Report {
                 })
             })
             .collect();
-        serde_json::json!({ "libc": self.libc.word(), "fixups": rows }).to_string()
+        let steps: Vec<serde_json::Value> = self
+            .steps
+            .iter()
+            .map(|s| {
+                serde_json::json!({
+                    "entry": s.entry,
+                    "id": s.id,
+                    "argv": s.argv,
+                    "why": s.why,
+                })
+            })
+            .collect();
+        serde_json::json!({ "libc": self.libc.word(), "fixups": rows, "steps": steps }).to_string()
     }
 }
 
@@ -328,8 +411,25 @@ pub(crate) fn act(w: write::Wrote) -> Action {
 /// Collect a fixup that may have failed, so a call site is one line rather than
 /// a `match` per fixup.
 fn record(r: &mut Report, entry: &'static str, id: &'static str, out: Result<Vec<Fixup>>) {
+    record_steps(r, entry, id, out.map(|fs| (fs, Vec::new())))
+}
+
+/// The same, for a fixup that may also ask for a [`Step`].
+///
+/// ⛔ A fixup that could not be applied contributes NO step. The two travel
+/// together through one `Result` for exactly that reason: a step asking for a
+/// command whose write half failed is a command run for nothing.
+fn record_steps(
+    r: &mut Report,
+    entry: &'static str,
+    id: &'static str,
+    out: Result<(Vec<Fixup>, Vec<Step>)>,
+) {
     match out {
-        Ok(fs) => r.fixups.extend(fs),
+        Ok((fs, st)) => {
+            r.fixups.extend(fs);
+            r.steps.extend(st);
+        }
         Err(e) => r.fixups.push(
             Fixup::new(entry, id, "", Action::Failed)
                 .why(e.to_string())

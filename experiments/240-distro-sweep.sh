@@ -72,11 +72,27 @@ ROW_TIMEOUT="${PODBOX_ROW_TIMEOUT:-1200}"
 export PODBOX_STORE="${PODBOX_SWEEP_STORE:-$WORK/store}"
 mkdir -p "$TRANSCRIPTS"
 
+# ⛔ DETECTED BEFORE THE HEADER THAT REPORTS IT. It was below the loop, so under
+# `set -u` the conditions block read an unset variable, printed
+# `have_docker: unbound variable` and then an EMPTY `control` line -- which
+# reads as "no control" on a run that had one.
+have_docker=0
+if command -v docker >/dev/null 2>&1 && timeout 30 docker info >/dev/null 2>&1; then
+	have_docker=1
+fi
+
 echo "== conditions"
 printf 'date              %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 printf 'host kernel       %s\n' "$(uname -r)"
 printf 'podbox            %s\n' "$("$BIN" version)"
-printf 'rung podbox uses  %s\n' "$("$BIN" system info --format '{{.Rung}}')"
+# ⛔ TWO ANSWERS. This printed `.Rung`, which is the rung THIS MACHINE PERMITS,
+# under the label "rung podbox uses" -- so on this host the header said
+# `namespace` for a sequence that chroots and creates no namespace, which is
+# exactly what TODO/cli.md T-0804 was opened for. `.EnteredRung` is
+# `podbox_enter::ENTERED_RUNG`, the sequence podbox actually performs.
+printf 'rung podbox enters %s\n' "$("$BIN" system info --format '{{.EnteredRung}}')"
+printf 'rung this machine  %s   (permits, and podbox does not use it)\n' \
+	"$("$BIN" system info --format '{{.Rung}}')"
 printf 'rows              %s\n' "$(distro_count_rows "$DISTRO_ROWS_M5")"
 printf 'row timeout       %s s\n' "$ROW_TIMEOUT"
 printf 'store             %s\n' "\$PODBOX_STORE (a fresh one per run unless set)"
@@ -187,10 +203,6 @@ broken=0
 host=0
 passed=0
 fail=0
-have_docker=0
-if command -v docker >/dev/null 2>&1 && timeout 30 docker info >/dev/null 2>&1; then
-	have_docker=1
-fi
 
 printf '%-14s %-8s %-13s %-9s %-7s %s\n' ROW LIBC PM INSTALL BUILD 'RAN'
 printf '%.0s-' $(seq 1 74)

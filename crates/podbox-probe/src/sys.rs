@@ -758,14 +758,36 @@ pub fn close(fd: i64) -> Sysres {
     unsafe { sys(SYS_CLOSE, [fd as u64, 0, 0, 0, 0, 0]) }
 }
 
-/// `fcntl(2)`, for the descriptor-flag commands only.
+/// `fcntl(2)`, for the commands whose argument is an integer.
 ///
-/// ⚠ Restricted to `F_GETFD` and `F_SETFD` by its own callers rather than by
-/// its signature: the commands taking a pointer argument (`F_GETLK`,
-/// `F_SETLK`, `F_GETOWN_EX`) need a struct this takes no room for, and calling
-/// one through here would hand the kernel an integer where it reads an address.
+/// ⚠ Restricted to `F_GETFD`, `F_SETFD` and `F_DUPFD_CLOEXEC` by its own
+/// callers rather than by its signature: the commands taking a pointer argument
+/// (`F_GETLK`, `F_SETLK`, `F_GETOWN_EX`) need a struct this takes no room for,
+/// and calling one through here would hand the kernel an integer where it reads
+/// an address.
 pub fn fcntl(fd: i64, cmd: u64, arg: u64) -> Sysres {
     unsafe { sys(SYS_FCNTL, [fd as u64, cmd, arg, 0, 0, 0]) }
+}
+
+/// `F_DUPFD_CLOEXEC`, which is `F_LINUX_SPECIFIC_BASE + 6`.
+pub const F_DUPFD_CLOEXEC: u64 = 1030;
+
+/// A second descriptor for the same open file description, at an unused number.
+///
+/// ⛔ **Why this and not [`dup2`].** A caller that wants the child's stdout to
+/// be its stderr cannot pass `(1, 2)` to a `dup2`-then-`close` loop: the close
+/// would take the child's stderr with it. It dups first, hands over the
+/// duplicate, and the loop closes the duplicate instead.
+///
+/// ⚠ `O_CLOEXEC` on the duplicate is deliberate and is not inherited by the
+/// `dup2` that installs it: a duplicate the caller forgot would otherwise reach
+/// the payload, and a payload holding an extra descriptor onto podbox's own
+/// stderr is a difference from docker nobody asked for.
+pub fn dup_cloexec(fd: i64) -> Sysres {
+    // ⚠ From 3 upwards: below that are the standard descriptors, and a
+    // duplicate landing on one of them is the bug this function exists to
+    // avoid.
+    fcntl(fd, F_DUPFD_CLOEXEC, 3)
 }
 
 /// ⛔ `chroot(2)` on a path, used only as `chroot(".")` after an `fchdir` onto

@@ -1009,3 +1009,65 @@ exactly that and its own test caught it.
 ⚠ **The clause that keeps clause 3 honest is clause 4**: naming one registry
 insecure must change nothing for a second one, and it is asserted rather than
 assumed.
+
+---
+
+### T-0214 A blob body cut off mid-stream is not retried, and the bounded retry is around the wrong thing
+
+Source:      Measured by `experiments/240-distro-sweep.sh` on 2026-09-09
+Category:    image
+Priority:    P2
+Effort:      S
+Status:      open
+
+Problem:     ⛔ **`Registry::get` retries the REQUEST and `Registry::blob`
+             streams the BODY, so a transfer that dies after the first byte is a
+             failed pull with no second attempt.** The M5 sweep lost a whole row
+             to it: `fedora` reported `no-pull`, and the reason was one
+             truncated body rather than anything about the image, the registry
+             or the row's own subject.
+Premise:     ⭐ **Measured, and it reproduces the same way twice: it fails, and
+             then the identical command succeeds.** From
+             `experiments/results/sweep/fedora.out`, 2026-09-09:
+
+             ```
+             no-pull quay.io/fedora/fedora@sha256:e78cd1a6…ee95c
+             podbox: GET /v2/fedora/fedora/blobs/sha256:419b79a0…1d21:
+               reading the blob body after 2097153 byte(s):
+               response body closed before all bytes were read
+             ```
+
+             ⚠ 2,097,153 is 2 MiB and one byte, which is the shape of a proxy
+             cutting a transfer rather than a registry ending one. The same pull,
+             run again by hand with no other change, completed: `419b79a05f4b:
+             Pull complete`.
+             ⚠ `crates/podbox-image/src/registry.rs:236-250` is the loop that
+             gives up; `crates/podbox-image/src/registry.rs:255-268` is the
+             bounded retry, and it is one level too high to see this.
+Approach:    Put the retry around the whole of one blob rather than around the
+             request that starts it.
+             1. `blob` takes a sink it can RESTART. The staging file is the
+                caller's, so the contract has to say who truncates it: either the
+                caller hands a factory, or `blob` is told the staging path and
+                owns the file. ⭐ Recommend the second, because the verifier
+                already owns the "did every byte arrive" question and a caller
+                that resets a sink it did not fill is a second place to get it
+                wrong;
+             2. the same `ATTEMPTS` and the same `backoff`, from the same
+                constants, so a blob is not retried on a schedule of its own;
+             3. ⛔ **A partial body is never committed and never counted.** The
+                digest is computed over the bytes that arrived, so a restarted
+                attempt starts a new verifier;
+             4. ⛔ **A Range request is NOT the mechanism.** Resuming at an offset
+                means trusting that the prefix already written is the prefix of
+                the blob podbox asked for, which is exactly what the digest exists
+                to establish and cannot establish until the last byte.
+Decision:    Retry the transfer, not the byte range. A truncated body is cheap to
+             refetch at these sizes and a resumed one cannot be verified until it
+             is whole anyway.
+             ⚠ The genuine fork, with a recommendation: whether a retried blob is
+             announced in the transcript. Recommend **yes, one line**, naming the
+             attempt and the byte count that arrived: podbox's audience is
+             automated, and a pull that quietly took three tries is a link
+             degrading with nothing to show for it.
+Prove:       `./experiments/150-image-acquisition.sh` exits 0 with a fault injected mid-body, and the transcript names the retry

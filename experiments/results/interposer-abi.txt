@@ -1,9 +1,10 @@
 == conditions
-date              2026-09-08T06:45:09Z
+date              2026-09-09T17:50:40Z
 host kernel       6.18.44-fc-v24
 host libc         ldd (Ubuntu GLIBC 2.39-0ubuntu8.7) 2.39
 cc                cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
-musl-gcc          /usr/bin/musl-gcc
+musl-gcc          absent
+zig               0.16.0
 docker            29.3.1
 glibc payload     ubuntu@sha256:c664f8f86ed5a386b0a340d981b8f81714e21a8b9c73f658c4bea56aa179d54a
 musl payload      alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
@@ -11,11 +12,10 @@ subject           references/VHSgunzo__pathmap/tree/path-mapping.c
 
 == build the subject against each libc
   glibc object     96888 bytes  NEEDED: libc.so.6 
-  musl object      73704 bytes  NEEDED: libc.so 
+  musl object     198112 bytes  NEEDED: libc.so   via zig cc (0.16.0)
 
 == A. the SONAME discriminator, taken with no run
   glibc libc SONAME   libc.so.6
-  musl libc SONAME    (none declared)
   /lib/x86_64-linux-gnu/libc.so is: ASCII text
 ok   A: the glibc object records libc.so.6, so DT_NEEDED names the libc it wants
 ok   A: the musl object records libc.so, which no glibc host serves as an object
@@ -38,7 +38,16 @@ ok   C: the prediction matched and the loader named GLIBC_2.34
   .dynsym defined symbols  3136
 ok   D: this libc is stripped, so an ABI check must read .dynsym
 
+== E. podbox's own reader, against the same four situations
+  control glibc obj -> host libc     rc=0    admitted: experiments/.abi/pathmap-glibc.so may be preloaded into a payload served by /lib
+  glibc obj -> musl libc             rc=1    refused: experiments/.abi/pathmap-glibc.so names libc.so.6 in DT_NEEDED, so it was built a
+  control musl obj -> musl libc      rc=0    admitted: experiments/.abi/pathmap-musl.so may be preloaded into a payload served by exper
+  musl obj -> host glibc libc        rc=1    refused: experiments/.abi/pathmap-musl.so names libc.so in DT_NEEDED, so it was built agai
+  C's situation, read not run        rc=1    refused: experiments/.abi/pathmap-glibc.so imports `dlsym` at version `GLIBC_2.34`, and ex
+ok   E: the reader's answer is the loader's, on every arm that ran
+
 == verdict
   every check that ran matched.
   podbox selects the interposer by DT_NEEDED and refuses on the version
-  predicate, both read from ELF. TODO/interpose.md T-0702 carries this.
+  predicate, both read from ELF. TODO/interpose.md T-0702 carries this,
+  and T-0709 is the reader check E drives.

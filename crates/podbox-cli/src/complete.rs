@@ -33,6 +33,8 @@ pub struct Ask {
     pub no_source_fixup: bool,
     /// `--no-host-cas`. T-0407.
     pub no_host_cas: bool,
+    /// `--no-steps`. T-0412.
+    pub no_steps: bool,
     /// `--strict`. T-0804.
     pub strict: bool,
     /// Every flag this invocation actually passed, in the caller's spelling, so
@@ -89,6 +91,7 @@ pub fn prepare(
         add_hosts: ask.add_hosts.clone(),
         source_fixup: !ask.no_source_fixup,
         host_cas: !ask.no_host_cas,
+        steps: !ask.no_steps,
         ..podbox_complete::Options::default()
     };
     let report = match podbox_complete::complete(rootfs, &opts) {
@@ -168,6 +171,20 @@ pub fn strict_refusal(
         ));
     }
 
+    // 4. ⭐ T-0412's steps, and they are counted BEFORE any of them runs. podbox
+    // executing a command inside somebody else's image that the caller did not
+    // write is exactly the kind of difference from docker `--strict` exists to
+    // refuse, and refusing after running one would be podbox acting and then
+    // declining to have acted.
+    for s in &report.steps {
+        reasons.push(format!(
+            "podbox would run `{}` ({}) inside this image before the payload: {}",
+            s.argv.join(" "),
+            s.entry,
+            s.why
+        ));
+    }
+
     if reasons.is_empty() {
         return Ok(());
     }
@@ -182,6 +199,171 @@ pub fn strict_refusal(
         let _ = writeln!(err, "  - {r}");
     }
     Err(EXIT_RUNTIME_ERROR)
+}
+
+/// The bound one step gets.
+///
+/// ⛔ **A bound rather than a wait**, because `docs/AGENTS.md` makes that a
+/// requirement of podbox and not only of the agent working on it: a step is a
+/// program from somebody else's image and podbox has no idea what it does.
+/// ⚠ Five minutes because `pacman-key --populate` builds a keyring with `gpg`
+/// and `openssl rehash` reads every file in a directory of six hundred; both
+/// are seconds here and neither has a documented worst case.
+pub const STEP_TIMEOUT_MS: i64 = 300_000;
+
+/// ⭐ **T-0412. Run the report's steps INSIDE the rootfs, before the payload.**
+///
+/// The completion layer runs on the host and every fixup it can make is a
+/// write. Two are not -- `pacman-key --init` runs `gpg` in the rootfs, and a
+/// hash-indexed CApath is indexed by a program that reads the certificates --
+/// so the layer returns an argv and this runs it.
+///
+/// ⛔ **The banner has already named every one of these**, which is why this is
+/// the caller's job rather than the library's: the announcement has to precede
+/// the command, and only the caller knows what else it is about to print.
+///
+/// ⛔ **A step that fails is a `Failed` row and never a failed run.** The
+/// payload may not need what the step would have provided, and refusing here
+/// would make podbox less useful than the bare `chroot` it replaces. `--strict`
+/// is how a caller turns it into a refusal, and it refuses before any step runs.
+///
+/// ⚠ The step's stdout is redirected to podbox's STDERR. T-1104: the payload
+/// owns stdout, and a step's output on it would corrupt every pipeline
+/// `podbox run <image> cmd | consumer` is in.
+pub fn run_steps(
+    verb: &str,
+    rootfs: &str,
+    env: &[String],
+    report: &mut podbox_complete::Report,
+    quiet: bool,
+    err: &mut dyn Write,
+) {
+    if report.steps.is_empty() {
+        return;
+    }
+    let steps = report.steps.clone();
+    let root = match podbox_enter::RootDir::open(rootfs) {
+        Ok(r) => r,
+        Err(e) => {
+            report.fixups.push(failed_step(
+                steps[0].entry,
+                steps[0].id,
+                format!("podbox could not open the rootfs to run its steps in: {e}"),
+            ));
+            let _ = writeln!(err, "podbox {verb}: complete: {e}");
+            return;
+        }
+    };
+    for (i, s) in steps.iter().enumerate() {
+        let started = std::time::Instant::now();
+        let outcome = one_step(&root, s, env);
+        let took = started.elapsed().as_secs_f64();
+        let (line, failure) = match outcome {
+            Ok(podbox_enter::Bounded::Exited(0)) => (
+                format!(
+                    "podbox: complete: step {} of {}: `{}` exited 0 in {took:.1} s",
+                    i + 1,
+                    steps.len(),
+                    s.argv.join(" ")
+                ),
+                None,
+            ),
+            Ok(podbox_enter::Bounded::Exited(c)) => (
+                format!(
+                    "podbox: complete: step {} of {}: `{}` exited {c} in {took:.1} s. \
+                     ⚠ podbox does NOT fail the run for it: the payload may not need \
+                     what it would have done",
+                    i + 1,
+                    steps.len(),
+                    s.argv.join(" ")
+                ),
+                Some(format!("`{}` exited {c}", s.argv.join(" "))),
+            ),
+            Ok(podbox_enter::Bounded::TimedOut { after_ms }) => (
+                format!(
+                    "podbox: complete: step {} of {}: `{}` was still running after \
+                     {} s and podbox killed it",
+                    i + 1,
+                    steps.len(),
+                    s.argv.join(" "),
+                    after_ms / 1000
+                ),
+                Some(format!(
+                    "`{}` did not finish within {} s and was killed",
+                    s.argv.join(" "),
+                    after_ms / 1000
+                )),
+            ),
+            Err(e) => (
+                format!(
+                    "podbox: complete: step {} of {}: `{}` could not be started: {e}",
+                    i + 1,
+                    steps.len(),
+                    s.argv.join(" ")
+                ),
+                Some(format!("`{}` could not be started: {e}", s.argv.join(" "))),
+            ),
+        };
+        if !quiet {
+            let _ = writeln!(err, "{line}");
+        }
+        report.fixups.push(match failure {
+            None => podbox_complete::Fixup {
+                entry: s.entry,
+                id: s.id,
+                path: String::new(),
+                action: podbox_complete::Action::Ran,
+                detail: format!("`{}` exited 0. {}", s.argv.join(" "), s.why),
+                degraded: false,
+            },
+            Some(why) => failed_step(s.entry, s.id, why),
+        });
+    }
+}
+
+fn failed_step(entry: &'static str, id: &'static str, why: String) -> podbox_complete::Fixup {
+    podbox_complete::Fixup {
+        entry,
+        id,
+        path: String::new(),
+        action: podbox_complete::Action::Failed,
+        detail: why,
+        degraded: true,
+    }
+}
+
+/// One step, entered exactly as the payload is.
+///
+/// ⛔ The same `podbox_enter` sequence and not a second one: a step that
+/// resolved its program in the parent, or entered by a path rather than by the
+/// descriptor T-0504 holds, would be a quieter entry path with none of the
+/// guarantees the loud one has.
+fn one_step(
+    root: &podbox_enter::RootDir,
+    s: &podbox_complete::Step,
+    env: &[String],
+) -> Result<podbox_enter::Bounded, podbox_enter::Error> {
+    // ⛔ The step's stdout becomes podbox's stderr, and it is DUPLICATED first:
+    // handing `(1, 2)` to the child's `dup2`-then-close loop would close the
+    // child's own stderr with it.
+    let mirror = podbox_probe::sys::dup_cloexec(2)
+        .map_err(|e| podbox_enter::Error::Runtime(format!("dup of stderr: {}", e.name())))?;
+    let plan = podbox_enter::Plan {
+        argv: s.argv.clone(),
+        env: env.to_vec(),
+        working_dir: "/".to_string(),
+        fds: podbox_enter::Fds {
+            pass: vec![(1, mirror)],
+        },
+        // ⚠ Empty: the banner named this step before podbox got here.
+        banner: String::new(),
+        path_dirs: Vec::new(),
+    };
+    let mut sink = std::io::sink();
+    let spawned = podbox_enter::spawn(root, &plan, &mut sink);
+    // ⚠ The parent's copy goes here whatever happened: the child got its own.
+    let _ = podbox_probe::sys::close(mirror);
+    spawned?.wait_bounded(STEP_TIMEOUT_MS)
 }
 
 /// Parse `--add-host name:ip` and friends out of the shared argument surface.
@@ -250,6 +432,36 @@ mod tests {
         // ⚠ and NOT the Native one.
         assert!(!s.contains("--rm is"), "{s}");
         assert!(s.contains("3 way(s)"), "{s}");
+    }
+
+    /// ⭐ T-0412. A step is a reason on its own, and it is counted BEFORE any of
+    /// them runs: podbox executing a command inside somebody else's image that
+    /// the caller did not write is a difference from docker, and refusing after
+    /// running one would be podbox acting and then declining to have acted.
+    #[test]
+    fn strict_refuses_a_run_whose_only_difference_is_a_step() {
+        let mut report = podbox_complete::Report::default();
+        report.steps.push(podbox_complete::Step {
+            entry: "T-0412",
+            id: "ca-hash-dir",
+            argv: vec![
+                "/usr/bin/openssl".into(),
+                "rehash".into(),
+                "/etc/ssl/certs".into(),
+            ],
+            why: "libzypp reads this directory and no CAfile at all".into(),
+        });
+        let ask = Ask {
+            strict: true,
+            ..Ask::default()
+        };
+        let floor = podbox_probe::select::Selection::STRICT_FLOOR.word();
+        let mut out = Vec::new();
+        let e = strict_refusal("run", &ask, floor, &report, &mut out).unwrap_err();
+        assert_eq!(e, EXIT_RUNTIME_ERROR);
+        let s = String::from_utf8(out).unwrap();
+        assert!(s.contains("/usr/bin/openssl rehash /etc/ssl/certs"), "{s}");
+        assert!(s.contains("1 way(s)"), "{s}");
     }
 
     /// ⚠ A run with nothing degraded passes `--strict`, or the flag would be a

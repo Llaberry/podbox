@@ -28,6 +28,7 @@
 
 #![forbid(unsafe_op_in_unsafe_fn)]
 
+pub mod abi;
 pub mod binfmt;
 pub mod plan;
 
@@ -191,6 +192,19 @@ pub struct Child {
     pub pid: i64,
 }
 
+/// How a bounded wait ended. ⛔ Three outcomes and not two: `TimedOut` is
+/// `TODO/RULES.md` section 8's own rule, and a bound reached is neither a
+/// failure nor an exit status.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Bounded {
+    /// docker's exit code for however it ended, as [`Child::wait`] reports it.
+    Exited(i32),
+    /// The bound was reached and the payload was killed. ⚠ It carries the
+    /// bound rather than a code, because there is no code: nothing exited on
+    /// its own.
+    TimedOut { after_ms: i64 },
+}
+
 impl Child {
     /// Reap it, and return docker's exit code for however it ended.
     pub fn wait(&self) -> Result<i32> {
@@ -211,6 +225,74 @@ impl Child {
             }
         }
         Ok(exit_status(status))
+    }
+
+    /// Reap it, but never wait longer than `ms`.
+    ///
+    /// ⭐ **`ppoll` on a pidfd, which is `TODO/supervise.md` T-0601 and T-0602's
+    /// mechanism rather than a second one.** A pid plus a sleep is a heuristic;
+    /// a pidfd names one process and `ppoll` waits on the CONDITION with an
+    /// upper bound, so there is no interval to be wrong about and no window in
+    /// which a reused pid could be signalled instead.
+    ///
+    /// ⛔ **On the bound the child is `SIGKILL`ed and then reaped.** A step
+    /// podbox started inside somebody else's image and then walked away from
+    /// would keep the rootfs busy and hold the image lock, and `docs/AGENTS.md`
+    /// makes bounded waits a requirement of podbox itself and not only of the
+    /// agent working on it.
+    pub fn wait_bounded(&self, ms: i64) -> Result<Bounded> {
+        let pidfd = sys::pidfd_open(self.pid).map_err(|e| {
+            Error::Runtime(format!(
+                "pidfd_open on pid {} failed: {} ({}); podbox will not wait on a \
+                 bare pid",
+                self.pid,
+                e.name(),
+                e.0
+            ))
+        })?;
+        let mut fds = [sys::PollFd {
+            fd: pidfd as i32,
+            events: sys::POLLIN,
+            revents: 0,
+        }];
+        let ready = loop {
+            match sys::ppoll(&mut fds, ms) {
+                Ok(n) => break n,
+                // ⚠ `EINTR` is not the bound. A signal delivered to podbox while
+                // it waits must not read as the step having hung.
+                Err(e) if e == sys::EINTR => continue,
+                Err(e) => {
+                    let _ = sys::close(pidfd);
+                    return Err(Error::Runtime(format!(
+                        "ppoll on the step's pidfd failed: {} ({})",
+                        e.name(),
+                        e.0
+                    )));
+                }
+            }
+        };
+        if ready == 0 {
+            let _ = sys::kill(self.pid, 9);
+        }
+        let ended = sys::waitid_pidfd(pidfd, false);
+        let _ = sys::close(pidfd);
+        if ready == 0 {
+            return Ok(Bounded::TimedOut { after_ms: ms });
+        }
+        match ended {
+            Ok(Some(e)) if e.code == sys::CLD_EXITED => Ok(Bounded::Exited(e.status)),
+            // ⛔ 128+signal, which is `exit_status`'s own rule and docker's: a
+            // killed step reporting 0 or 1 is the lie T-0802 is about.
+            Ok(Some(e)) => Ok(Bounded::Exited(128 + e.status)),
+            Ok(None) => Err(Error::Runtime(
+                "waitid reported no status for a pidfd that was ready".into(),
+            )),
+            Err(e) => Err(Error::Runtime(format!(
+                "waitid on the step failed: {} ({})",
+                e.name(),
+                e.0
+            ))),
+        }
     }
 }
 

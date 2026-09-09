@@ -35,6 +35,8 @@ usage: podbox exec [options] <image> <command> [arg...]
                    leave the image's package sources exactly as extracted, and
                    undo a rewrite an earlier run made (TODO/complete.md T-0411)
   --no-host-cas    as in run: leave the image's trust store alone
+  --no-steps       as in run: run no COMMAND inside the rootfs before the
+                   command asked for (TODO/complete.md T-0412)
   --strict         ⛔ refuse to re-enter at all where anything about this
                    invocation is Degraded or Stub (TODO/cli.md T-0804)
   -t, --tty        ⛔ REFUSED BY NAME where /dev/ptmx is unusable, rather
@@ -130,6 +132,7 @@ fn parse(args: &[String]) -> std::result::Result<Opts, i32> {
             }
             "--no-source-fixup" => o.ask.no_source_fixup = true,
             "--no-host-cas" => o.ask.no_host_cas = true,
+            "--no-steps" => o.ask.no_steps = true,
             "--strict" => o.ask.strict = true,
             other if other.starts_with("--env=") => o.env.push(other[6..].to_string()),
             other if other.starts_with("--workdir=") => o.workdir = Some(other[10..].to_string()),
@@ -197,30 +200,38 @@ fn enter(
     // previous one turned into a file is still a file.
     let mut ask = o.ask.clone();
     ask.container_name = Some(target.to_string());
-    let completion = match crate::complete::prepare("exec", rootfs, &ask, &mut banner) {
+    let mut completion = match crate::complete::prepare("exec", rootfs, &ask, &mut banner) {
         Ok(r) => r,
         Err(code) => return code,
     };
     let mut err = std::io::stderr().lock();
+    // ⭐ T-0804 rule 1, and ahead of every refusal below for `run`'s own
+    // reasons: a refused caller gets the banner too, and T-0412's steps have to
+    // be named before they run.
+    let quiet = crate::complete::banner_quiet(store);
+    if !quiet {
+        let _ = write!(err, "{banner}");
+    }
     if let Err(code) =
         crate::complete::strict_refusal("exec", &ask, entered.word(), &completion, &mut err)
     {
         return code;
     }
-    if crate::complete::banner_quiet(store) {
-        banner.clear();
-    }
     if o.tty && !ptmx_usable(&findings) {
-        let _ = write!(err, "{banner}");
         let _ = writeln!(err, "{TTY_REFUSAL}");
         return podbox_enter::EXIT_RUNTIME_ERROR;
     }
+    // ⭐ T-0412, and `exec` runs them for the same reason it completes the
+    // rootfs at all: a fresh chroot re-entry is a fresh payload, and a keyring
+    // or a CA index a previous one destroyed is still destroyed.
+    crate::complete::run_steps("exec", rootfs, &env, &mut completion, quiet, &mut err);
     let plan = Plan {
         argv: o.command.clone(),
         env,
         working_dir,
         fds: Fds::default(),
-        banner,
+        // ⚠ Empty: the banner was printed above, before the steps.
+        banner: String::new(),
         path_dirs,
     };
     let root = match RootDir::open(rootfs) {
@@ -360,19 +371,21 @@ pub fn exec(args: &[String]) -> i32 {
     // diverges.
     let mut ask = o.ask.clone();
     ask.container_name = Some(image.clone());
-    let completion = match crate::complete::prepare("exec", &rootfs, &ask, &mut banner) {
+    let mut completion = match crate::complete::prepare("exec", &rootfs, &ask, &mut banner) {
         Ok(r) => r,
         Err(code) => return code,
     };
 
     let mut err = std::io::stderr().lock();
+    // ⭐ T-0804 rule 1, ahead of the refusals: see the container path above.
+    let quiet = crate::complete::banner_quiet(&store);
+    if !quiet {
+        let _ = write!(err, "{banner}");
+    }
     if let Err(code) =
         crate::complete::strict_refusal("exec", &ask, entered.word(), &completion, &mut err)
     {
         return code;
-    }
-    if crate::complete::banner_quiet(&store) {
-        banner.clear();
     }
     if o.tty {
         // ⛔ T-0503, and the same rule as `run`: `Ok` and nothing else, because
@@ -382,7 +395,6 @@ pub fn exec(args: &[String]) -> i32 {
                 && matches!(out.verdict, podbox_probe::verdict::Verdict::Ok)
         });
         if !usable {
-            let _ = write!(err, "{banner}");
             let _ = writeln!(
                 err,
                 "podbox exec: -t was asked for and /dev/ptmx is not usable on this \
@@ -393,13 +405,16 @@ pub fn exec(args: &[String]) -> i32 {
             return podbox_enter::EXIT_RUNTIME_ERROR;
         }
     }
+    // ⭐ T-0412's steps, on the image path as on the container one.
+    crate::complete::run_steps("exec", &rootfs, &env, &mut completion, quiet, &mut err);
 
     let plan = Plan {
         argv,
         env,
         working_dir,
         fds: Fds::default(),
-        banner,
+        // ⚠ Empty: the banner was printed above, before the steps.
+        banner: String::new(),
         path_dirs,
     };
 

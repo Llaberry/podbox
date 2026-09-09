@@ -20,11 +20,20 @@ use podbox_image::error::{EXIT_CLI_ERROR, EXIT_FLAG_ERROR};
 pub const SYSTEM_USAGE: &str = "\
 usage: podbox system info [--format T]
        podbox system install-names [--dir D] [--force]
+       podbox system abi <object> <libc>
        podbox info [--format T]
 
-  Fields: .Parity .ParityRows .ExitCodes .Version .Rung .StrictOk .Store
-          .Banner .Platform .Kernel .Verbs .VerbsNative .VerbsDegraded
-          .VerbsStub .VerbsNone
+  abi          ⭐ may <object> be preloaded into a payload served by <libc>?
+               Answered by READING both, never by loading one:
+               DT_NEEDED against the libc's own SONAME, then every imported
+               symbol and every imported symbol VERSION, from .dynsym and
+               never .symtab (TODO/interpose.md T-0709).
+               Exit 0 it may, 1 it may not and the reason is on stderr, 2 a
+               file could not be read.
+
+  Fields: .Parity .ParityRows .ExitCodes .Version .Rung .EnteredRung
+          .StrictOk .Store .Banner .Platform .Kernel .Verbs .VerbsNative
+          .VerbsDegraded .VerbsStub .VerbsNone
 
   --format T   {{.Field}} placeholders, plus `{{json .Field}}`. .Parity is
                already a JSON document, so both spellings print it.
@@ -32,6 +41,11 @@ usage: podbox system info [--format T]
   ⛔ podbox has no daemon, so there is no client/server split to report. The
     rung this machine permits stands where docker prints a server version,
     and it is measured rather than assumed.
+
+  ⛔ .Rung and .EnteredRung are TWO ANSWERS and a caller needs both. .Rung is
+    what this machine would permit; .EnteredRung is the sequence `podbox run`
+    actually performs, which is a chroot on every machine. Reporting the first
+    as if it were the second is the defect TODO/cli.md T-0804 was opened for.
 
   ⚠ .ExitCodes is docker's exit-code contract as data: one object per case,
     with `case`, `code` and `what`. Measured against docker rather than read,
@@ -55,6 +69,11 @@ pub const FIELDS: &[&str] = &[
     "ExitCodes",
     "Version",
     "Rung",
+    // ⭐ T-0804 rule 4, as DATA. `podbox_enter::ENTERED_RUNG` is the one
+    // constant the banner is built from, and a script that had only `.Rung` to
+    // read could print "the rung podbox uses" and name a rung podbox does not
+    // enter with -- which `experiments/240-distro-sweep.sh` did.
+    "EnteredRung",
     "StrictOk",
     "Store",
     "Banner",
@@ -89,6 +108,7 @@ pub fn system(args: &[String]) -> i32 {
     match args.first().map(String::as_str) {
         Some("info") => info(rest),
         Some("install-names") => crate::names::install(rest),
+        Some("abi") => abi(rest),
         Some("-h") | Some("--help") | None => {
             print!("{SYSTEM_USAGE}");
             0
@@ -102,6 +122,66 @@ pub fn system(args: &[String]) -> i32 {
                  verb podbox has and every one it does not"
             );
             podbox_image::error::EXIT_RUNTIME_ERROR
+        }
+    }
+}
+
+/// `podbox system abi <object> <libc>`.
+///
+/// ⭐ **[`TODO/interpose.md`](../../../TODO/interpose.md) T-0709's answer, made
+/// drivable.** The selection is a reader, so the way to assert it is to point
+/// it at two real files and compare its prediction with what the loader then
+/// does -- which is what `experiments/80-interposer-abi.sh` does, against the
+/// same objects it builds for its own checks.
+///
+/// ⛔ Three exit codes and the third is not a failure: 0 admitted, 1 refused
+/// with the reason on stderr, 2 a file podbox could not read.
+pub fn abi(args: &[String]) -> i32 {
+    let mut paths: Vec<&str> = Vec::new();
+    for a in args {
+        match a.as_str() {
+            "-h" | "--help" => {
+                print!("{SYSTEM_USAGE}");
+                return 0;
+            }
+            other if other.starts_with('-') => {
+                eprintln!("podbox system abi: unknown option {other:?}");
+                return EXIT_FLAG_ERROR;
+            }
+            other => paths.push(other),
+        }
+    }
+    if paths.len() != 2 {
+        eprintln!("podbox system abi: two paths are required: <object> <libc>");
+        eprint!("{SYSTEM_USAGE}");
+        return EXIT_CLI_ERROR;
+    }
+    let read = |p: &str| podbox_enter::abi::Elf::read(p);
+    let (object, libc) = match (read(paths[0]), read(paths[1])) {
+        (Ok(o), Ok(l)) => (o, l),
+        (Err(e), _) | (_, Err(e)) => {
+            eprintln!("podbox system abi: {e}");
+            // ⛔ 2, and it means "could not be measured". A file podbox cannot
+            // read is not a file podbox has refused.
+            return 2;
+        }
+    };
+    match podbox_enter::abi::admits(&object, &libc) {
+        podbox_enter::abi::Verdict::Admitted => {
+            println!(
+                "admitted: {} may be preloaded into a payload served by {} ({}, {} \
+                 imports checked against {} definitions)",
+                object.path,
+                libc.path,
+                libc.flavour().word(),
+                object.imported.len(),
+                libc.defined.len()
+            );
+            0
+        }
+        podbox_enter::abi::Verdict::Refused(why) => {
+            eprintln!("refused: {why}");
+            1
         }
     }
 }
@@ -193,6 +273,7 @@ fn fields_from(rung: &str, strict_ok: bool, store: String) -> Vec<(&'static str,
         ("ExitCodes", podbox_probe::exit::json()),
         ("Version", env!("CARGO_PKG_VERSION").to_string()),
         ("Rung", rung.to_string()),
+        ("EnteredRung", podbox_enter::ENTERED_RUNG.word().to_string()),
         ("StrictOk", strict_ok.to_string()),
         ("Store", store),
         // ⭐ T-0804 rule 1: the banner is suppressible by CONFIG and never by
@@ -239,8 +320,8 @@ fn pick(fields: &[(&str, String)], key: &str) -> String {
 fn human(fields: &[(&str, String)]) -> String {
     let mut out = String::new();
     out.push_str(&format!(
-        "podbox {}\n  rung          {}   (--strict would {})\n  platform      {}\n  \
-         kernel        {}\n  store         {}\n\n",
+        "podbox {}\n  rung          {}   (--strict would {})\n  entered with  {}\n  \
+         platform      {}\n  kernel        {}\n  store         {}\n\n",
         pick(fields, "Version"),
         pick(fields, "Rung"),
         if pick(fields, "StrictOk") == "true" {
@@ -248,6 +329,7 @@ fn human(fields: &[(&str, String)]) -> String {
         } else {
             "refuse"
         },
+        pick(fields, "EnteredRung"),
         pick(fields, "Platform"),
         pick(fields, "Kernel"),
         pick(fields, "Store"),
@@ -283,6 +365,22 @@ mod tests {
         for d in DOCUMENTS {
             assert!(FIELDS.contains(d), "{d} is a document and not a field");
         }
+    }
+
+    /// ⭐ T-0804 rule 4, as an assertion. `.EnteredRung` is
+    /// [`podbox_enter::ENTERED_RUNG`] and NOT the rung the probe selected, so a
+    /// script reading it cannot print a rung podbox does not enter with. ⚠ The
+    /// argument here is deliberately a rung podbox does not implement, so the
+    /// test fails if the field is ever wired to the wrong one.
+    #[test]
+    fn the_entered_rung_is_the_sequence_and_not_the_selection() {
+        let fields = fields_from("namespace", true, "/nowhere".into());
+        assert_eq!(pick(&fields, "Rung"), "namespace");
+        assert_eq!(
+            pick(&fields, "EnteredRung"),
+            podbox_enter::ENTERED_RUNG.word()
+        );
+        assert_ne!(pick(&fields, "EnteredRung"), pick(&fields, "Rung"));
     }
 
     /// ⭐ T-0801's `Prove`, without a shell: the template it names renders the

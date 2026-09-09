@@ -41,6 +41,13 @@ usage: podbox run [options] <image> [command] [arg...]
                    intercepts TLS, an https package source then fails to
                    verify inside the container, exactly as it does under
                    docker
+  --no-steps       ⛔ do not run any COMMAND inside the rootfs before the
+                   payload. Two fixups cannot be made from outside the
+                   chroot -- `pacman-key --init` for an empty keyring, and
+                   `openssl rehash` for a hash-indexed CA directory, which is
+                   the only trust store libzypp reads -- and podbox names
+                   each on the banner before it runs it. This refuses them
+                   all, and the fixup log then says what the caller gave up
   --strict         ⛔ refuse to run at all where anything about this
                    invocation is Degraded or Stub: a flag, the selected rung,
                    or a fixup the completion layer had to make
@@ -172,6 +179,7 @@ fn parse(args: &[String]) -> std::result::Result<Opts, i32> {
             }
             "--no-source-fixup" => o.ask.no_source_fixup = true,
             "--no-host-cas" => o.ask.no_host_cas = true,
+            "--no-steps" => o.ask.no_steps = true,
             "--strict" => o.ask.strict = true,
             other if other.starts_with("--env=") => o.env.push(other[6..].to_string()),
             other if other.starts_with("--workdir=") => o.workdir = Some(other[10..].to_string()),
@@ -238,7 +246,8 @@ pub fn run(args: &[String]) -> i32 {
     // as its payload is running, which is a condition rather than a duration:
     // TODO/supervise.md T-0602.
     if p.detach {
-        let _ = write!(err, "{}", p.banner);
+        // ⚠ The banner was printed by `prepare`, which had to print it before
+        // running T-0412's steps inside the rootfs.
         drop(err);
         let c = match podbox_supervise::create(
             &store,
@@ -295,7 +304,10 @@ pub fn run(args: &[String]) -> i32 {
         env: p.env.clone(),
         working_dir: p.working_dir.clone(),
         fds: Fds::default(),
-        banner: p.banner.clone(),
+        // ⚠ Empty, and that is the same reason the launcher's is: `prepare`
+        // printed the banner, because T-0412's steps run inside the rootfs
+        // after it and every one of them has to be named before it runs.
+        banner: String::new(),
         path_dirs: Plan::path_from(&p.env),
     };
     // ⭐ T-0204 and T-0211. The lock is handed to the payload immediately
@@ -476,7 +488,7 @@ pub(crate) fn prepare(
     // somebody else's image and the payload can see it.
     let mut ask = o.ask.clone();
     ask.container_name = o.name.clone();
-    let completion = crate::complete::prepare(verb, &rootfs, &ask, &mut banner)?;
+    let mut completion = crate::complete::prepare(verb, &rootfs, &ask, &mut banner)?;
     if !cfg.config.user.is_empty() {
         // ⚠ Read and REPORTED, never applied. podbox cannot setuid to an id
         // this machine does not map, which is the wall the project is about.
@@ -485,6 +497,16 @@ pub(crate) fn prepare(
              and does not change to it\n",
             cfg.config.user
         ));
+    }
+    // ⭐ T-0804 rule 1, applied HERE and nowhere else, so `run`, `run -d`,
+    // `create` and the launcher cannot disagree about whether this machine
+    // prints it. ⛔ It moved ahead of every refusal below on purpose: a refused
+    // caller used to get the reasons with no banner under `--strict`, and
+    // `create` printed neither, while T-0412's steps mean podbox may now run a
+    // command inside the image, which rule 3 says is named before it runs.
+    let quiet = crate::complete::banner_quiet(store);
+    if !quiet {
+        let _ = write!(err, "{banner}");
     }
     if o.tty {
         // ⛔ T-0503: refused BY NAME rather than silently degraded.
@@ -497,7 +519,6 @@ pub(crate) fn prepare(
                 && matches!(out.verdict, podbox_probe::verdict::Verdict::Ok)
         });
         if !usable {
-            let _ = write!(err, "{banner}");
             let _ = writeln!(
                 err,
                 "podbox run: -t was asked for and /dev/ptmx is not usable on this \
@@ -513,11 +534,10 @@ pub(crate) fn prepare(
     // refusal prints even where the banner is suppressed: the config switch
     // silences a notice, never a refusal.
     crate::complete::strict_refusal(verb, &ask, entered.word(), &completion, &mut err)?;
-    // ⭐ T-0804 rule 1, applied here and nowhere else, so `run`, `run -d` and
-    // the launcher cannot disagree about whether this machine prints it.
-    if crate::complete::banner_quiet(store) {
-        banner.clear();
-    }
+    // ⭐ T-0412. The commands the completion layer could not run from the host,
+    // run here: after the banner named them, after `--strict` had its chance to
+    // refuse them, and before anything of the payload's exists.
+    crate::complete::run_steps(verb, &rootfs, &env, &mut completion, quiet, &mut err);
     let _ = path_dirs;
     // ⚠ The lock this function took goes here. It existed to keep the rootfs
     // from being deleted between the extraction check and now; the process that
@@ -532,7 +552,6 @@ pub(crate) fn prepare(
         working_dir,
         name: o.name.clone(),
         rung: entered.word().to_string(),
-        banner,
         detach: o.detach,
         rm: o.rm,
         completion: completion

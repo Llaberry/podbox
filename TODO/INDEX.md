@@ -86,6 +86,7 @@ the blocker named and what would clear it.
 | [T-0211](image.md) | P1 | image | done | An image lock outlives its holder whenever anything forks |
 | [T-0212](image.md) | P0 | image | done | The platform is decided at run time, and the store holds more than one |
 | [T-0213](image.md) | P0 | image | done | A registry with no certificate, or one nothing trusts, and the refusal kept |
+| [T-0214](image.md) | P2 | image | open | A blob body cut off mid-stream is not retried, and the bounded retry is around the wrong thing |
 | [T-0301](extract.md) | P0 | extract | done | Extract in-process, at entry level, never through system `tar` |
 | [T-0302](extract.md) | P0 | extract | done | Ownership-neutral extraction plus the sidecar |
 | [T-0303](extract.md) | P0 | extract | done | Whiteouts are matched on the basename, never with a path glob |
@@ -104,7 +105,7 @@ the blocker named and what would clear it.
 | [T-0409](complete.md) | P2 | complete | done | Ownership failures from `dpkg`, `rpm` and `xbps` are warnings |
 | [T-0410](complete.md) | P0 | complete | done | Supply `/etc/nsswitch.conf`, or the supplied `/etc/passwd` is a no-op |
 | [T-0411](complete.md) | P1 | complete | done | A payload whose package sources are `http://`, on a runtime where tcp/80 hangs |
-| [T-0412](complete.md) | P1 | complete | open | A fixup that has to run INSIDE the rootfs, and podbox runs it from outside |
+| [T-0412](complete.md) | P1 | complete | done | A fixup that has to run INSIDE the rootfs, and podbox runs it from outside |
 | [T-0501](enter.md) | P0 | enter | done | Open every descriptor before the root changes |
 | [T-0502](enter.md) | P0 | enter | done | Resolve the program inside the new root, in the process that changed it |
 | [T-0503](enter.md) | P1 | enter | partial | Probe `/dev/ptmx`, and refuse `-t` by name where it is absent |
@@ -127,7 +128,7 @@ the blocker named and what would clear it.
 | [T-0706](interpose.md) | P0 | interpose | open | Classify the payload and decline with a named reason |
 | [T-0707](interpose.md) | P1 | interpose | open | The paths that must not be rewritten |
 | [T-0708](interpose.md) | P2 | interpose | open | Intercept the operations the runtime cannot provide |
-| [T-0709](interpose.md) | P0 | interpose | open | Select the interposer by `DT_NEEDED`, and refuse on the version predicate |
+| [T-0709](interpose.md) | P0 | interpose | done | Select the interposer by `DT_NEEDED`, and refuse on the version predicate |
 | [T-0801](cli.md) | P0 | cli | done | The verb and flag parity table |
 | [T-0802](cli.md) | P0 | cli | done | docker's exit codes, unaltered |
 | [T-0803](cli.md) | P1 | cli | done | Answer to `docker` and `podman` on PATH |
@@ -171,7 +172,7 @@ the blocker named and what would clear it.
 
 ## Counts
 
-108 items: 22 open, 3 partial, 2 blocked, 81 done.
+109 items: 21 open, 3 partial, 2 blocked, 83 done.
 
 Counted from the rows above by `scripts/todo-count.py` and asserted
 independently by `scripts/check-todo.py`, which is the gate. A number here
@@ -179,11 +180,11 @@ that disagrees with the rows cannot reach a commit.
 
 | Priority | Open | Partial | Blocked | Done | Total |
 | --- | --- | --- | --- | --- | --- |
-| P0 | 6 | 0 | 1 | 42 | 49 |
-| P1 | 7 | 3 | 1 | 29 | 40 |
-| P2 | 6 | 0 | 0 | 9 | 15 |
+| P0 | 5 | 0 | 1 | 43 | 49 |
+| P1 | 6 | 3 | 1 | 30 | 40 |
+| P2 | 7 | 0 | 0 | 9 | 16 |
 | P3 | 3 | 0 | 0 | 1 | 4 |
-| **All** | **22** | **3** | **2** | **81** | **108** |
+| **All** | **21** | **3** | **2** | **83** | **109** |
 
 ## How the current ordering is derived
 

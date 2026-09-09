@@ -486,7 +486,7 @@ Source:      `experiments/results/interposer-abi.txt`
 Category:    interpose
 Priority:    P0
 Effort:      M
-Status:      open
+Status:      done
 
 Problem:     T-0702 establishes that one object per libc is required. That
              leaves the question of which object a given payload gets, and
@@ -528,4 +528,75 @@ Approach:    At extract time, for the rootfs just written:
 Decision:    Select and assert, never try. The assertion is cheap, it runs
              before anything is executed, and it turns a runtime failure inside
              somebody's container into a refusal with a reason.
-Prove:       `./experiments/80-interposer-abi.sh` exits 0 and `podbox run --rm alpine:latest true 2>&1 | grep -qv 'symbol not found'`
+Prove:       `./experiments/80-interposer-abi.sh` exits 0, and its check E is this reader answering what the loader answered in A, B and C
+
+
+**Done 2026-09-09.** `crates/podbox-enter/src/abi.rs`, driven by
+`podbox system abi <object> <libc>` and asserted by check E of
+`experiments/80-interposer-abi.sh`.
+
+⛔ **The `Prove` above was amended, and the reason is that its second half could
+not fail.** It read `podbox run --rm alpine:latest true 2>&1 | grep -qv 'symbol
+not found'`; with no interposer to preload, no run can produce that string, so
+the clause passes on a tree where nothing is implemented. Check E is the
+assertion that can go red: the reader's verdict is compared with what the loader
+actually did in checks A, B and C, over the same objects and the same pinned
+payload libcs.
+
+```
+== E. podbox's own reader, against the same four situations
+  control glibc obj -> host libc     rc=0    admitted
+  glibc obj -> musl libc             rc=1    refused (names musl and glibc)
+  control musl obj -> musl libc      rc=0    admitted
+  musl obj -> host glibc libc        rc=1    refused
+  C's situation, read not run        rc=1    refused, naming GLIBC_2.34
+ok   E: the reader's answer is the loader's, on every arm that ran
+```
+
+⭐ **The libc is FOUND rather than named.** There is no table of
+`lib/x86_64-linux-gnu/libc.so.6` in the reader: the payload's own `PT_INTERP`
+names the loader that will run it, and on musl that file IS the C library while
+on glibc the libc sits in the loader's own directory. A table would be a list of
+the distributions somebody thought of, and `crates/podbox-complete/src/identity.rs`
+already carries one for a coarser question.
+
+Four things the implementation had to get right, and three of them were found by
+running it rather than by reading:
+
+1. ⛔ **`.dynsym` and never `.symtab`**, which is the entry's own trap and the
+   only one that was known in advance. Check D measures it: 0 defined symbols in
+   `.symtab` and 3136 in `.dynsym`;
+2. ⛔ **A WEAK undefined symbol is not a requirement.** The first working reader
+   refused its own control: the glibc object imports
+   `_ITM_deregisterTMCloneTable`, `_ITM_registerTMCloneTable` and
+   `__gmon_start__`, none of which `libc.so.6` defines, and it loads. GCC's
+   `crtbegin` emits them `STB_WEAK` and the loader binds them to 0. A reader
+   that treated them as requirements **refuses every object gcc produces**,
+   which is the same shape as the `.symtab` trap: it reads exactly like a check
+   that works;
+3. ⛔ **The version is checked BEFORE the name, because that is the loader's own
+   order.** The pinned glibc 2.31 payload does not define `dlsym` in `libc.so.6`
+   at all -- glibc 2.34 merged `libdl` into `libc` -- so the symbol is both
+   undefined and at an undeclared version. The loader says `version 'GLIBC_2.34'
+   not found`; a reader asking "is it defined" first said `dlsym` is missing,
+   which is true and sends the reader to look for `libdl` rather than at the
+   build host;
+4. ⛔ **`VER_FLG_BASE` is not a version.** The first entry of `.gnu.version_d` is
+   the file's own SONAME wearing a version entry's clothes, so collecting it put
+   `libc.so.6` in the declared list beside `GLIBC_2.39`, where it sorts after
+   every real one and became the "declares up to" the refusal reported.
+
+⚠ **What is still open is the OBJECT, not the reader.** Nothing preloads
+anything yet: [T-0701](#t-0701-the-cdylib-build-constraints) and
+[T-0702](#t-0702-one-object-per-libc-and-it-must-live-inside-the-rootfs) are the
+cdylib and the placement, and this reader is what will choose between the two
+objects they produce.
+
+⭐ **A second thing this closed, in the harness rather than in podbox.**
+`experiments/80-interposer-abi.sh` exited **2** on this container because
+`musl-gcc` is absent from it, so question B and both musl arms of check E could
+not be taken. It now falls back to `scripts/zig-cc.sh`, which is the compiler
+`.cargo/config.toml` already names for the musl target and which carries the
+musl sources it compiles against. The script exits **0** for the first time and
+the conditions block says which compiler produced the object, because "the musl
+arm ran" means something different depending on it.

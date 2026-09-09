@@ -716,9 +716,6 @@ pub struct Prepared {
     pub working_dir: String,
     pub name: Option<String>,
     pub rung: String,
-    /// The banner the caller prints, built once so `run` and `run -d` say the
-    /// same thing about the same machine.
-    pub banner: String,
     pub detach: bool,
     pub rm: bool,
     /// ⭐ T-0804 rule 3: `inspect` reports the TRUE mode per container, and a

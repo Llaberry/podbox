@@ -90,7 +90,7 @@ pub const TABLE: &[Row] = &[
     Row { verb: "tag", flag: Option::None, status: Native, note: "points a second name at one manifest digest; nothing is fetched" },
     Row { verb: "image", flag: Option::None, status: Native, note: "ls, rm, prune, tag, inspect, pull and extract" },
     Row { verb: "inspect", flag: Option::None, status: Degraded, note: "images only. podbox has no containers until M4, so a container reference is not resolvable" },
-    Row { verb: "system", flag: Option::None, status: Degraded, note: "info only. df, events and prune are not implemented" },
+    Row { verb: "system", flag: Option::None, status: Degraded, note: "info, install-names and abi. df, events and prune are not implemented; the last two are podbox's own and docker has neither" },
     Row { verb: "info", flag: Option::None, status: Degraded, note: "podbox has no daemon, so the server half of docker's output is the rung this machine permits instead" },
     Row { verb: "version", flag: Option::None, status: Native, note: "one artefact, so there is one version and no client/server split" },
     Row { verb: "probe", flag: Option::None, status: Native, note: "podbox's own verb, with no docker equivalent: what this machine permits, and the rung podbox selects" },
@@ -160,13 +160,14 @@ pub const TABLE: &[Row] = &[
     Row { verb: "run", flag: Some("--cpus"), status: NoneStatus, note: "resource limits need a cgroup this runtime does not grant" },
     Row { verb: "run", flag: Some("--restart"), status: NoneStatus, note: "restarting needs a supervisor, which is M4" },
     Row { verb: "run", flag: Some("--hostname"), status: NoneStatus, note: "sethostname needs a UTS namespace this runtime does not grant" },
-    // ⭐ M5 and TODO/cli.md T-0804. Three flags docker does not have, and each
+    // ⭐ M5 and TODO/cli.md T-0804. Four flags docker does not have, and each
     // is here for the same reason every other row is: a surface with no row is
     // a surface nobody documented.
     Row { verb: "run", flag: Some("--add-host"), status: Native, note: "name:ip, appended to the /etc/hosts the completion layer writes. Repeatable (T-0403)" },
     Row { verb: "run", flag: Some("--no-source-fixup"), status: Native, note: "podbox's own: leave the image's package sources exactly as extracted, http:// and all, and UNDO any rewrite an earlier run made (T-0411)" },
     Row { verb: "run", flag: Some("--no-host-cas"), status: Native, note: "podbox's own: do not append this machine's announced CA bundle ($SSL_CERT_FILE and friends) to the image's own trust store, even where the machine intercepts TLS (T-0407)" },
-    Row { verb: "run", flag: Some("--strict"), status: Native, note: "podbox's own: refuse rather than run where anything about this invocation is Degraded or Stub -- a flag, the selected rung, or a completion fixup (T-0804)" },
+    Row { verb: "run", flag: Some("--no-steps"), status: Native, note: "podbox's own: run no command inside the rootfs before the payload. Two fixups cannot be made from outside the chroot -- pacman-key for an empty keyring and openssl rehash for a hash-indexed CA directory -- and this refuses both (T-0412)" },
+    Row { verb: "run", flag: Some("--strict"), status: Native, note: "podbox's own: refuse rather than run where anything about this invocation is Degraded or Stub -- a flag, the selected rung, a completion fixup, or a step podbox would run inside the image (T-0804)" },
     // ------------------------------------------------------ exec's own flags
     Row { verb: "exec", flag: Some("-e, --env"), status: Native, note: "repeatable; a later one wins" },
     Row { verb: "exec", flag: Some("-w, --workdir"), status: Native, note: "chdir inside the new root, after the chroot" },
@@ -179,6 +180,7 @@ pub const TABLE: &[Row] = &[
     Row { verb: "exec", flag: Some("--add-host"), status: Native, note: "name:ip, appended to the /etc/hosts the completion layer writes (T-0403)" },
     Row { verb: "exec", flag: Some("--no-source-fixup"), status: Native, note: "as in run: leave the image's package sources as extracted, and undo an earlier rewrite (T-0411)" },
     Row { verb: "exec", flag: Some("--no-host-cas"), status: Native, note: "as in run: leave the image's own trust store alone (T-0407)" },
+    Row { verb: "exec", flag: Some("--no-steps"), status: Native, note: "as in run: run no command inside the rootfs before the command asked for (T-0412)" },
     Row { verb: "exec", flag: Some("--strict"), status: Native, note: "as in run: refuse rather than re-enter where anything about this invocation is Degraded or Stub (T-0804)" },
     // ------------------------------------------------------ pull's own flags
     Row { verb: "pull", flag: Some("--platform"), status: Native, note: "a bare word is an architecture, as docker reads it" },
