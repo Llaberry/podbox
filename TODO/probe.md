@@ -720,3 +720,84 @@ the milestone's row-for-row comparison a mechanical diff rather than a reading.
 `references/compforge__pathshim/tree/README.md:65`. The divergence this entry
 names is unchanged and is not yet reachable: podbox refuses rather than
 degrading into a passthrough, and that decision lands with `run` at M3.
+
+---
+
+### T-0112 A virtual machine answers the two questions this host's kernel cannot
+
+Source:      Asked by the operator on 2026-09-09: "can we not run a microvm to get these features anyway"
+Category:    probe
+Priority:    P1
+Effort:      M
+Status:      done 2026-09-09
+
+Problem:     ⛔ **Three of podbox's own measurements have been "cannot be
+             answered here" since M0**, and every session has re-reported them
+             to the operator as open questions. This host's kernel has neither
+             `CONFIG_SECURITY_LANDLOCK` nor `CONFIG_CHECKPOINT_RESTORE`, so
+             `landlock_create_ruleset` reports `SKIP` and makes
+             `experiments/30-attribution-census.sh` exit 2, the `kcmp(2)`
+             control of [T-0102](#t-0102-the-bogus-argument-discriminator-and-its-two-controls)
+             cannot answer on any run, and M0's own acceptance could never
+             exercise `move_mount(-> /tmp/mm-probe)` against a kernel where the
+             LSM was present.
+Premise:     ⭐ **Measured on 2026-09-09, and the answer is yes.**
+             `experiments/290-microvm.sh` boots a stock Alpine `virt` kernel
+             under QEMU with an initramfs carrying busybox and podbox and
+             nothing else, runs `podbox probe --json` inside it, and reads the
+             document back off the serial console.
+
+             | | this host | the VM | the target |
+             | --- | --- | --- | --- |
+             | `kcmp(-1,-1,...)` control | ⛔ cannot answer, `ENOSYS` | **`ESRCH`** | `ESRCH` |
+             | `controls_answered` | `false` | **`true`** | - |
+             | `landlock_create_ruleset(VERSION)` | `denied ENOSYS` | **`ok`, ABI 6** | - |
+             | `move_mount(-> /tmp/mm-probe)` | `ok` | `ok` | `EPERM` |
+             | LSMs | - | `lockdown,capability,landlock` | - |
+
+             ⭐ **The VM's `kcmp` answer is `ESRCH`, which is the target's**,
+             read at `references/Azathothas__container-research/tree/verification/real/extkernel-newapi.txt:26`.
+             The control that could not answer now answers, and it agrees.
+
+             ⚠ **No `/dev/kvm` and no `vmx` or `svm` on this host**, so the VM
+             runs under TCG, pure software emulation. Measured: the whole
+             boot-probe-poweroff cycle is **about 6 seconds**, which is cheap
+             enough to belong in the acceptance rather than in a session's
+             notes.
+Approach:    `experiments/290-microvm.sh`, and
+             `scripts/common/bootstrap-env.sh` grows two components so a session
+             does not discover the tools are missing halfway through: `qemu`
+             (both `qemu-user-static` for the foreign-architecture work of
+             [T-0911](deps.md) and `qemu-system-x86` for this) and `vmtools`
+             (`busybox-static` and `cpio`).
+             ⛔ The initramfs is built here rather than reusing Alpine's:
+             theirs expects to find a repository and mount a root, and each of
+             those is a step that can fail for a reason unrelated to the
+             question.
+             ⛔ The JSON is validated with `jq -e` before anything is read from
+             it, because it is carved out of a serial console and a `jq` over a
+             truncated document answers `null` to every question, which reads
+             exactly like a measured absence.
+Decision:    A second **machine**, never a second **target**. ⚠ The VM answers
+             "what does a kernel with Landlock say", and it can never answer
+             "what does the target say": it is an ordinary kernel with every
+             capability, which is the **easy** case and proves nothing about
+             confinement. `experiments/20-enter-target.sh` remains the thing
+             that models the target, and clause 5 says so in the result file so
+             a later reader cannot mistake the VM's rung for a finding.
+Prove:       `./experiments/290-microvm.sh` exits 0
+
+**Done 2026-09-09.** Five clauses, all green, in about 6 seconds.
+
+⚠ **One line of this script was wrong in a way worth recording**, because it is
+the failure mode this project's third state exists for. `.controls.kcmp` is
+`null` on this host, and that is **correct**: the control could not answer, so
+podbox records a dash rather than a value (`docs/AGENTS.md` absolute 3) and sets
+`controls_answered` false. Printing a bare `null` into a result file reads like a
+defect in podbox, so the row's own errno is printed beside it and the line now
+says "none: the control could not answer (ENOSYS...)".
+
+⚠ **`/dev/pts` is mounted in the initramfs deliberately.** Without it
+`open(/dev/ptmx)` answers `ENOENT` and the row is a statement about this
+initramfs rather than about the kernel, which is exactly the mistake
+[T-0503](enter.md) records about the reconstruction's `/dev`.

@@ -1,0 +1,36 @@
+== conditions
+date              2026-09-09T02:54:45Z
+host kernel       6.18.44-fc-v24  (the one that CANNOT answer)
+host landlock     # CONFIG_SECURITY_LANDLOCK is not set
+host checkpoint   # CONFIG_CHECKPOINT_RESTORE is not set
+/dev/kvm          absent, so this runs under TCG
+qemu              QEMU emulator version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)
+alpine netboot    v3.21
+podbox            podbox 0.1.0
+
+== 1. the VM booted and podbox ran inside it
+  qemu exit         0
+  wall clock        6s, under TCG
+  guest kernel      6.12.81-0-virt
+  guest LSMs        lockdown,capability,landlock
+
+== 2. TODO/probe.md T-0102: the kcmp(2) control ANSWERS here
+  on this host      none: the control could not answer (ENOSYS, CONFIG_CHECKPOINT_RESTORE unset)
+  in the VM         ESRCH   controls_answered=true
+  on the target     ESRCH   references/Azathothas__container-research/tree/verification/real/extkernel-newapi.txt:26
+
+== 3. Landlock, which this host cannot host at all
+  in the VM         ok   ABI 6
+  on this host      denied ENOSYS
+
+== 4. move_mount, the row M0's acceptance could never exercise
+  in the VM         ok
+  on this host      ok
+  on the target     EPERM, which is why podbox selects the chroot rung there
+
+== 5. the rung, and why it is NOT this VM's headline
+  VM rung           namespace
+  host rung         namespace
+  ⚠ A VM with every capability is the EASY case and proves nothing about
+    confinement. What this experiment buys is the three rows above, each
+    of which this host reports as 'cannot answer' rather than as a value.

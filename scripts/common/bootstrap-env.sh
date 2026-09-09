@@ -23,6 +23,17 @@
 #   docker    the daemon, STARTED. experiments/20-, 30-, 70-, 80-, 90-, 100-,
 #             125- and 130- all exit 2 without it.
 #   tools     jq, binutils (readelf, nm), file, xz, ca-certificates.
+#   qemu      ⭐ TWO SEPARATE THINGS AND BOTH ARE NEEDED.
+#             `qemu-user-static` plus binfmt_misc runs a FOREIGN-ARCHITECTURE
+#             binary on this one, which is how experiments/260- measures podbox
+#             on aarch64 and how TODO/enter.md T-0506 runs a foreign image.
+#             `qemu-system-x86_64` boots a whole VM, which is how
+#             experiments/290- answers the two questions this host's kernel
+#             cannot: it has neither CONFIG_SECURITY_LANDLOCK nor
+#             CONFIG_CHECKPOINT_RESTORE, and a stock distro kernel has both.
+#             ⚠ There is no /dev/kvm here, so the VM runs under TCG. Measured on
+#             2026-09-09: the whole boot-probe-poweroff cycle is about 6 s.
+#   vmtools   busybox-static and cpio, which build experiments/290-'s initramfs.
 #
 # ⛔ THREE RULES THIS SCRIPT HOLDS TO, each because the environment breaks a
 # session that does not:
@@ -71,7 +82,7 @@ for a in "$@"; do
 	*) WANT="$WANT $a" ;;
 	esac
 done
-[ -z "$WANT" ] && WANT="rust bloat go cc zig docker tools"
+[ -z "$WANT" ] && WANT="rust bloat go cc zig docker tools qemu vmtools"
 
 installed=0 already=0 failed=0
 declare -a REPORT=()
@@ -183,6 +194,48 @@ if want tools; then
 		[ -z "$still" ] && did "tools:$missing" || bad "tools: still missing$still"
 	else
 		bad "tools: apt-get install failed for$missing"
+	fi
+fi
+
+# ------------------------------------------------------------------ qemu
+#
+# ⭐ Both halves, because they answer different questions and a session that has
+# one and not the other discovers it halfway through an experiment.
+if want qemu; then
+	missing=""
+	have qemu-aarch64-static || missing="$missing qemu-user-static"
+	have qemu-system-x86_64 || missing="$missing qemu-system-x86"
+	if [ -z "$missing" ]; then
+		ok "qemu: user-static and system-x86 both present"
+	elif [ "$CHECK_ONLY" -eq 1 ]; then
+		skipped "qemu: missing$missing (--check). experiments/260- and 290- exit 2 without them"
+	elif apt_install $missing; then
+		still=""
+		have qemu-aarch64-static || still="$still qemu-user-static"
+		have qemu-system-x86_64 || still="$still qemu-system-x86"
+		[ -z "$still" ] && did "qemu:$missing" || bad "qemu: still missing$still"
+	else
+		bad "qemu: apt-get install failed for$missing"
+	fi
+fi
+
+# ------------------------------------------------------------------ vmtools
+if want vmtools; then
+	missing=""
+	# ⚠ busybox-static and not busybox: the initramfs has no libc in it.
+	[ -x /bin/busybox ] || [ -x /usr/bin/busybox ] || missing="$missing busybox-static"
+	have cpio || missing="$missing cpio"
+	if [ -z "$missing" ]; then
+		ok "vmtools: busybox and cpio present"
+	elif [ "$CHECK_ONLY" -eq 1 ]; then
+		skipped "vmtools: missing$missing (--check). experiments/290- exits 2 without them"
+	elif apt_install $missing; then
+		still=""
+		[ -x /bin/busybox ] || [ -x /usr/bin/busybox ] || still="$still busybox-static"
+		have cpio || still="$still cpio"
+		[ -z "$still" ] && did "vmtools:$missing" || bad "vmtools: still missing$still"
+	else
+		bad "vmtools: apt-get install failed for$missing"
 	fi
 fi
 

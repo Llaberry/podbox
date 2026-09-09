@@ -104,7 +104,7 @@ Acceptance, run on 2026-09-08:
 
 ```
 $ ./scripts/check-todo.py
-check-todo: 101 rows, 101 entries, 52 open, 5 partial, 2 blocked, 42 done
+check-todo: 102 rows, 102 entries, 52 open, 5 partial, 2 blocked, 43 done
 check-todo: ok
 $ ./scripts/plant.sh
   plants   18 caught, 0 missed
@@ -143,7 +143,7 @@ correction [T-1103](milestones.md)'s own `Prove` needed.
 
 ## Counts
 
-101 entries: 52 open, 5 partial, 2 blocked, 42 done.
+102 entries: 52 open, 5 partial, 2 blocked, 43 done.
 
 ⚠ Eight entries were **authored and not implemented** this session, in their own
 pass per `docs/AGENTS.md`'s routing table: [T-0206](image.md) to
@@ -354,70 +354,47 @@ exits 125. The M1 and M2 verbs follow that and not docker's per-verb codes.
 
 ## Open questions for the operator
 
+⭐ **Four of the seven questions this section carried are answered, and two of
+them by building the answer rather than by asking again.** What is left is what
+genuinely needs somebody with access to a machine this project cannot reach.
+
 1. **`/dev/ptmx` on the target**, and it is ⭐ **one command rather than a
    research task**: `podbox probe --json | jq .ptmx`, run on the target by
    anyone who can reach it. The probe half of [T-0503](enter.md) is implemented
    and reads `present: true, usable: true` on this host and `ENOENT` inside the
    reconstruction. ⛔ **The reconstruction does not settle it**: it builds
    `/dev` from the same mount table the question doubts, so its answer is that
-   table repeated back. What is still needed is a run on the target itself.
-2. **A kernel with Landlock**, to run the three M-mechanism rows of
-   `experiments/30-attribution-census.sh`. Any distro kernel has it. This host
-   does not, so those rows report `SKIP` and the script exits 2. ⭐ It would also
-   close the one row of M0's own acceptance that this host cannot exercise:
-   `move_mount(-> /tmp/mm-probe)` attaches here and is `EPERM` on the target,
-   so podbox's `chroot` rung was selected without the LSM ever being present.
-3. **A kernel with `CONFIG_CHECKPOINT_RESTORE`**, so the `kcmp(2)` control of
-   the bogus-argument discriminator can answer. Without it `podbox probe`
-   reports `controls_answered: false` on every run of this host, which is
-   correct and is also a permanent notice nobody can clear here. The target has
-   it. [T-0102](probe.md).
-4. **Whether `podbox` should refuse to install itself as `docker` where a
-   working docker daemon exists.** [T-0803](cli.md) proposes refusing without an
-   explicit flag. A machine with a working daemon is a machine where podbox is
-   the wrong tool, and the alternative reading is that podbox should defer to it
-   transparently. The entry carries the recommendation and not a ruling.
-5. **Why a static glibc binary takes SIGFPE on `opensuse-leap-15.6`.**
+   table repeated back. ⚠ [T-0112](probe.md)'s virtual machine does not settle
+   it either, for the same reason in a different shape: what `/dev/ptmx` does
+   there is a property of the initramfs this project writes.
+2. **Why a static glibc binary takes SIGFPE on `opensuse-leap-15.6`.**
    Measured by `experiments/125-across-distributions.sh` and recorded as a
    reading, not a diagnosis. It bears on what podbox may assume about payloads
    in an image, and the row is also the one distribution whose `nsswitch: compat`
    setting is therefore untested for the passwd question.
-6. ⚠ **The branch, and it now has a cost rather than only a contradiction.**
-   [`../docs/AGENTS.md`](../docs/AGENTS.md)'s first absolute and
-   [RULES.md](RULES.md) section 2 both say `main`. The harness named
-   `claude/m2-extraction-ypu8qc` and said never to push elsewhere without
-   permission, and this session's operator prompt named no branch,  it pointed
-   at this question and left the decision here. `docs/AGENTS.md`'s closing
-   section orders the operator's word first, so with no branch named the
-   harness's is the one that stands, exactly as M1 reasoned. Work is on
-   `claude/m2-extraction-ypu8qc`.
+3. ⚠ **Nothing else.** Everything below was a question and is now a measurement
+   or a ruling, kept here only so a reader does not go looking for it.
 
-   ⛔ **THE COST IS NOW MEASURABLE, AND IT WAS NOT WHEN M1 ASKED.** Three
-   sessions have each applied the same rule and landed differently because the
-   prompts differed, and the result is that **`origin/main` carries no M1 and no
-   M2**: measured at the start of this session, `main` is `a4ab727`, M0's tip,
-   and has neither the store, `pull`, nor `space.rs`. Every branch is a strict
-   fast-forward of the last, so nothing is lost and nothing conflicts,  this
-   session based itself on the M1 branch rather than on `main`, which is the
-   only reason M2 could build on M1 at all. But `main` is now two milestones
-   stale, a clone of it cannot run the acceptance in `PROGRESS.md`, and the next
-   session inherits a fourth branch and the same decision.
+### What was open and is not
 
-   ⭐ **What would end it, in one sentence from the operator:** either "always
-   work on `main`, the harness notwithstanding", or "the harness branch is
-   correct, and `main` is a release branch somebody merges into". Either answers
-   it permanently; the current state answers it once per session, differently.
-   ⚠ Until then, **a session that takes the harness branch must base it on the
-   previous branch's tip and not on `main`**, or it silently reverts two
-   milestones. That is written here because it is the part that is not obvious
-   and the part that would do real damage.
-7. ⭐ **ANSWERED BY MEASUREMENT, and the premise was wrong.** This asked what
-   `{{.Size}}` should report, on the stated basis that "docker's `SIZE` is the
-   sum of the uncompressed layers". Measured on 2026-09-08 against the same
-   image by the same digest: docker 29.3.1 here runs the containerd image store
-   and its `.Size` is **3,857,242 bytes, the COMPRESSED content**, which equals
-   podbox's blob total to the byte. The divergence the question worried about
-   does not exist on this docker. ⚠ It is one host and one docker,  the classic
-   image store reports the uncompressed total,  and [T-0202](image.md) carries
-   the table, the caveat, and the fact that "uncompressed size" is three
-   different numbers of which podbox names the one it prints.
+- ⭐ **A kernel with Landlock. ANSWERED by building one**, on the operator's
+  suggestion of 2026-09-09. [T-0112](probe.md):
+  `experiments/290-microvm.sh` boots a stock Alpine `virt` kernel under QEMU and
+  `landlock_create_ruleset(VERSION)` answers **`ok`, ABI 6**. ⚠ No `/dev/kvm`
+  here, so it runs under TCG, and the whole cycle is about 6 seconds.
+- ⭐ **A kernel with `CONFIG_CHECKPOINT_RESTORE`. ANSWERED the same way**, and
+  it agrees with the target: the `kcmp(2)` control answers **`ESRCH`** in the
+  VM, which is `references/Azathothas__container-research/tree/verification/real/extkernel-newapi.txt:26`'s
+  reading, and `controls_answered` is `true` there. [T-0102](probe.md).
+- ⭐ **Whether podbox should refuse the `docker` name where a daemon is
+  reachable. RULED by the operator on 2026-09-08** and carried by
+  [T-0803](cli.md), which was already closed when this section last listed it as
+  open. It refuses, unless an explicit flag says otherwise.
+- ⭐ **The branch. SETTLED on 2026-09-09** and written into
+  [RULES.md](RULES.md) section 2 with the cost it carried, so no session
+  re-derives it: `main`, always, the harness notwithstanding.
+- ⭐ **What `{{.Size}}` should report. ANSWERED BY MEASUREMENT on 2026-09-08**,
+  and the premise was wrong: docker 29.3.1 here runs the containerd image store
+  and its `.Size` is the **compressed** content, equal to podbox's blob total to
+  the byte. [T-0202](image.md) carries the table and the caveat that
+  "uncompressed size" is three different numbers.

@@ -26,6 +26,26 @@ the corpus and its licence determinations.
 ⛔ **`main`, always.** Never a `claude/*` or other agent-named branch unless a
 human says otherwise in that session. Commit and push to `main`.
 
+⭐ **SETTLED BY THE OPERATOR ON 2026-09-09, AND IT IS NOT OPEN AGAIN.** The
+harness a session runs under may name a `claude/*` branch and say never to push
+elsewhere. `docs/AGENTS.md`'s closing section orders the operator's word first,
+this rule second, and the harness has no place in that order at all: the
+operator's instruction is standing, so a harness branch is never taken, whether
+or not the current prompt repeats the word `main`.
+
+⛔ **The cost of getting this wrong was measured rather than argued.** Three
+sessions each applied the ordering and landed differently because their prompts
+differed, and the result was that `origin/main` sat at M0's tip carrying
+**neither M1 nor M2**: a clone of it could not run the acceptance in
+[PROGRESS.md](PROGRESS.md), and each session inherited one more branch and the
+same decision. Consolidating them took a session's opening. ⚠ Nothing was lost
+only because each branch happened to be a strict fast-forward of the last; a
+single conflicting change would have made it a merge nobody had reviewed.
+
+⚠ **If a session ever does find work on another branch**, it belongs on `main`
+before anything else: fast-forward where the history allows it, merge where it
+does not, verify the union is reachable from `main`, and only then delete.
+
 ```sh
 git push -u origin main
 ```
