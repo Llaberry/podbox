@@ -21,6 +21,7 @@ use std::io::Write;
 use crate::digest::Digest;
 use crate::error::{Error, Result};
 use crate::oci::{self, Fetched};
+use crate::platform::Platform;
 use crate::reference::Reference;
 use crate::registry::Client;
 use crate::space;
@@ -55,7 +56,10 @@ impl Pulled {
 /// known. There is no synthetic progress bar:
 /// `docs/conventions/forbidden-patterns.md` forbids a hardcoded or synthetic
 /// progress display, and a percentage podbox cannot measure is exactly one.
-pub fn pull(store: &Store, want: &str, out: &mut dyn Write) -> Result<Pulled> {
+/// ⭐ `platform` is what the caller asked for, resolved by
+/// [`Platform::wanted`] before it gets here so the flag, the environment and
+/// the host are settled in one place rather than three.
+pub fn pull(store: &Store, want: &str, platform: &Platform, out: &mut dyn Write) -> Result<Pulled> {
     let reference = Reference::parse(want)?;
     let probe = crate::probe_cache::resolve(store);
 
@@ -84,19 +88,16 @@ pub fn pull(store: &Store, want: &str, out: &mut dyn Write) -> Result<Pulled> {
     let (manifest_digest, manifest_bytes, manifest) = match parsed {
         Fetched::Manifest(m) => (resolved.clone(), top.bytes.clone(), m),
         Fetched::Index(index) => {
-            let picked = oci::select_platform(&index, oci::OS, oci::ARCH)?;
+            let picked = oci::select_platform(&index, platform)?;
             let d = picked.parsed_digest()?;
             let inner = client.manifest(&endpoint, &repository, &d.to_string())?;
             match Fetched::parse(&inner.bytes, Some(&inner.media_type))? {
                 Fetched::Manifest(m) => (inner.digest, inner.bytes, m),
                 Fetched::Index(_) => {
                     return Err(Error::Oci(format!(
-                        "{}/{repository} served an index where the {}/{} manifest \
-                         should be. podbox does not follow an index into another \
-                         index: an image is one level deep",
-                        endpoint,
-                        oci::OS,
-                        oci::ARCH
+                        "{endpoint}/{repository} served an index where the \
+                         {platform} manifest should be. podbox does not follow \
+                         an index into another index: an image is one level deep"
                     )))
                 }
             }
@@ -209,15 +210,16 @@ pub fn pull(store: &Store, want: &str, out: &mut dyn Write) -> Result<Pulled> {
         // from the index entry. `docs/conventions/forbidden-patterns.md`: a
         // cache holding a variant it was not keyed by serves it to the next
         // unqualified fetch, and `Exec format error` is how that surfaces.
-        if config.os != oci::OS || config.architecture != oci::ARCH {
+        // ⛔ Checked against what was ASKED FOR, not against the host. A
+        // deliberate `--platform linux/arm64` on an amd64 machine must not be
+        // refused here; a registry serving amd64 bytes under an arm64
+        // descriptor must be.
+        if !platform.matches(&config.os, &config.architecture, None) {
             return Err(Error::Oci(format!(
                 "the config of {reference} declares {}/{}, and podbox asked for \
-                 {}/{}. The store records the platform of what it holds, so a \
-                 mismatch here is refused rather than recorded",
-                config.os,
-                config.architecture,
-                oci::OS,
-                oci::ARCH
+                 {platform}. The store records the platform of what it holds, \
+                 so a mismatch here is refused rather than recorded",
+                config.os, config.architecture,
             )));
         }
     }
@@ -229,7 +231,7 @@ pub fn pull(store: &Store, want: &str, out: &mut dyn Write) -> Result<Pulled> {
         &manifest_digest,
         &manifest,
         &config,
-        &format!("{}/{}", oci::OS, oci::ARCH),
+        &platform.to_string(),
     )?;
     store.put_record(record.clone())?;
 

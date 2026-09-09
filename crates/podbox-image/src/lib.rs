@@ -27,6 +27,7 @@ pub mod contain;
 pub mod digest;
 pub mod error;
 pub mod oci;
+pub mod platform;
 pub mod probe_cache;
 pub mod pull;
 pub mod reference;

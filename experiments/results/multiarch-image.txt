@@ -1,0 +1,30 @@
+== conditions
+date              2026-09-09T02:32:45Z
+host kernel       6.18.44-fc-v24
+host arch         x86_64
+podbox            podbox 0.1.0
+image             ghcr.io/pkgforge-dev/archlinux:latest
+store             a fresh directory under /tmp
+
+== 1. no --platform pulls the platform podbox was BUILT for
+  asked for         nothing
+  got               linux/amd64
+
+== 2. --platform takes a DIFFERENT manifest out of the same index
+  index digest      sha256:b2507f1964270cab3cc190aa8df858521f6a7e45e969146a012877891d5dfc9b
+  the store now holds 2 record(s) for one tag:
+    916183eb3935 linux/amd64
+    faac4cd1d422 linux/arm64
+
+== 3. the extracted rootfs really is that architecture
+  linux/amd64    x86-64       (usr/bin/bash)
+  linux/arm64    ARM aarch64  (usr/bin/bash)
+
+== 4. an index that offers nothing for the ask says what it does offer
+  exit              125
+  says              latest: Pulling from pkgforge-dev/archlinuxpodbox: this index offers no linux/nosucharch manifes
+
+== 5. a malformed --platform is a USAGE error, before any network
+  exit              2 (2 is invalid input, TODO/probe.md T-0110)
+  says              podbox: "a/b/c/d" has 4 fields. A platform is os/arch or os/arch/variant, for example linux/arm6
+  --platform with no value: exit 2

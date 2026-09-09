@@ -14,9 +14,11 @@ use serde::Deserialize;
 use crate::digest::Digest;
 use crate::error::{Error, Result};
 
-/// The platform M1 acquires. `TOOL.md` section 5 M1.
-pub const OS: &str = "linux";
-pub const ARCH: &str = "amd64";
+/// ⛔ **The platform is not a constant any more.** It was `OS = "linux"` and
+/// `ARCH = "amd64"` until 2026-09-09, which made every pull an amd64 pull
+/// whatever the machine was. [`crate::platform`] decides it at run time and
+/// [`TODO/image.md`](../../../TODO/image.md) T-0212 is the entry.
+pub use crate::platform::OS;
 
 pub const MEDIA_OCI_INDEX: &str = "application/vnd.oci.image.index.v1+json";
 pub const MEDIA_OCI_MANIFEST: &str = "application/vnd.oci.image.manifest.v1+json";
@@ -188,24 +190,46 @@ fn from_slice<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> Result<T> {
         .map_err(|e| Error::Oci(format!("the registry's document does not parse: {e}")))
 }
 
-/// Pick the `linux/amd64` entry out of an index.
+/// Pick the entry for one platform out of an index.
 ///
 /// ⛔ Never "the first one". An index is ordered by the registry, and taking
 /// the head is how a caller ends up with an arm64 rootfs whose failure reads as
 /// `Exec format error` rather than as a wrong pull.
-pub fn select_platform<'a>(index: &'a Index, os: &str, arch: &str) -> Result<&'a Descriptor> {
+///
+/// ⭐ **Two passes, and the order is the point.** An exact variant match wins
+/// over a match that ignores the variant, because `linux/arm/v7` and
+/// `linux/arm/v6` are different images and the first pass is what keeps them
+/// apart. Only when nothing matched exactly does the wildcard reading apply,
+/// which is what makes `linux/arm64` find a `linux/arm64/v8` entry.
+pub fn select_platform<'a>(
+    index: &'a Index,
+    want: &crate::platform::Platform,
+) -> Result<&'a Descriptor> {
     let mut offered: Vec<String> = Vec::new();
+    let mut loose: Option<&'a Descriptor> = None;
     for m in &index.manifests {
-        match &m.platform {
-            Some(p) if p.is(os, arch) => return Ok(m),
-            Some(p) => offered.push(p.word()),
-            // ⚠ An attestation entry carries no platform, or `unknown/unknown`.
-            // It is not a candidate and is not reported as one.
-            None => {}
+        // ⚠ An attestation entry carries no platform, or `unknown/unknown`. It
+        // is not a candidate and is not reported as one, which is why this is
+        // `if let` and there is no `else`.
+        let Some(p) = &m.platform else { continue };
+        let v = p.variant.as_deref().filter(|s| !s.is_empty());
+        if want.os == p.os && want.arch == p.architecture {
+            match (want.variant.as_deref(), v) {
+                (Some(a), Some(b)) if a == b => return Ok(m),
+                (Some(_), Some(_)) => {}
+                // ⚠ One side said nothing about the variant, so this is a
+                // candidate but not yet the answer: an exact match later in the
+                // index still wins.
+                _ => loose = loose.or(Some(m)),
+            }
         }
+        offered.push(p.word());
+    }
+    if let Some(m) = loose {
+        return Ok(m);
     }
     Err(Error::Oci(format!(
-        "this index offers no {os}/{arch} manifest. It offers: {}",
+        "this index offers no {want} manifest. It offers: {}",
         if offered.is_empty() {
             "nothing with a platform".to_string()
         } else {
@@ -233,13 +257,21 @@ mod tests {
          "size":30}
       ]}"#;
 
+    fn p(s: &str) -> crate::platform::Platform {
+        crate::platform::Platform::parse(s).unwrap()
+    }
+
     #[test]
     fn the_platform_is_selected_by_name_and_never_by_position() {
         let Fetched::Index(index) = Fetched::parse(INDEX.as_bytes(), None).unwrap() else {
             panic!("parsed as a manifest");
         };
-        let picked = select_platform(&index, OS, ARCH).unwrap();
+        // ⚠ amd64 is the SECOND entry and arm64 is the first, so a selector
+        // taking the head would pass every other assertion here.
+        let picked = select_platform(&index, &p("linux/amd64")).unwrap();
         assert!(picked.digest.ends_with("2222"));
+        let arm = select_platform(&index, &p("linux/arm64")).unwrap();
+        assert!(arm.digest.ends_with("1111"));
     }
 
     #[test]
@@ -247,10 +279,50 @@ mod tests {
         let Fetched::Index(index) = Fetched::parse(INDEX.as_bytes(), None).unwrap() else {
             panic!("parsed as a manifest");
         };
-        let e = select_platform(&index, "linux", "riscv64").unwrap_err();
+        let e = select_platform(&index, &p("linux/riscv64")).unwrap_err();
         let text = format!("{e}");
         assert!(text.contains("linux/arm64/v8"), "{text}");
         assert!(text.contains("linux/amd64"), "{text}");
+    }
+
+    /// ⛔ `linux/arm64` and `linux/arm64/v8` are one platform written two ways,
+    /// and registries write both. An unqualified ask has to find the qualified
+    /// entry or every arm64 pull fails against half the registries.
+    #[test]
+    fn an_unqualified_ask_finds_a_variant_qualified_entry() {
+        let Fetched::Index(index) = Fetched::parse(INDEX.as_bytes(), None).unwrap() else {
+            panic!("parsed as a manifest");
+        };
+        let picked = select_platform(&index, &p("linux/arm64")).unwrap();
+        assert!(picked.digest.ends_with("1111"), "{}", picked.digest);
+    }
+
+    /// ⭐ The two-pass order, and the case that needs it: an exact variant
+    /// match must beat a loose one that appears EARLIER in the index.
+    #[test]
+    fn an_exact_variant_beats_a_loose_match_earlier_in_the_index() {
+        let doc = br#"{"schemaVersion":2,
+          "mediaType":"application/vnd.oci.image.index.v1+json",
+          "manifests":[
+            {"mediaType":"application/vnd.oci.image.manifest.v1+json",
+             "digest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+             "size":10,"platform":{"architecture":"arm","os":"linux"}},
+            {"mediaType":"application/vnd.oci.image.manifest.v1+json",
+             "digest":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+             "size":20,"platform":{"architecture":"arm","os":"linux","variant":"v7"}}
+          ]}"#;
+        let Fetched::Index(index) = Fetched::parse(doc, None).unwrap() else {
+            panic!("parsed as a manifest");
+        };
+        let picked = select_platform(&index, &p("linux/arm/v7")).unwrap();
+        assert!(
+            picked.digest.starts_with("sha256:bbbb"),
+            "{}",
+            picked.digest
+        );
+        // ⛔ And v6 must NOT take the v7 entry: they are different machines.
+        let six = select_platform(&index, &p("linux/arm/v6")).unwrap();
+        assert!(six.digest.starts_with("sha256:aaaa"), "{}", six.digest);
     }
 
     #[test]

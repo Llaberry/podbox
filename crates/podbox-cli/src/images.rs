@@ -20,7 +20,17 @@ use podbox_image::{clock, pull, space, Record, Store};
 use crate::format;
 
 pub const PULL_USAGE: &str = "\
-usage: podbox pull <image>
+usage: podbox pull [--platform os/arch[/variant]] <image>
+
+  --platform P     which manifest to take out of a multi-platform index.
+                   Defaults to $PODBOX_DEFAULT_PLATFORM, then to docker's
+                   $DOCKER_DEFAULT_PLATFORM, then to the platform this podbox
+                   was built for. A bare word is an ARCHITECTURE, as docker
+                   reads it: --platform arm64 means linux/arm64.
+
+  ⚠ Pulling a platform this machine cannot execute is allowed and is not a
+    warning here: it is what a caller building for another machine wants. What
+    refuses is `podbox run`, and only where nothing can execute it.
 
   Fetch an image and everything it needs into the content-addressed store.
   HTTPS only: a registry that offers only http:// is a named refusal, never a
@@ -111,11 +121,22 @@ usage: podbox inspect [--format T] <image> [image...]
 /// `podbox pull`.
 pub fn pull(args: &[String]) -> i32 {
     let mut want: Option<&str> = None;
+    let mut platform_flag: Option<String> = None;
+    let mut expect_platform = false;
     for a in args {
+        if expect_platform {
+            platform_flag = Some(a.clone());
+            expect_platform = false;
+            continue;
+        }
         match a.as_str() {
             "-h" | "--help" => {
                 print!("{PULL_USAGE}");
                 return 0;
+            }
+            "--platform" => expect_platform = true,
+            other if other.starts_with("--platform=") => {
+                platform_flag = Some(other["--platform=".len()..].to_string());
             }
             other if other.starts_with('-') => return unknown("pull", other, PULL_USAGE),
             other if want.is_none() => want = Some(other),
@@ -125,9 +146,19 @@ pub fn pull(args: &[String]) -> i32 {
             }
         }
     }
+    if expect_platform {
+        eprintln!("podbox pull: --platform needs a value, for example linux/arm64");
+        return EXIT_USAGE;
+    }
     let Some(want) = want else {
         eprint!("{PULL_USAGE}");
         return EXIT_USAGE;
+    };
+    // ⛔ Resolved before the store is opened, so a malformed --platform is a
+    // usage error and not a runtime one. TODO/probe.md T-0110's contract.
+    let platform = match podbox_image::platform::Platform::wanted(platform_flag.as_deref()) {
+        Ok(p) => p,
+        Err(e) => return fail(e),
     };
 
     let store = match podbox_image::open_store() {
@@ -135,7 +166,7 @@ pub fn pull(args: &[String]) -> i32 {
         Err(e) => return fail(e),
     };
     let mut out = std::io::stdout().lock();
-    match pull::pull(&store, want, &mut out) {
+    match pull::pull(&store, want, &platform, &mut out) {
         Ok(done) => {
             // ⛔ The provenance of the probe answer is on stderr, never implied.
             // A cached rung and a measured one are different sentences.

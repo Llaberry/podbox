@@ -437,6 +437,34 @@ impl Store {
         Ok(hits)
     }
 
+    /// The records a reference names, narrowed to one platform.
+    ///
+    /// ⛔ `None` means **this machine's**, not "any". A caller that asked for
+    /// no platform is asking about the image it could run, and handing it an
+    /// arm64 record on an amd64 host is the `Exec format error` this whole
+    /// module exists to turn into a sentence. ⚠ Where nothing matches the host
+    /// the hits are returned unfiltered rather than emptied, so the caller can
+    /// say "podbox holds this image, for another platform" instead of "no such
+    /// image", which is a different and more useful failure.
+    pub fn find_for(
+        &self,
+        want: &str,
+        platform: Option<&crate::platform::Platform>,
+    ) -> Result<Vec<Record>> {
+        let hits = self.find(want)?;
+        if hits.len() <= 1 {
+            return Ok(hits);
+        }
+        let host = crate::platform::Platform::host();
+        let want_p = platform.unwrap_or(&host);
+        let narrowed: Vec<Record> = hits
+            .iter()
+            .filter(|r| r.platform == want_p.to_string())
+            .cloned()
+            .collect();
+        Ok(if narrowed.is_empty() { hits } else { narrowed })
+    }
+
     pub fn find_one(&self, want: &str) -> Result<Record> {
         self.find(want)?
             .into_iter()
@@ -446,9 +474,16 @@ impl Store {
 
     // ------------------------------------------------------------ the writes
 
-    /// Record a pull. Replaces the record for the same repository and tag,
-    /// because a moving tag is the normal case and two records for one tag
-    /// would make `podbox images alpine:latest` ambiguous.
+    /// Record a pull. Replaces the record for the same repository, tag **and
+    /// platform**, because a moving tag is the normal case.
+    ///
+    /// ⛔ **The platform is part of the key and that is a multi-architecture
+    /// decision.** `alpine:latest` for `linux/amd64` and for `linux/arm64` are
+    /// two different images that share one name, and keying without the
+    /// platform means the second pull silently deletes the first: the record
+    /// goes, the blobs are collected, and a caller who pulled both has one.
+    /// podman keeps both and so does podbox. `Store::find` is where the
+    /// resulting ambiguity is resolved, by name and never by position.
     pub fn put_record(&self, record: Record) -> Result<()> {
         let _guard = self.lock()?;
         let mut index = self.read_index()?;
@@ -456,6 +491,7 @@ impl Store {
         index.images.retain(|r| {
             !(r.repository == record.repository
                 && r.tag == record.tag
+                && r.platform == record.platform
                 && (record.tag.is_some() || r.digest == record.digest))
         });
         index.images.push(record);
@@ -976,6 +1012,47 @@ mod tests {
              holding it: the lock fd was not O_CLOEXEC, which is the exec half \
              of TODO/image.md T-0211"
         );
+        let _ = std::fs::remove_dir_all(s.root());
+    }
+
+    /// ⭐ The multi-architecture case, and the one a platform-blind key gets
+    /// wrong silently: the second pull deletes the first, its blobs are
+    /// collected, and a caller who pulled both is left with one.
+    #[test]
+    fn two_platforms_of_one_tag_are_two_images_and_not_one() {
+        let s = scratch("twoplat");
+        let mut amd = record("docker.io/library/alpine", Some("latest"), 21);
+        amd.platform = "linux/amd64".into();
+        amd.architecture = "amd64".into();
+        let mut arm = record("docker.io/library/alpine", Some("latest"), 23);
+        arm.platform = "linux/arm64".into();
+        arm.architecture = "arm64".into();
+
+        s.put_record(amd.clone()).unwrap();
+        s.put_record(arm.clone()).unwrap();
+        assert_eq!(
+            s.find("alpine:latest").unwrap().len(),
+            2,
+            "the second pull replaced the first: the platform is not in the key"
+        );
+
+        // ⛔ Re-pulling ONE platform replaces only that one. A moving tag is
+        // still the normal case and this must not accumulate.
+        s.put_record(amd.clone()).unwrap();
+        assert_eq!(s.find("alpine:latest").unwrap().len(), 2);
+
+        // Asked for a platform: exactly that one comes back, by name.
+        let p = crate::platform::Platform::parse("linux/arm64").unwrap();
+        let got = s.find_for("alpine:latest", Some(&p)).unwrap();
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].platform, "linux/arm64");
+
+        // ⚠ Asked for a platform the store does not hold: the hits come back
+        // unfiltered so the caller can say "held, for another platform" rather
+        // than "no such image".
+        let none = crate::platform::Platform::parse("linux/riscv64").unwrap();
+        assert_eq!(s.find_for("alpine:latest", Some(&none)).unwrap().len(), 2);
+
         let _ = std::fs::remove_dir_all(s.root());
     }
 

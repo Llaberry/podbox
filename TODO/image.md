@@ -710,3 +710,96 @@ Decision:    Fix the inheritance, not the test. Marking the test `#[serial]` or
              test waits on a **fact**, a byte through a pipe from the forked
              child, a line of stdout from the spawned one, and not on a delay.
 Prove:       `cargo test -p podbox-image a_fork_while_the_lock_is_held_does_not_extend_it` and `cargo test -p podbox-image a_spawned_process_does_not_inherit_the_lock` both pass; the first fails with the `sys::close_in_children` registration removed from `Store::hold` and the second with `O_CLOEXEC` removed from `Lock::open`, and neither mutation fails both
+
+---
+
+### T-0212 The platform is decided at run time, and the store holds more than one
+
+Source:      Found by the operator on 2026-09-09, reading `crates/podbox-image/src/oci.rs`
+Category:    image
+Priority:    P0
+Effort:      M
+Status:      done 2026-09-09
+
+Problem:     ⛔ **`oci::ARCH` was the constant `"amd64"`.** Every pull asked for
+             `linux/amd64` whatever machine podbox was running on, so a podbox
+             built for aarch64, once [T-0911](deps.md) made that possible, would
+             have fetched an amd64 rootfs and handed the payload an
+             `Exec format error` with nothing to say about why.
+             ⛔ **And the store's key was `(repository, tag)`**, so a second
+             platform of one tag **deleted the first**: the record went, its
+             blobs were collected by the next `prune`, and a caller who pulled
+             both had one.
+Premise:     ⭐ **Measured on 2026-09-09**, `experiments/results/multiarch-image.txt`,
+             against `ghcr.io/pkgforge-dev/archlinux:latest`, which publishes one
+             tag across eight platforms.
+
+             | | |
+             | --- | --- |
+             | records for one tag after pulling two platforms, before | 1 |
+             | after | **2**, with two distinct image IDs |
+             | `usr/bin/bash` in the `linux/amd64` tree | `x86-64` |
+             | the same path in the `linux/arm64` tree | `ARM aarch64` |
+
+             ⚠ The **index digest is the same for both** and that is correct:
+             it is what the tag resolved to and is the value
+             [T-0202](#t-0202-a-content-addressed-store-and-digest-parity-with-docker)
+             is accepted on. What differs is the image ID, which is the config
+             digest under the platform-specific manifest.
+Approach:    `crates/podbox-image/src/platform.rs`, and the platform travels as
+             a value from the flag to the record.
+             1. **`--platform os/arch[/variant]`**, then
+                `$PODBOX_DEFAULT_PLATFORM`, then `$DOCKER_DEFAULT_PLATFORM`,
+                then the platform this binary was built for. ⚠ docker's variable
+                is honoured deliberately: podbox answers to `docker` on PATH and
+                takes the same flags ([T-0803](cli.md)), so a caller who set it
+                for their toolchain meant it here.
+             2. ⛔ **A bare word is an ARCHITECTURE**, as docker reads it:
+                `--platform arm64` is `linux/arm64`. Reading it as an OS asks a
+                registry for `arm64/amd64`.
+             3. ⛔ **The rust name is never the OCI name.** rust says `x86_64`
+                where a registry says `amd64`, `aarch64` where it says `arm64`,
+                `x86` where it says `386`. Each is a 404, or worse a wrong
+                manifest, if guessed.
+             4. ⛔ **`armv6` and `armv7` do not collapse.** Both normalise to
+                `arm` and the variant is the whole difference; losing it runs a
+                v7 image on a v6 machine, which is an illegal instruction rather
+                than a message. `arm64` and `arm64/v8` **are** one platform
+                written two ways, so an absent variant on either side matches
+                and a present-and-different one does not.
+             5. **`select_platform` runs two passes**, exact variant first. An
+                exact match must beat a loose one appearing **earlier** in the
+                index, which is the case a single pass gets wrong.
+             6. **The platform joins the store's key**, so two architectures of
+                one tag coexist as podman's do. `Store::find_for` resolves the
+                ambiguity by name, preferring the host's; ⚠ where the store
+                holds the image for **no** matching platform it returns the hits
+                unfiltered, so the caller can say "held, for another platform"
+                rather than "no such image".
+Decision:    Keep both platforms rather than replacing, which is podman's
+             behaviour and containerd-era docker's, not the classic daemon's.
+             ⚠ The classic behaviour is defensible and was rejected for one
+             reason: replacing is **silent**, and the thing it silently discards
+             took a download. A caller who wanted one can `rmi` the other.
+             ⚠ **Pulling a platform this machine cannot execute is allowed and
+             is not even a warning at `pull`.** It is what a caller building for
+             another machine wants. The refusal belongs at `run`, and only where
+             nothing can execute it, which is [T-0506](enter.md).
+Prove:       `./experiments/270-multiarch-image.sh` exits 0
+
+**Done 2026-09-09.** Five clauses, all green. Clause 3 is the one that makes the
+other four worth anything: a record can *say* `linux/arm64` and hold amd64
+bytes, so it reads the ELF machine word out of a binary **inside the extracted
+tree** rather than trusting the metadata that was just written.
+
+⚠ Clause 4's refusal names what the index does offer, because a bare 404 leaves
+a caller unable to tell a typo from an image that was never built for them. It
+exits **125**, a runtime failure, while clause 5's malformed `--platform` exits
+**2**, invalid input, which is [T-0110](probe.md)'s contract holding across a
+new flag.
+
+⭐ **The registry is `ghcr.io` and that is part of the entry, not an accident.**
+[T-0206](#t-0206-a-registry-fixture-so-the-acceptance-stops-depending-on-somebody-elses-quota)
+is open because Docker Hub's anonymous quota can turn this project's acceptance
+red; ghcr has none, and `ghcr.io/pkgforge-dev/archlinux` carries the eight
+platforms this question needs.
