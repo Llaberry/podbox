@@ -662,8 +662,14 @@ pub fn inspect(args: &[String]) -> i32 {
     // and a template checked only inside the loop over what DID resolve is
     // never checked at all. It is also the caller's own input, so it is
     // reported before anything about the machine is.
+    // ⚠ Checked against the IMAGE fields here and against the container's in
+    // `lifecycle::inspect_container`, because the two kinds have different
+    // fields and a union would accept a name neither of them has.
     if let Some(t) = &template {
-        if let Err(bad) = format::check(t, INSPECT_FIELDS) {
+        if format::check(t, INSPECT_FIELDS).is_err()
+            && format::check(t, crate::lifecycle::CONTAINER_INSPECT_FIELDS).is_err()
+        {
+            let bad = format::check(t, INSPECT_FIELDS).unwrap_err();
             eprintln!("podbox inspect: {bad}");
             return EXIT_USAGE;
         }
@@ -679,8 +685,18 @@ pub fn inspect(args: &[String]) -> i32 {
         match store.find_one(want) {
             Ok(r) => records.push(r),
             Err(e) => {
-                eprintln!("podbox inspect: {e}");
-                code = e.exit_code();
+                // ⭐ M4. An image FIRST, then a container, which is docker's own
+                // order. ⚠ The two have different fields, so a template is
+                // checked against whichever kind the reference resolved to
+                // rather than against a union neither has.
+                match crate::lifecycle::inspect_container(want, template.as_deref()) {
+                    Some(0) => {}
+                    Some(c) => code = c,
+                    None => {
+                        eprintln!("podbox inspect: {e}");
+                        code = e.exit_code();
+                    }
+                }
             }
         }
     }
@@ -852,7 +868,7 @@ fn pick(fields: &[(&str, String)], key: &str) -> String {
 }
 
 /// docker's two-space-padded columns.
-fn table(rows: &[Vec<String>]) -> String {
+pub(crate) fn table(rows: &[Vec<String>]) -> String {
     let columns = rows.iter().map(Vec::len).max().unwrap_or(0);
     let mut widths = vec![0usize; columns];
     for row in rows {

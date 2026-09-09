@@ -7,3 +7,8 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+podbox-probe = { path = "../podbox-probe" }
+podbox-image = { path = "../podbox-image" }
+podbox-enter = { path = "../podbox-enter" }
+serde.workspace = true
+serde_json.workspace = true

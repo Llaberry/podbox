@@ -324,7 +324,7 @@ Source:      `TOOL.md` section 5 M4
 Category:    milestones
 Priority:    P0
 Effort:      L
-Status:      open
+Status:      partial 2026-09-09
 
 Problem:     The prior art's own capture of this lifecycle contains a failed run
              because it decided "running" by sleeping and looking.
@@ -336,6 +336,29 @@ Approach:    `create`, `start`, `ps`, `logs`, `stop`, `rm`, `exec`, `inspect`,
 Decision:    Twenty consecutive passes, and a single failure fails the milestone.
              Retrying a failure is how a race becomes a published pass.
 Prove:       `./experiments/230-lifecycle-loop.sh 20` exits 0
+
+**Partial, 2026-09-09. Every verb exists and the acceptance does not pass.**
+
+⭐ **What is in.** `create`, `start`, `ps`, `logs`, `stop`, `kill`, `wait`, `rm`,
+`cp`, and `exec` and `inspect` against a container, plus `run -d` and `--name`.
+Running state is launcher state: one detached supervisor per container holds the
+payload's pidfd, holds the container's lock, owns a control socket, and is the
+only thing that writes `running` or `exited` into
+`crates/podbox-supervise/src/table.rs`. Nothing reads `/proc` to decide
+membership and nothing sleeps to decide readiness.
+
+⛔ **What does not pass, and it is this entry's own `Prove`.**
+`./experiments/230-lifecycle-loop.sh 20` fails: **10 of 20**, **9 of 20** and
+**1 of 3** over three runs, always at `stop` with `no launcher is listening`.
+[T-0602](supervise.md) carries the readings and the two candidate causes, and
+this entry is NOT closed on a retried pass: its own Decision forbids it.
+
+⚠ Three defects the building of this found, each recorded where it belongs:
+`std::fs::read("/dev/urandom")` has no EOF and allocated 13 GB before the OOM
+killer took it ([T-0601](supervise.md)'s crate); a readiness pipe without
+`O_CLOEXEC` is inherited through the payload's `execve`, so `run -d` blocked for
+exactly as long as the container ran; and `si_status` sits at byte 24 of a
+`siginfo_t` and not 20, which reported a SIGTERMed payload as exit 128.
 
 ---
 

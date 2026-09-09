@@ -110,13 +110,13 @@ the blocker named and what would clear it.
 | [T-0504](enter.md) | P1 | enter | done | Refuse a rootfs path that is a symlink |
 | [T-0505](enter.md) | P1 | enter | done | `exec` is a fresh chroot, and `inspect` says so |
 | [T-0506](enter.md) | P0 | enter | done | A foreign-architecture container, and never a rung measured by the emulator |
-| [T-0601](supervise.md) | P0 | supervise | open | One pidfd per direct child, `waitid` for status |
-| [T-0602](supervise.md) | P0 | supervise | open | Never decide "running" by sleeping and looking |
-| [T-0603](supervise.md) | P1 | supervise | open | `PR_SET_PDEATHSIG` fires on the creating thread's exit |
-| [T-0604](supervise.md) | P1 | supervise | open | Running state is launcher state |
-| [T-0605](supervise.md) | P2 | supervise | open | Capture logs at spawn, from the descriptors opened in step 2 |
+| [T-0601](supervise.md) | P0 | supervise | done | One pidfd per direct child, `waitid` for status |
+| [T-0602](supervise.md) | P0 | supervise | partial | Never decide "running" by sleeping and looking |
+| [T-0603](supervise.md) | P1 | supervise | done | `PR_SET_PDEATHSIG` fires on the creating thread's exit |
+| [T-0604](supervise.md) | P1 | supervise | partial | Running state is launcher state |
+| [T-0605](supervise.md) | P2 | supervise | partial | Capture logs at spawn, from the descriptors opened in step 2 |
 | [T-0606](supervise.md) | P0 | supervise | blocked | The notification tier: probe three legs, refuse the tier, never fall back per call |
-| [T-0607](supervise.md) | P0 | supervise | open | The lifecycle, twenty times, twenty passes |
+| [T-0607](supervise.md) | P0 | supervise | partial | The lifecycle, twenty times, twenty passes |
 | [T-0701](interpose.md) | P0 | interpose | open | The cdylib build constraints |
 | [T-0702](interpose.md) | P0 | interpose | open | One object per libc, and it must live inside the rootfs |
 | [T-0703](interpose.md) | P0 | interpose | open | Path virtualization: the entry-point set and `*at` resolution |
@@ -144,6 +144,7 @@ the blocker named and what would clear it.
 | [T-0909](deps.md) | P1 | deps | blocked | Vendor the memfd and userland-exec rungs, and fix the fork's regression here |
 | [T-0910](deps.md) | P0 | deps | done | The `cargo bloat` baseline, committed, and checked at the gate |
 | [T-0911](deps.md) | P0 | deps | done | The syscall table and the kernel structs come from a crate, per architecture |
+| [T-0912](deps.md) | P2 | deps | open | The powerpc gate is the crate's and it is stale, so podbox can clear it |
 | [T-1001](packaging.md) | P0 | packaging | **done** | A single static binary with no `PT_INTERP` |
 | [T-1002](packaging.md) | P1 | packaging | open | Embed the interposer as bytes and place it inside the rootfs |
 | [T-1003](packaging.md) | P2 | packaging | open | The launch ladder, and a single file with an embedded rootfs |
@@ -154,7 +155,7 @@ the blocker named and what would clear it.
 | [T-1102](milestones.md) | P1 | milestones | done | M1 image acquisition |
 | [T-1103](milestones.md) | P0 | milestones | done | M2 extraction that survives the ownership wall |
 | [T-1104](milestones.md) | P0 | milestones | done | M3 `run` on the chroot rung |
-| [T-1105](milestones.md) | P0 | milestones | open | M4 the lifecycle, twenty times |
+| [T-1105](milestones.md) | P0 | milestones | partial | M4 the lifecycle, twenty times |
 | [T-1106](milestones.md) | P1 | milestones | open | M5 environment completion, ten distributions |
 | [T-1107](milestones.md) | P1 | milestones | open | M6 the interposer |
 | [T-1108](milestones.md) | P2 | milestones | open | M7 packaging |
@@ -168,7 +169,7 @@ the blocker named and what would clear it.
 
 ## Counts
 
-105 items: 43 open, 1 partial, 2 blocked, 59 done.
+106 items: 37 open, 6 partial, 2 blocked, 61 done.
 
 Counted from the rows above by `scripts/todo-count.py` and asserted
 independently by `scripts/check-todo.py`, which is the gate. A number here
@@ -176,11 +177,11 @@ that disagrees with the rows cannot reach a commit.
 
 | Priority | Open | Partial | Blocked | Done | Total |
 | --- | --- | --- | --- | --- | --- |
-| P0 | 17 | 0 | 1 | 31 | 49 |
-| P1 | 13 | 1 | 1 | 23 | 38 |
-| P2 | 10 | 0 | 0 | 4 | 14 |
+| P0 | 13 | 3 | 1 | 32 | 49 |
+| P1 | 11 | 2 | 1 | 24 | 38 |
+| P2 | 10 | 1 | 0 | 4 | 15 |
 | P3 | 3 | 0 | 0 | 1 | 4 |
-| **All** | **43** | **1** | **2** | **59** | **105** |
+| **All** | **37** | **6** | **2** | **61** | **106** |
 
 ## How the current ordering is derived
 

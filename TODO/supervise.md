@@ -18,7 +18,7 @@ Source:      `TOOL.md` section 4.2, section 6.6; `paper_final.md` section 10.6
 Category:    supervise
 Priority:    P0
 Effort:      M
-Status:      open
+Status:      done 2026-09-09
 
 Problem:     Membership inferred from the filesystem races against exit, depends
              on other processes' root links being readable, and trusts a path any
@@ -38,6 +38,24 @@ Decision:    A pidfd rather than a pid plus a start time. The pid is reusable
              process that has been reaped.
 Prove:       `podbox run -d --name pidfdprobe alpine:latest sleep 5 && podbox wait pidfdprobe | grep -qx 0 && podbox rm pidfdprobe`
 
+**Done, 2026-09-09.** `crates/podbox-supervise/src/launcher.rs`. One launcher per
+container holds a pidfd on its payload from the moment the payload exists,
+`ppoll`s it for readiness and reaps it with `waitid(P_PIDFD)`, so the status
+cannot be redirected by pid reuse between the readiness and the reap. The
+container table is `crates/podbox-supervise/src/table.rs` and nothing in it is
+reconstructed from `/proc`.
+
+⛔ **Said, not implied**, and `podbox inspect --format '{{.Contains}}'` prints it:
+a pidfd addresses ONE process. It does not contain descendants and it is not a
+PID namespace, so a grandchild that reparents is outside podbox's reach.
+
+⚠ **A defect the `waitid` path cost, and it is a fixed offset rather than a
+race:** `si_status` was read at byte 20 of the `siginfo_t`, which is `si_uid`. A
+SIGTERMed payload reported exit **128** instead of 143. On a 64-bit architecture
+the three leading ints are followed by four bytes of padding and `_sifields`
+begins at 16, so `si_status` is at 24. `crates/podbox-probe/src/sys.rs` carries
+the reasoning beside the read.
+
 ---
 
 ### T-0602 Never decide "running" by sleeping and looking
@@ -46,7 +64,7 @@ Source:      `TOOL.md` section 6.6; `paper_final.md` section 10.6
 Category:    supervise
 Priority:    P0
 Effort:      M
-Status:      open
+Status:      partial 2026-09-09
 
 Problem:     A fixed sleep is a scheduling assumption. The prior art's own
              capture of this lifecycle contains a failed run for exactly that
@@ -68,6 +86,43 @@ Decision:    A readiness fd over polling `ps`. Polling reintroduces the interval
              the entry exists to remove.
 Prove:       `for i in $(seq 20); do podbox run -d --name loop$i alpine:latest sleep 1 && podbox ps -q | grep -q . && podbox stop loop$i && podbox rm loop$i || exit 1; done`
 
+**Partial, 2026-09-09. The mechanism is in and the acceptance does not pass.**
+
+⭐ **What is in.** Readiness is an `O_CLOEXEC` pipe that the payload's `execve`
+closes, so `start` returns when the exec has SUCCEEDED rather than when a timer
+expired; the launcher waits on `ppoll` over the payload's pidfd and its control
+socket; `stop` and `wait` block on the launcher through that socket with a read
+timeout. ⛔ There is no `sleep` anywhere in the path, and
+`experiments/230-lifecycle-loop.sh` has none either.
+
+⛔ **What does not pass, and it is this entry's own `Prove`.** The twenty-pass
+loop fails, three runs out of three:
+
+| run | consecutive passes | failed at |
+| --- | --- | --- |
+| 20 iterations | **10 of 20** | `stop` |
+| 20 iterations, again | **9 of 20** | `stop` |
+| 3 iterations | **1 of 3** | `stop` |
+
+Always the same message: `no launcher is listening for <id>: No such file or
+directory`. The container table still says running at that moment, so the
+launcher's own lock was still held and its control socket was not there.
+⚠ Reproduced by hand three times in a row against a warm store and it passed
+every time, so what the loop adds is a cold store, an `rm` of the previous
+container immediately before, and a `pull` at the start.
+
+⚠ **Two candidates, neither established.** `podbox_supervise::remove` calls
+`remove_dir_all` on the container's own directory, resolved through
+`crates/podbox-image/src/contain.rs`; if that resolution ever answers with an
+ancestor for a leaf that has gone, it would take the containers directory whole.
+And `table::reconcile` takes and drops an exclusive lock on every running
+container's lock file on every `ps`, `exec`, `stop` and `rm`, which is a write to
+a file a launcher is holding.
+
+⛔ **Not retried and not published as a pass.** [T-0607](supervise.md)'s
+Decision: retrying one failure is how a race becomes a published pass, and the
+number that matters is how many iterations happened before the first failure.
+
 ---
 
 ### T-0603 `PR_SET_PDEATHSIG` fires on the creating thread's exit
@@ -76,7 +131,7 @@ Source:      `TOOL.md` section 6.6; `paper_final.md` section 10.6
 Category:    supervise
 Priority:    P1
 Effort:      S
-Status:      open
+Status:      done 2026-09-09
 
 Problem:     It does not fire on an ancestor's death. In a threaded supervisor
              this produces surprising early exits that look like crashes, and a
@@ -99,6 +154,19 @@ Decision:    Keep the spawn path single-threaded rather than pinning a thread.
              made to hold.
 Prove:       `podbox run -d --name pdprobe alpine:latest sleep 30 && grep -qx 1 /proc/$(podbox inspect --format '{{.Pid}}' pdprobe)/status.threads 2>/dev/null || test "$(ls /proc/$(pgrep -f 'podbox run' | head -1)/task | wc -l)" -le 3`
 
+**Done, 2026-09-09.** The spawn path is single-threaded and nothing on it spawns
+a thread: the launcher forks with `clone_fork`, the payload's `chroot` and
+`execve` happen in that child, and `PR_SET_PDEATHSIG` is not used at all, so the
+"fires on the creating thread's exit" trap has no way to bite. The launcher also
+`setsid`s, so it outlives the shell that started it and holds no controlling
+terminal.
+
+⚠ **Asserted in two places rather than commented.** A unit test in
+`crates/podbox-supervise/src/launcher.rs` asserts this process grows no thread
+across the spawn path, and clause 3 of `experiments/230-lifecycle-loop.sh` reads
+`/proc/<launcher>/task` of a real detached launcher and requires exactly one.
+⛔ That clause has not run: the loop fails before reaching it.
+
 ---
 
 ### T-0604 Running state is launcher state
@@ -107,7 +175,7 @@ Source:      `TOOL.md` section 6.6
 Category:    supervise
 Priority:    P1
 Effort:      M
-Status:      open
+Status:      partial 2026-09-09
 
 Problem:     Two launchers, or a launcher restart, must not disagree about what
              is running, and neither may read the answer out of a directory a
@@ -124,6 +192,22 @@ Decision:    Reconcile on start rather than trust the table. A launcher killed
              not watching".
 Prove:       `podbox run -d --name stateprobe alpine:latest sleep 30 && kill -9 "$(podbox inspect --format '{{.Pid}}' stateprobe)" && podbox ps -a --format '{{.Status}}' --filter name=stateprobe | grep -qi exited && podbox rm stateprobe`
 
+**Partial, 2026-09-09. Implemented, and its clause has not run.**
+
+⭐ **The mechanism.** A launcher holds an exclusive `flock` on its container's
+own lock file for its whole life, so `table::reconcile` decides whether a
+launcher is gone by TRYING TO TAKE IT: a lock this process can take is a launcher
+that is not there. ⛔ Never by pid, and never with a start-time check beside it: a
+pid is reused and the check that clears a stale pid file is the race being
+closed. Such a container becomes `dead`, with the time it was NOTICED and ⛔ **no
+exit code at all**; `podbox wait` on it refuses rather than printing a number,
+and `inspect --format '{{.ExitCode}}'` prints a dash.
+
+⛔ **Clause 2 of `experiments/230-lifecycle-loop.sh` drives exactly this and has
+not run**, because the loop fails before reaching it ([T-0602](supervise.md)).
+Until it does, this is a mechanism that is written down and not one that has been
+measured.
+
 ---
 
 ### T-0605 Capture logs at spawn, from the descriptors opened in step 2
@@ -132,7 +216,7 @@ Source:      `TOOL.md` section 6.6, section 6.5
 Category:    supervise
 Priority:    P2
 Effort:      S
-Status:      open
+Status:      partial 2026-09-09
 
 Problem:     A log sink opened after the chroot cannot reach the store, which is
              outside the new root. Opening it afterwards is the same mistake as
@@ -149,6 +233,20 @@ Decision:    A file in the store rather than a pipe pumped by the launcher. A
              launcher is the process most likely to be killed by an outer
              `timeout`.
 Prove:       `podbox run --rm --name logprobe alpine:latest sh -c 'echo out; echo err >&2' >/dev/null 2>&1; podbox logs logprobe 2>&1 | grep -q out`
+
+**Partial, 2026-09-09. Implemented, and its clause has not run.**
+
+The log sink is opened in the launcher BEFORE anything changes root, and its
+descriptors are handed to the payload as fds 1 and 2 through the same
+`Plan.fds.pass` the entry sequence already had; stdin is `/dev/null`, opened in
+the same place. `podbox logs` reads the file out of the store. ⛔ A sink opened
+after the chroot cannot reach the store, which is outside the new root, and that
+is step 2 of `TOOL.md` section 6.5 made in a different place.
+
+⚠ `--log-driver` is not implemented at all rather than accepted and ignored, and
+`attach` is a `None` row in the parity table for the same reason.
+
+⛔ Clause 4 of `experiments/230-lifecycle-loop.sh` drives it and has not run.
 
 ---
 
@@ -231,7 +329,7 @@ Source:      `TOOL.md` section 5 M4, section 9
 Category:    supervise
 Priority:    P0
 Effort:      M
-Status:      open
+Status:      partial 2026-09-09
 
 Problem:     One pass proves nothing about a race, and the race is the reason
              this milestone exists.
@@ -246,3 +344,14 @@ Decision:    Twenty rather than a timed soak. A count is reproducible on a
              different machine and a duration is not, and
              `docs/methodology/authoring.md:143-148` rules out the duration form.
 Prove:       `./experiments/230-lifecycle-loop.sh 20` exits 0
+
+**Partial, 2026-09-09. The loop exists and it does not pass twenty times.**
+
+⭐ **This is the entry working, not the entry failing.** One pass proves nothing
+about a race, and a loop that only ever ran once would have shipped this. Three
+runs: 10 of 20, 9 of 20 and 1 of 3, every one of them failing at `stop`.
+[T-0602](supervise.md) carries the readings and the two candidate causes.
+
+⚠ **The script never retries and never continues past a failure**, so the number
+it reports is how many iterations happened BEFORE the first one, which is the
+only number this entry is about.

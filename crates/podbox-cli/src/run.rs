@@ -20,6 +20,8 @@ use podbox_image::transport::Policy;
 pub const RUN_USAGE: &str = "\
 usage: podbox run [options] <image> [command] [arg...]
 
+  -d, --detach     start the container and print its id, and do not wait
+  --name NAME      a name for the container. ⚠ Refused if one already has it
   --rm             remove the extracted rootfs when the payload exits
   -e, --env K=V    set an environment variable. Repeatable; a later one wins
   -w, --workdir D  working directory inside the container
@@ -50,6 +52,8 @@ usage: podbox run [options] <image> [command] [arg...]
 #[derive(Debug)]
 struct Opts {
     rm: bool,
+    detach: bool,
+    name: Option<String>,
     env: Vec<String>,
     workdir: Option<String>,
     entrypoint: Option<String>,
@@ -68,6 +72,8 @@ struct Opts {
 fn parse(args: &[String]) -> std::result::Result<Opts, i32> {
     let mut o = Opts {
         rm: false,
+        detach: false,
+        name: None,
         env: Vec::new(),
         workdir: None,
         entrypoint: None,
@@ -90,6 +96,7 @@ fn parse(args: &[String]) -> std::result::Result<Opts, i32> {
                 "--entrypoint" => o.entrypoint = Some(a.clone()),
                 "--platform" => o.platform = Some(a.clone()),
                 "--pull" => o.pull = a.clone(),
+                "--name" => o.name = Some(a.clone()),
                 _ => o.insecure.push(a.clone()),
             }
             i += 1;
@@ -116,6 +123,9 @@ fn parse(args: &[String]) -> std::result::Result<Opts, i32> {
                 return Err(0);
             }
             "--rm" => o.rm = true,
+            "-d" | "--detach" => o.detach = true,
+            "--name" => expecting = Some("--name"),
+            other if other.starts_with("--name=") => o.name = Some(other[7..].to_string()),
             "-t" | "--tty" => o.tty = true,
             "-i" | "--interactive" => {
                 // ⚠ Accepted and a no-op, deliberately: podbox does not detach
@@ -181,26 +191,6 @@ fn parse(args: &[String]) -> std::result::Result<Opts, i32> {
 }
 
 pub fn run(args: &[String]) -> i32 {
-    let o = match parse(args) {
-        Ok(o) => o,
-        Err(code) => return code,
-    };
-    let image = o.image.clone().expect("checked in parse");
-
-    let platform = match Platform::wanted(o.platform.as_deref()) {
-        Ok(p) => p,
-        Err(e) => {
-            eprintln!("podbox run: {e}");
-            return e.exit_code();
-        }
-    };
-    let policy = match Policy::resolve(&o.insecure, o.tls_verify) {
-        Ok(p) => p,
-        Err(e) => {
-            eprintln!("podbox run: {e}");
-            return e.exit_code();
-        }
-    };
     let store = match podbox_image::open_store() {
         Ok(s) => s,
         Err(e) => {
@@ -208,30 +198,138 @@ pub fn run(args: &[String]) -> i32 {
             return e.exit_code();
         }
     };
-
-    // ------------------------------------------------------------- the image
-    let record = match acquire(&store, &image, &platform, &policy, &o.pull) {
-        Ok(r) => r,
+    let p = match prepare(args, &store, "run") {
+        Ok(p) => p,
         Err(code) => return code,
     };
+    let mut err = std::io::stderr().lock();
 
-    // ⛔ The lock BEFORE the extraction check, so a concurrent `rmi` cannot
-    // delete the rootfs between podbox deciding it is there and entering it.
-    // TODO/image.md T-0204.
-    let held = match store.hold(&record) {
+    // ⭐ M4. `-d` hands the container to a detached launcher and returns as soon
+    // as its payload is running, which is a condition rather than a duration:
+    // TODO/supervise.md T-0602.
+    if p.detach {
+        let _ = write!(err, "{}", p.banner);
+        drop(err);
+        let c = match podbox_supervise::create(
+            &store,
+            p.name.as_deref(),
+            &p.image,
+            &p.record.manifest_digest,
+            &p.rootfs,
+            p.argv.clone(),
+            p.env.clone(),
+            p.working_dir.clone(),
+            &p.rung,
+        ) {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("podbox run: {e}");
+                return podbox_image::error::EXIT_RUNTIME_ERROR;
+            }
+        };
+        return match podbox_supervise::start(&store, &c.id, &p.record) {
+            Ok(c) => {
+                println!("{}", c.id);
+                0
+            }
+            Err(e) => {
+                eprintln!("podbox run: {e}");
+                // ⚠ The record is removed again: a container that could not be
+                // started is not one `ps` should list as created, and leaving
+                // it would also hold its name against a retry.
+                let _ = podbox_supervise::remove(&store, &c.id, true);
+                podbox_image::error::EXIT_RUNTIME_ERROR
+            }
+        };
+    }
+
+    // ---------------------------------------------------- the foreground entry
+    let held = match store.hold(&p.record) {
         Ok(h) => h,
         Err(e) => {
-            eprintln!("podbox run: {e}");
+            let _ = writeln!(err, "podbox run: {e}");
             return podbox_image::error::EXIT_RUNTIME_ERROR;
         }
     };
+    let root = match RootDir::open(&p.rootfs) {
+        Ok(r) => r,
+        Err(e) => {
+            let _ = writeln!(err, "podbox run: {e}");
+            return e.exit_code();
+        }
+    };
+    let plan = Plan {
+        argv: p.argv.clone(),
+        env: p.env.clone(),
+        working_dir: p.working_dir.clone(),
+        fds: Fds::default(),
+        banner: p.banner.clone(),
+        path_dirs: Plan::path_from(&p.env),
+    };
+    // ⭐ T-0204 and T-0211. The lock is handed to the payload immediately
+    // before the fork that leads to its exec, and to nothing else.
+    if let Err(e) = held.hand_to_payload() {
+        let _ = writeln!(err, "podbox run: {e}");
+        return podbox_image::error::EXIT_RUNTIME_ERROR;
+    }
+    let code = match podbox_enter::run(&root, &plan, &mut err) {
+        Ok(c) => c,
+        Err(e) => {
+            let _ = writeln!(err, "podbox run: {e}");
+            e.exit_code()
+        }
+    };
+    drop(err);
 
-    if !podbox_extract::is_extracted(&store, &record.manifest_digest) {
-        if let Err(code) = extract_now(&store, &record) {
-            return code;
+    if p.rm {
+        // ⚠ The lock is dropped first: `remove_extracted` deletes the tree the
+        // lock exists to protect, and holding it while deleting would be podbox
+        // refusing its own request.
+        drop(held);
+        if let Err(e) = podbox_extract::remove_extracted(&store, &p.record.manifest_digest) {
+            eprintln!("podbox run: --rm could not remove the rootfs: {e}");
         }
     }
-    let (rootfs, _) = podbox_extract::paths(&store, &record.manifest_digest);
+    code
+}
+
+/// Everything `run` and `create` both need: the image in the store, extracted,
+/// its plan resolved and the rung selected, with nothing entered yet.
+///
+/// ⛔ ONE PATH for both verbs. `create` that resolved its own image would be a
+/// second implementation of the hardest half of `run`, and the one nobody
+/// exercises is the one that diverges.
+pub(crate) fn prepare(
+    args: &[String],
+    store: &podbox_image::Store,
+    verb: &str,
+) -> std::result::Result<crate::lifecycle::Prepared, i32> {
+    let o = parse(args)?;
+    let image = o.image.clone().expect("checked in parse");
+
+    let (platform, policy) = crate::lifecycle::platform_and_policy(
+        verb,
+        o.platform.as_deref(),
+        &o.insecure,
+        o.tls_verify,
+    )?;
+
+    // ------------------------------------------------------------- the image
+    let record = acquire(store, &image, &platform, &policy, &o.pull)?;
+
+    // ⛔ The lock BEFORE the extraction check, so a concurrent `rmi` cannot
+    // delete the rootfs between podbox deciding it is there and entering it.
+    // TODO/image.md T-0204. ⚠ Dropped at the end of this function: the caller
+    // takes its own, for the process that actually enters.
+    let held = store.hold(&record).map_err(|e| {
+        eprintln!("podbox {verb}: {e}");
+        podbox_image::error::EXIT_RUNTIME_ERROR
+    })?;
+
+    if !podbox_extract::is_extracted(store, &record.manifest_digest) {
+        extract_now(store, &record)?;
+    }
+    let (rootfs, _) = podbox_extract::paths(store, &record.manifest_digest);
     let rootfs = rootfs.to_string_lossy().to_string();
 
     // ---------------------------------------------------- the foreign platform
@@ -282,7 +380,7 @@ pub fn run(args: &[String]) -> i32 {
                          copied into the rootfs: {e}",
                         record.os, record.architecture, host, r.interpreter
                     );
-                    return podbox_enter::EXIT_RUNTIME_ERROR;
+                    return Err(podbox_enter::EXIT_RUNTIME_ERROR);
                 }
             }
         }
@@ -291,19 +389,16 @@ pub fn run(args: &[String]) -> i32 {
             // error` from the kernel with nothing attached to it.
             let _ = writeln!(
                 err,
-                "podbox run: {image} is {}/{} and this machine is {}. podbox \
+                "podbox {verb}: {image} is {}/{} and this machine is {}. podbox \
                  cannot execute it: {why}",
                 record.os, record.architecture, host
             );
-            return podbox_enter::EXIT_RUNTIME_ERROR;
+            return Err(podbox_enter::EXIT_RUNTIME_ERROR);
         }
     }
 
     // --------------------------------------------------------------- the plan
-    let cfg = match config_of(&store, &record) {
-        Ok(c) => c,
-        Err(code) => return code,
-    };
+    let cfg = config_of(store, &record)?;
     let argv = Plan::argv_for(
         cfg.config.entrypoint.as_deref(),
         cfg.config.cmd.as_deref(),
@@ -312,10 +407,10 @@ pub fn run(args: &[String]) -> i32 {
     );
     if argv.is_empty() {
         eprintln!(
-            "podbox run: {image} declares neither an Entrypoint nor a Cmd, and no \
+            "podbox {verb}: {image} declares neither an Entrypoint nor a Cmd, and no \
              command was given. There is nothing to run"
         );
-        return EXIT_USAGE;
+        return Err(EXIT_USAGE);
     }
     let env = Plan::env_for(&cfg.config.env, &o.env);
     let path_dirs = Plan::path_from(&env);
@@ -366,52 +461,27 @@ pub fn run(args: &[String]) -> i32 {
                  running without one and letting the payload discover it \
                  (TODO/enter.md T-0503)"
             );
-            return podbox_enter::EXIT_RUNTIME_ERROR;
+            return Err(podbox_enter::EXIT_RUNTIME_ERROR);
         }
     }
-
-    let plan = Plan {
+    let _ = path_dirs;
+    // ⚠ The lock this function took goes here. It existed to keep the rootfs
+    // from being deleted between the extraction check and now; the process that
+    // ENTERS takes its own, and for `-d` that is the launcher rather than this.
+    drop(held);
+    Ok(crate::lifecycle::Prepared {
+        record,
+        image,
+        rootfs,
         argv,
         env,
         working_dir,
-        fds: Fds::default(),
+        name: o.name.clone(),
+        rung: selection.rung.word().to_string(),
         banner,
-        path_dirs,
-    };
-
-    // --------------------------------------------------------------- the entry
-    let root = match RootDir::open(&rootfs) {
-        Ok(r) => r,
-        Err(e) => {
-            let _ = writeln!(err, "podbox run: {e}");
-            return e.exit_code();
-        }
-    };
-    // ⭐ T-0204 and T-0211. The lock is handed to the payload immediately
-    // before the fork that leads to its exec, and to nothing else.
-    if let Err(e) = held.hand_to_payload() {
-        let _ = writeln!(err, "podbox run: {e}");
-        return podbox_image::error::EXIT_RUNTIME_ERROR;
-    }
-    let code = match podbox_enter::run(&root, &plan, &mut err) {
-        Ok(c) => c,
-        Err(e) => {
-            let _ = writeln!(err, "podbox run: {e}");
-            e.exit_code()
-        }
-    };
-    drop(err);
-
-    if o.rm {
-        // ⚠ The lock is dropped first: `remove_extracted` deletes the tree the
-        // lock exists to protect, and holding it while deleting would be podbox
-        // refusing its own request.
-        drop(held);
-        if let Err(e) = podbox_extract::remove_extracted(&store, &record.manifest_digest) {
-            eprintln!("podbox run: --rm could not remove the rootfs: {e}");
-        }
-    }
-    code
+        detach: o.detach,
+        rm: o.rm,
+    })
 }
 
 /// Make sure the store holds the image, honouring `--pull`.

@@ -17,6 +17,7 @@
 mod exec;
 mod format;
 mod images;
+mod lifecycle;
 mod names;
 mod parity;
 mod run;
@@ -47,6 +48,15 @@ usage: podbox <command> [options]
   tag          point a second name at one manifest digest
   image        ls | rm | prune | tag
   inspect      print one image's record
+  create       write a container record, and start nothing
+  start        start a created container, and return when its payload is running
+  ps           list containers, from podbox's own table and never from /proc
+  logs         a container's captured output
+  stop         SIGTERM, then SIGKILL after a bounded grace
+  kill         send one signal to a container's payload
+  wait         block until a container ends, and print its exit code
+  rm           remove a container
+  cp           copy one file into or out of a container's rootfs
   system info  what this podbox is, and the verb and flag parity table AS DATA
   system install-names
                install `docker` and `podman` as symlinks to this binary
@@ -99,6 +109,15 @@ fn main() -> std::process::ExitCode {
     match argv.get(1).map(String::as_str) {
         Some("run") => exit(run::run(rest)),
         Some("exec") => exit(exec::exec(rest)),
+        Some("cp") => exit(lifecycle::cp(rest)),
+        Some("rm") => exit(lifecycle::rm(rest)),
+        Some("wait") => exit(lifecycle::wait(rest)),
+        Some("kill") => exit(lifecycle::kill(rest)),
+        Some("stop") => exit(lifecycle::stop(rest)),
+        Some("logs") => exit(lifecycle::logs(rest)),
+        Some("ps") => exit(lifecycle::ps(rest)),
+        Some("start") => exit(lifecycle::start(rest)),
+        Some("create") => exit(lifecycle::create(rest)),
         Some("probe") => exit(probe(rest)),
         Some("pull") => exit(images::pull(rest)),
         Some("extract") => exit(images::extract(rest)),

@@ -146,6 +146,79 @@ fn parse(args: &[String]) -> std::result::Result<Opts, i32> {
     Ok(o)
 }
 
+/// Enter an existing rootfs. ⭐ ONE PATH for a container and for an image: the
+/// only difference is where the rootfs came from, and duplicating the entry
+/// would be a second implementation of the thing this verb exists to be.
+fn enter(
+    target: &str,
+    rootfs: &str,
+    state: podbox_supervise::table::State,
+    o: &Opts,
+    store: &podbox_image::Store,
+) -> i32 {
+    use podbox_supervise::table::State;
+    if state == State::Created {
+        eprintln!(
+            "podbox exec: {target} has been created and never started, so its rootfs              is there and nothing is running in it. ⚠ podbox will enter it anyway,              because a fresh chroot shares only the filesystem and needs nothing to              be running (TODO/enter.md T-0505)"
+        );
+    }
+    // ⚠ The container's own environment is not inherited: T-0505's whole
+    // subject is that this shares the filesystem and NOTHING else, and silently
+    // copying the original's environment would be the implication it refuses.
+    let env = podbox_enter::Plan::env_for(&[], &o.env);
+    let path_dirs = podbox_enter::Plan::path_from(&env);
+    let working_dir = o.workdir.clone().unwrap_or_else(|| "/".to_string());
+    let findings = podbox_probe::run();
+    let selection = podbox_probe::select::Selection::choose(&findings);
+    let mut banner = podbox_probe::report::banner(&findings, &selection);
+    if let Some(note) = crate::names::alias_note() {
+        banner.push_str(&note);
+    }
+    banner.push_str(&degradation());
+    let mut err = std::io::stderr().lock();
+    if o.tty && !ptmx_usable(&findings) {
+        let _ = write!(err, "{banner}");
+        let _ = writeln!(err, "{TTY_REFUSAL}");
+        return podbox_enter::EXIT_RUNTIME_ERROR;
+    }
+    let plan = Plan {
+        argv: o.command.clone(),
+        env,
+        working_dir,
+        fds: Fds::default(),
+        banner,
+        path_dirs,
+    };
+    let root = match RootDir::open(rootfs) {
+        Ok(r) => r,
+        Err(e) => {
+            let _ = writeln!(err, "podbox exec: {e}");
+            return e.exit_code();
+        }
+    };
+    let _ = store;
+    match podbox_enter::run(&root, &plan, &mut err) {
+        Ok(c) => c,
+        Err(e) => {
+            let _ = writeln!(err, "podbox exec: {e}");
+            e.exit_code()
+        }
+    }
+}
+
+/// ⛔ `Ok` and nothing else. `Skip` means the row never ran, and TODO/probe.md
+/// T-0109 rule 1 is that a skip may not read as a denial or as a pass: a pty
+/// podbox could not measure is not one it may promise.
+fn ptmx_usable(findings: &podbox_probe::Findings) -> bool {
+    findings.rows.iter().any(|(n, out)| {
+        n.starts_with("open(/dev/ptmx") && matches!(out.verdict, podbox_probe::verdict::Verdict::Ok)
+    })
+}
+
+const TTY_REFUSAL: &str = "podbox exec: -t was asked for and /dev/ptmx is not usable on this \
+machine, so podbox cannot allocate a pty. It refuses rather than running without one and \
+letting the payload discover it (TODO/enter.md T-0503)";
+
 pub fn exec(args: &[String]) -> i32 {
     let o = match parse(args) {
         Ok(o) => o,
@@ -167,6 +240,15 @@ pub fn exec(args: &[String]) -> i32 {
             return e.exit_code();
         }
     };
+
+    // ⭐ M4. A CONTAINER NAME FIRST, then an image reference. `docker exec` takes
+    // a container and podbox's takes either, because until M4 there were no
+    // containers and an image was the only thing to re-enter. ⚠ The mechanism is
+    // the same either way: a container's rootfs is a directory in the store and
+    // so is an image's.
+    if let Some((rootfs, state)) = crate::lifecycle::rootfs_of(&store, &image) {
+        return enter(&image, &rootfs, state, &o, &store);
+    }
 
     // ⛔ Never pulls. `exec` re-enters something that is already there, so a
     // reference the store does not hold is a refusal that names `run`, not a

@@ -157,6 +157,53 @@ pub struct Fds {
 /// caller reads the exit code first, and a runtime that improves a payload's
 /// code lies in the field read first.
 pub fn run(root: &RootDir, plan: &Plan, err: &mut dyn Write) -> Result<i32> {
+    let child = spawn(root, plan, err)?;
+    child.wait()
+}
+
+/// A payload that has reached its `execve`, and its pid.
+///
+/// ⛔ [`TODO/supervise.md`](../../../TODO/supervise.md) T-0602: this value only
+/// exists once the exec has SUCCEEDED, established by reading the error pipe to
+/// EOF rather than by sleeping and looking. A failure before the exec arrives on
+/// that pipe as an errno and becomes an [`Error`] here, so a caller never has to
+/// decide whether a process it cannot see yet is starting or already dead.
+#[derive(Debug)]
+pub struct Child {
+    pub pid: i64,
+}
+
+impl Child {
+    /// Reap it, and return docker's exit code for however it ended.
+    pub fn wait(&self) -> Result<i32> {
+        let mut status = 0i32;
+        loop {
+            match sys::wait4(self.pid, &mut status) {
+                Ok(_) => break,
+                // ⚠ `EINTR` is not a failure. A signal delivered to podbox while
+                // it waits must not be reported as the payload having died.
+                Err(e) if e == sys::EINTR => continue,
+                Err(e) => {
+                    return Err(Error::Runtime(format!(
+                        "wait4 on the payload failed: {} ({})",
+                        e.name(),
+                        e.0
+                    )))
+                }
+            }
+        }
+        Ok(exit_status(status))
+    }
+}
+
+/// Enter `root` and exec the plan, returning as soon as the exec has succeeded.
+///
+/// ⛔ **The readiness signal is an `O_CLOEXEC` pipe, and it is the mechanism
+/// T-0602 asks for.** The child holds the write end; a successful `execve`
+/// closes it and the parent's read returns EOF, and any failure before the exec
+/// is written to it as an errno. There is no interval anywhere in it, so there
+/// is no scheduling assumption to be wrong about.
+pub fn spawn(root: &RootDir, plan: &Plan, err: &mut dyn Write) -> Result<Child> {
     // ---------------------------------------------------------- before the fork
     //
     // ⛔ Every allocation the child needs happens HERE. Between `clone` and
@@ -212,10 +259,31 @@ pub fn run(root: &RootDir, plan: &Plan, err: &mut dyn Write) -> Result<i32> {
     let _ = write!(err, "{}", plan.banner);
     let _ = err.flush();
 
+    // ⭐ T-0602's readiness channel, created before the fork like everything
+    // else the child touches. `O_CLOEXEC` on both ends is the whole trick: the
+    // `execve` closes the write end, and the parent's read then returns EOF.
+    let mut pipe = [0i32; 2];
+    sys::pipe2(&mut pipe, sys::O_CLOEXEC).map_err(|e| {
+        Error::Runtime(format!(
+            "pipe2 for the readiness channel failed: {} ({})",
+            e.name(),
+            e.0
+        ))
+    })?;
+    let (read_end, write_end) = (pipe[0] as i64, pipe[1] as i64);
+
     // --------------------------------------------------------------- the fork
     let pid = match unsafe { sys::clone_fork(sys::SIGCHLD) } {
         Ok(0) => {
             // ------ child. Async-signal-safe work only, then execve. ------
+            let _ = sys::close(read_end);
+            // ⚠ Four bytes to the readiness pipe, which is async-signal-safe and
+            // is all the parent needs to tell a failure from a successful exec.
+            let report = |step: u8, e: sys::Errno| -> ! {
+                let msg = [step, (e.0 & 0xff) as u8, ((e.0 >> 8) & 0xff) as u8, 0];
+                let _ = sys::write(write_end, &msg);
+                sys::exit_group(EXIT_RUNTIME_ERROR)
+            };
             for (child_fd, host_fd) in &plan.fds.pass {
                 if host_fd != child_fd {
                     let _ = sys::dup2(*host_fd, *child_fd);
@@ -224,17 +292,17 @@ pub fn run(root: &RootDir, plan: &Plan, err: &mut dyn Write) -> Result<i32> {
             }
             // ⛔ `fchdir` then `chroot(".")`, never `chroot(path)`: the
             // descriptor was checked and cannot be swapped, and a path can.
-            if sys::fchdir(root.fd).is_err() {
-                sys::exit_group(EXIT_RUNTIME_ERROR);
+            if let Err(e) = sys::fchdir(root.fd) {
+                report(1, e);
             }
-            if sys::chroot(&dot).is_err() {
-                sys::exit_group(EXIT_RUNTIME_ERROR);
+            if let Err(e) = sys::chroot(&dot) {
+                report(2, e);
             }
             // ⛔ `chdir("/")` after the chroot. Without it the working directory
             // is still the old root's inode, which is a documented way out of a
             // chroot and is not a containment podbox may claim.
-            if sys::chdir(&slash).is_err() {
-                sys::exit_group(EXIT_RUNTIME_ERROR);
+            if let Err(e) = sys::chdir(&slash) {
+                report(3, e);
             }
             // The image's WorkingDir, if it exists. ⚠ A missing one is not
             // fatal: docker creates it, and podbox running from `/` and saying
@@ -242,41 +310,70 @@ pub fn run(root: &RootDir, plan: &Plan, err: &mut dyn Write) -> Result<i32> {
             let _ = sys::chdir(&workdir);
 
             // ⭐ Resolved HERE, in the process that changed the root.
+            let mut last = sys::Errno(2i32);
             for c in &candidates {
-                let _ = unsafe { sys::execve(c, argv.as_ptr(), envp.as_ptr()) };
+                if let Err(e) = unsafe { sys::execve(c, argv.as_ptr(), envp.as_ptr()) } {
+                    last = e;
+                }
             }
             // Every candidate failed. 127 is the shell's convention and
             // docker's for "not found", and the parent reports it unchanged.
+            let msg = [4u8, (last.0 & 0xff) as u8, ((last.0 >> 8) & 0xff) as u8, 0];
+            let _ = sys::write(write_end, &msg);
             sys::exit_group(EXIT_NOT_FOUND)
         }
         Ok(pid) => pid,
         Err(e) => {
+            let _ = sys::close(read_end);
+            let _ = sys::close(write_end);
             return Err(Error::Runtime(format!(
                 "clone(2) for the payload failed: {} ({})",
                 e.name(),
                 e.0
-            )))
+            )));
         }
     };
 
     // -------------------------------------------------------------- the parent
-    let mut status = 0i32;
-    loop {
-        match sys::wait4(pid, &mut status) {
-            Ok(_) => break,
-            // ⚠ `EINTR` is not a failure. A signal delivered to podbox while it
-            // waits must not be reported as the payload having died.
+    // ⛔ The parent closes ITS write end first, or the read below never sees
+    // EOF: the pipe stays open on this process's own copy of it forever.
+    let _ = sys::close(write_end);
+    let mut buf = [0u8; 4];
+    let got = loop {
+        match sys::read(read_end, &mut buf) {
+            Ok(n) => break n,
             Err(e) if e == sys::EINTR => continue,
-            Err(e) => {
-                return Err(Error::Runtime(format!(
-                    "wait4 on the payload failed: {} ({})",
-                    e.name(),
-                    e.0
-                )))
-            }
+            Err(_) => break 0,
         }
+    };
+    let _ = sys::close(read_end);
+    if got > 0 {
+        // The child failed before its exec and said where. It has already
+        // exited, so it is reaped here rather than left as a zombie.
+        let mut st = 0i32;
+        let _ = sys::wait4(pid, &mut st);
+        let errno = sys::Errno(i32::from(buf[1]) | (i32::from(buf[2]) << 8));
+        let step = match buf[0] {
+            1 => "fchdir onto the rootfs descriptor",
+            2 => "chroot(\".\")",
+            3 => "chdir(\"/\") after the chroot",
+            _ => "execve of every candidate path",
+        };
+        let text = format!(
+            "the payload could not be started: {step} failed with {} ({})",
+            errno.name(),
+            errno.0
+        );
+        return Err(if buf[0] == 4 {
+            Error::NotFound(format!(
+                "{:?}: {text}",
+                plan.argv.first().map(String::as_str).unwrap_or("")
+            ))
+        } else {
+            Error::Runtime(text)
+        });
     }
-    Ok(exit_status(status))
+    Ok(Child { pid })
 }
 
 /// docker's translation of a wait status into an exit code.

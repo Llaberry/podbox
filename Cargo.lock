@@ -370,6 +370,13 @@ dependencies = [
 [[package]]
 name = "podbox-supervise"
 version = "0.1.0"
+dependencies = [
+ "podbox-enter",
+ "podbox-image",
+ "podbox-probe",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "potential_utf"

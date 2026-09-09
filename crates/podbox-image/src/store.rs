@@ -947,6 +947,23 @@ impl Lock {
     /// `None` where somebody else holds it. ⛔ Always `LOCK_NB`: a blocking
     /// `flock` on a lock held through an exec is an unbounded wait, which
     /// `RULES.md` section 8 forbids.
+    /// An exclusive lock, or `None` where somebody holds it.
+    ///
+    /// ⚠ Public because `podbox-supervise` reconciles its container table with
+    /// exactly this question ([`TODO/supervise.md`](../../../TODO/supervise.md)
+    /// T-0604): a launcher holds its container's lock for its whole life, so a
+    /// lock another process can take is a launcher that is gone. ⛔ The same
+    /// mechanism and not a second one: a pid file would be stale the moment a
+    /// launcher is killed, and the check that clears a stale one is the race.
+    pub fn try_exclusive(path: &Path) -> Result<Option<Lock>> {
+        Lock::try_acquire(path, sys::LOCK_EX)
+    }
+
+    /// Take an exclusive lock, waiting the bounded number of attempts.
+    pub fn exclusive(path: &Path) -> Result<Lock> {
+        Lock::acquire(path, sys::LOCK_EX)
+    }
+
     fn try_acquire(path: &Path, op: u64) -> Result<Option<Lock>> {
         let fd = Lock::open(path)?;
         match sys::flock(fd, op | sys::LOCK_NB) {

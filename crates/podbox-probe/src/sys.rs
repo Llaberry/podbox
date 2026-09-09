@@ -153,6 +153,14 @@ pub const SYS_FSOPEN: i64 = Sysno::fsopen as i64;
 pub const SYS_FSCONFIG: i64 = Sysno::fsconfig as i64;
 pub const SYS_FSMOUNT: i64 = Sysno::fsmount as i64;
 pub const SYS_PIDFD_GETFD: i64 = Sysno::pidfd_getfd as i64;
+// ⭐ M4's supervisor. TODO/supervise.md T-0601 and T-0602: a pidfd per direct
+// child, `waitid` for its status, and `ppoll` to wait on the CONDITION rather
+// than on a guessed duration.
+// ⚠ `ppoll` and not `poll`: `poll` does not exist on aarch64 or riscv64, and
+// this workspace compiles for six architectures (TODO/deps.md T-0911).
+pub const SYS_PIDFD_OPEN: i64 = Sysno::pidfd_open as i64;
+pub const SYS_WAITID: i64 = Sysno::waitid as i64;
+pub const SYS_PPOLL: i64 = Sysno::ppoll as i64;
 pub const SYS_LANDLOCK_CREATE_RULESET: i64 = Sysno::landlock_create_ruleset as i64;
 pub const SYS_DUP3: i64 = Sysno::dup3 as i64;
 // ⭐ M3's entry sequence. TODO/enter.md T-0504: the rootfs is held as a
@@ -907,6 +915,133 @@ pub fn wait4(pid: i64, status: &mut i32) -> Sysres {
 
 pub fn kill(pid: i64, sig: i64) -> Sysres {
     unsafe { sys(SYS_KILL, [pid as u64, sig as u64, 0, 0, 0, 0]) }
+}
+
+/// Start a new session, so a detached supervisor outlives the shell that
+/// started it and holds no controlling terminal.
+///
+/// ⛔ [`TODO/supervise.md`](../../../TODO/supervise.md) T-0603's other half. A
+/// launcher still attached to the caller's session takes that terminal's
+/// signals, and `podbox run -d` would then die with the shell that started it.
+pub fn setsid() -> Sysres {
+    unsafe { sys(SYS_SETSID, [0, 0, 0, 0, 0, 0]) }
+}
+
+pub fn getpid() -> i64 {
+    unsafe { sys(SYS_GETPID, [0, 0, 0, 0, 0, 0]) }.unwrap_or(0)
+}
+
+/// A descriptor for a process, which cannot be redirected by pid reuse.
+///
+/// ⛔ [`TODO/supervise.md`](../../../TODO/supervise.md) T-0601. A pid plus a
+/// start time is a heuristic; a pidfd names one process for as long as it is
+/// held and answers `ESRCH` for one that has been reaped. ⚠ Say what it is not:
+/// it addresses ONE process. It does not contain descendants and it is not a PID
+/// namespace, so a grandchild that reparents is outside its reach.
+pub fn pidfd_open(pid: i64) -> Sysres {
+    unsafe { sys(SYS_PIDFD_OPEN, [pid as u64, 0, 0, 0, 0, 0]) }
+}
+
+/// `waitid(P_PIDFD, ...)`: a child's status, addressed by descriptor.
+pub const P_PIDFD: u64 = 3;
+pub const WEXITED: u64 = 0x0000_0004;
+pub const WNOHANG: u64 = 0x0000_0001;
+
+/// What `waitid` fills in, of the kernel's `siginfo_t`, and nothing more.
+///
+/// ⛔ **The kernel's own buffer, sized generously and read by offset.**
+/// `siginfo_t` is 128 bytes on every Linux architecture and its layout after the
+/// first three words is a union; the two fields wanted here (`si_code` and
+/// `si_status`) sit at fixed offsets in the `SIGCHLD` arm. A hand-written
+/// `#[repr(C)]` one field short is a kernel write past the end of it, which is
+/// why the buffer is the full 128 bytes whatever is read out of it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Exited {
+    /// `CLD_EXITED` (1), `CLD_KILLED` (2), `CLD_DUMPED` (3).
+    pub code: i32,
+    /// The exit status for `CLD_EXITED`, the signal number otherwise.
+    pub status: i32,
+}
+
+pub const CLD_EXITED: i32 = 1;
+
+/// Reap a child through its pidfd. `Ok(None)` with `WNOHANG` when it is still
+/// running.
+pub fn waitid_pidfd(pidfd: i64, nohang: bool) -> Result<Option<Exited>, Errno> {
+    // 128 bytes, zeroed, so a short read leaves zeros rather than stack noise.
+    let mut buf = [0u8; 128];
+    let opts = WEXITED | if nohang { WNOHANG } else { 0 };
+    unsafe {
+        sys(
+            SYS_WAITID,
+            [P_PIDFD, pidfd as u64, buf.as_mut_ptr() as u64, opts, 0, 0],
+        )
+    }?;
+    // ⚠ `si_signo` is the first word and is zero when WNOHANG found nothing,
+    // which is how "still running" is told from "exited with 0".
+    let signo = i32::from_ne_bytes([buf[0], buf[1], buf[2], buf[3]]);
+    if signo == 0 {
+        return Ok(None);
+    }
+    // si_signo, si_errno, si_code are the first three 32-bit words.
+    let code = i32::from_ne_bytes([buf[8], buf[9], buf[10], buf[11]]);
+    // ⛔ THE UNION STARTS AT 16, NOT AT 12. `__ARCH_SI_PREAMBLE_SIZE` is
+    // `3*sizeof(int) + sizeof(long)`-aligned, so on a 64-bit architecture the
+    // three leading ints are followed by four bytes of padding and `_sifields`
+    // begins at 16. The SIGCHLD arm is `{ pid_t si_pid; uid_t si_uid; int
+    // si_status; ... }`, which puts `si_status` at 24.
+    // ⚠ Measured on 2026-09-09 by reading 20 instead: a SIGTERMed payload
+    // reported exit 128 rather than 143, because the field read was `si_uid`.
+    let status = i32::from_ne_bytes([buf[24], buf[25], buf[26], buf[27]]);
+    Ok(Some(Exited { code, status }))
+}
+
+pub const POLLIN: i16 = 0x0001;
+pub const POLLHUP: i16 = 0x0010;
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct PollFd {
+    pub fd: i32,
+    pub events: i16,
+    pub revents: i16,
+}
+
+#[repr(C)]
+struct Timespec {
+    sec: i64,
+    nsec: i64,
+}
+
+/// Wait until one of `fds` is ready, or until `timeout_ms`.
+///
+/// ⛔ [`TODO/supervise.md`](../../../TODO/supervise.md) T-0602: this is what a
+/// supervisor waits on instead of sleeping and looking. Every wait has an upper
+/// bound and a distinct outcome for reaching it, per `TODO/RULES.md` section 8:
+/// `Ok(0)` is the bound, and it is not an error and not a readiness.
+pub fn ppoll(fds: &mut [PollFd], timeout_ms: i64) -> Sysres {
+    let ts = Timespec {
+        sec: timeout_ms / 1000,
+        nsec: (timeout_ms % 1000) * 1_000_000,
+    };
+    let tsp = if timeout_ms < 0 {
+        0
+    } else {
+        &ts as *const Timespec as u64
+    };
+    unsafe {
+        sys(
+            SYS_PPOLL,
+            [
+                fds.as_mut_ptr() as u64,
+                fds.len() as u64,
+                tsp,
+                0, // sigmask: none
+                0,
+                0,
+            ],
+        )
+    }
 }
 
 /// The four `statfs` fields this project reads, widened to one shape.

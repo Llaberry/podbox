@@ -1,0 +1,23 @@
+== conditions
+date              2026-09-09T08:29:34Z
+host kernel       6.18.44-fc-v24
+podbox            podbox 0.1.0
+image             ghcr.io/pkgforge-dev/archlinux:latest
+iterations asked  20
+
+== the loop: create, start, ps, exec, stop, rm
+  ⛔ no sleep anywhere; every wait is on a condition with a bound
+  iteration 10 FAILED at stop
+    podbox stop: no launcher is listening for 85830d0ca0269787a0a8090cde77178d65b8e60d53a3766c9fe7ee682e0608a7: No such file or directory (os error 2). The container is not running
+  consecutive passes: 9 of 20
+
+== T-0604: a launcher that is killed leaves `dead`, not a made-up code
+  SKIP: the loop above did not finish
+
+== T-0603: the spawn path never grew a thread
+  SKIP: an earlier clause failed
+
+== T-0605: the log was captured, from descriptors opened before the chroot
+  SKIP: an earlier clause failed
+
+  containers left behind: 0 (want 0)

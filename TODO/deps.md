@@ -685,3 +685,74 @@ to the aarch64 interpreter and dies with `ELOOP`, including the shell needed to
 undo it. The registration string is written with backslash escapes the **kernel**
 parses, and clause 5 reads the magic back and refuses to run a payload unless it
 is the full 40 hex characters.
+
+⭐ **2026-09-09, the operator pointed at
+`pkgforge-dev/docker-archlinux`'s `.github/workflows/build-deploy.yml`, line 226
+onwards, as bearing on the `powerpc64le` blocker. It bears on a DIFFERENT
+blocker, and saying which is the finding.**
+
+| axis | what stops podbox | what the workflow is about |
+| --- | --- | --- |
+| **compile** | `syscalls` 0.8.1 gates powerpc, s390x and mips behind `asm_experimental_arch`, so `cargo check --target powerpc64le-unknown-linux-musl` dies with `error[E0554]: #![feature] may not be used on the stable release channel` | nothing |
+| **run** | nothing yet, because nothing builds | `docker/setup-qemu-action` ships nine emulators and `qemu-ppc`/`qemu-ppc64` are not among them, so a big-endian PowerPC image has no interpreter unless one is registered by hand |
+
+⛔ **And the compile blocker was already measured NOT to be a rustc limit.**
+Clause 3 of `experiments/260-multiarch.sh` asks rustc directly rather than
+believing the cfg, and `experiments/results/multiarch.txt` records the answer:
+powerpc64 inline assembly **compiles on stable rustc 1.98.1**. So the gate is
+the crate's and it is stale, which means podbox can clear it without waiting for
+anybody: take the numbers from `linux-raw-sys` and carry its own trap for these
+two architectures. [T-0912](deps.md) is that work.
+
+⭐ **What the workflow does contribute is the runtime half, and it corroborates
+podbox's design rather than changing it.** It registers `qemu-ppc` through
+`multiarch/qemu-user-static --reset -p yes`, asserts the registration took by
+reading `/proc/sys/fs/binfmt_misc/<handler>` back, and checks the `F` flag,
+because without it the kernel opens the interpreter inside the container's own
+filesystem. ⚠ That is the same three things `crates/podbox-probe/src/binfmt.rs`
+reads and the same reason `experiments/260-multiarch.sh` reads its magic back
+before proceeding. podbox's answer on a machine with no such registration is
+already the right one: refuse by name, with the ELF machine it looked for.
+
+---
+
+### T-0912 The powerpc gate is the crate's and it is stale, so podbox can clear it
+
+Source:      Measured by `experiments/260-multiarch.sh` clause 3 on 2026-09-09, and raised again by the operator on the same day
+Category:    deps
+Priority:    P2
+Effort:      M
+Status:      open
+
+Problem:     `powerpc64le` is the one architecture the workspace does not build
+             for, and [T-0911](deps.md) records it as blocked on `syscalls`
+             0.8.1's `asm_experimental_arch` gate. A blocker nobody can clear is
+             a fact; this one can be cleared here.
+Premise:     ⭐ **Measured, and the measurement is why this is an entry rather
+             than a wish.** Clause 3 of `experiments/260-multiarch.sh` compiles
+             powerpc64 inline assembly against the real rustc rather than
+             believing the crate's cfg, and
+             `experiments/results/multiarch.txt` records that it **compiles on
+             stable rustc 1.98.1**. The gate is therefore the crate's and not
+             the compiler's.
+             ⚠ Clause 2 of the same script goes **red** the day `powerpc64le`
+             starts building, which is the point: it is how this project finds
+             out rather than a failure to suppress.
+             ⚠ The runtime half is separate and is not this entry: an emulator
+             for big-endian PowerPC is absent from `docker/setup-qemu-action`,
+             which [T-0911](deps.md) now records.
+Approach:    Take the syscall numbers for powerpc64, s390x and mips from
+             `linux-raw-sys`, which podbox already depends on for the kernel
+             structs, and carry podbox's own trap for those architectures in
+             `crates/podbox-probe/src/sys.rs` beside the ones it already has.
+             ⛔ Not a fork of `syscalls` and not a patch to it in this tree: the
+             numbers are already available from a crate podbox takes, and one
+             more source of them is one more place for them to disagree.
+             ⚠ Then flip clause 2's expectation in the same change, because a
+             clause asserting a blocker that has been cleared is a check that
+             fires on the truth.
+Decision:    Clear it here rather than wait for a `syscalls` release. Waiting is
+             a dependency on somebody else's schedule for a value this project
+             has already measured, and `docs/AGENTS.md` absolute 5 is that a
+             blocked entry names what would clear it.
+Prove:       `./experiments/260-multiarch.sh` reports 7 architectures checking the workspace and 0 blocked, and clause 3 says the gate was the crate's

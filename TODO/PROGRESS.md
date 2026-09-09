@@ -4,22 +4,20 @@
 order. Rewritten every session. It carries no history: the history is the git
 log and the entries.
 
-**State: M3 is in, and `podbox run` works. A command runs inside a pulled and
-extracted image, the payload owns stdout, the banner names the rung on stderr,
-and the exit code is the payload's own. Inside the reconstruction podbox falls
-to the `chroot` rung and says what that mode does not provide. podbox is also no
-longer one architecture: six build the whole workspace, and it runs a
-`linux/arm64` image on an amd64 host through binfmt. Local registries with no
-certificate, or one nothing trusts, are reachable by name. M4, the lifecycle, is
-next.**
+**State: M3 is CLOSED and M4 is built and does not pass. `podbox run`, `exec`,
+the verb and flag parity table as data, and the `docker` and `podman` names on
+PATH are all in; the whole lifecycle exists (`create`, `start`, `ps`, `logs`,
+`stop`, `kill`, `wait`, `rm`, `cp`, `run -d`, `--name`) and its twenty-pass
+acceptance fails at `stop` after nine or ten iterations. That failure is the
+record, not a thing to retry.** ⭐ CI is green again after nine red runs, the
+store has a written concurrency contract, and a probe under an emulator now says
+so instead of reporting qemu's answer as the machine's.
 Session of 2026-09-09, on `main`.
 
-⭐ **Four things this session settled that every previous session re-derived**,
-and each is written where a session will hit it rather than here: the branch
-([RULES.md](RULES.md) section 2), the environment
-([`../scripts/dev.sh`](../scripts/dev.sh), which `docs/AGENTS.md` now opens
-with), the two kernel questions nobody could answer ([T-0112](probe.md)), and
-the registry quota that could turn the acceptance red ([T-0206](image.md)).
+⭐ **The one thing to pick up first is a race, and it is reproducible in about a
+minute**: `./experiments/230-lifecycle-loop.sh 3` fails at `stop` with `no
+launcher is listening`. [T-0602](supervise.md) carries three readings and two
+candidate causes, neither established.
 
 ## The measured baseline
 
@@ -41,6 +39,12 @@ is a control of the bogus-argument discriminator, and the consequence is
 | what six architectures cost the binary | **+128 bytes** on 2,282,224. ⚠ one build, below the instrument's resolution | the same |
 | ⭐ `podbox run --platform linux/arm64 <img> uname -m`, on this amd64 host | **`aarch64`** | `experiments/300-run.sh` clause 5 |
 | ⭐ the rung `podbox run` selects inside the reconstruction | **`chroot`**, where this host is `namespace` | `experiments/300-run.sh` clause 7 |
+| ⛔ **consecutive lifecycle passes before the first failure** | **9 of 20**, and 10 of 20 and 1 of 3 on two other runs | `experiments/230-lifecycle-loop.sh` |
+| ⭐ rows in the verb and flag parity table | **131**, over 53 verbs, four statuses and no fifth | `podbox system info --format '{{json .Parity}}'` |
+| ⭐ a probe under `qemu-aarch64-static`, asked what measured it | **`emulated: true`**, and the interpreter named in the cache key | `experiments/260-multiarch.sh` clause 6 |
+| the same answer offered to a native podbox sharing the store | refused: `the instrument changed` | the same |
+| 8 concurrent pulls of 3 references into one store | 8 exits of 0, 3 records, 12 blobs, 0 bad, 0 missing, 0 partials | `experiments/210-store-concurrency.sh` |
+| a `SIGKILL` mid-pull, then any later command | 1 staging file left, **0** after the next command | the same |
 | ⭐ `landlock_create_ruleset` in a QEMU guest | **`ok`, ABI 6**, where this host answers `ENOSYS` | `experiments/290-microvm.sh`, T-0112 |
 | ⭐ the `kcmp(2)` control in that guest | **`ESRCH`**, which is the target's own answer | the same |
 | that whole boot, probe and poweroff, under TCG | about **6 s** | the same |
@@ -118,12 +122,12 @@ that third state into a failure and reports one status for every clause.
 $ ./scripts/dev.sh check
   fmt, clippy -D warnings, build, tests, the gate and the markers, all green
 $ ./scripts/check-todo.py
-check-todo: 104 rows, 104 entries, 47 open, 3 partial, 2 blocked, 52 done
+check-todo: 106 rows, 106 entries, 37 open, 6 partial, 2 blocked, 61 done
 $ ./scripts/plant.sh
-  plants   21 caught, 0 missed
+  plants   23 caught, 0 missed
   controls 3 quiet, 0 fired
 $ cargo test --workspace
-  212 passed, 0 failed
+  the aggregate ACROSS suites, never `| head -1`: 0 failed
 $ readelf -l target/x86_64-unknown-linux-musl/release/podbox | grep -c INTERP
 0
 $ ./experiments/110-bloat-delta.sh enter
@@ -142,6 +146,10 @@ $ ./experiments/280-insecure-registry.sh
   7 clauses, against two real registry:2 instances
 $ ./experiments/290-microvm.sh
   landlock ok ABI 6, kcmp ESRCH, in about 6 s under TCG
+$ ./experiments/210-store-concurrency.sh
+  8 writers over 3 references; prune against a hold; a SIGKILL and the sweep
+$ ./experiments/230-lifecycle-loop.sh 20
+  ⛔ EXITS 1. 9 of 20 consecutive passes, failing at `stop`. T-0602
 $ ./experiments/300-run.sh
   8 clauses; clause 7 is the chroot rung inside the reconstruction, clause 8 exec
 $ ./experiments/310-session-startup.sh
@@ -152,25 +160,18 @@ $ ./experiments/320-cli-contract.sh
 
 ## Counts
 
-105 entries: 43 open, 1 partial, 2 blocked, 59 done.
+106 entries: 37 open, 6 partial, 2 blocked, 61 done.
 
-⭐ **Six entries were authored this session and five of them are already
-`done`**, which is the opposite of the last session's shape and is worth saying
-why: [T-0911](deps.md), [T-0212](image.md), [T-0213](image.md),
-[T-0112](probe.md), [T-0113](probe.md) and [T-1005](packaging.md) were each
-authored **because something was built or measured**, so the entry and its
-evidence landed together.
+⭐ **Six entries closed and six are `partial`**, which is a shape worth naming:
+every `partial` here is a mechanism that is IN and an acceptance that has not
+passed, not a half-written feature. [T-0602](supervise.md),
+[T-0604](supervise.md), [T-0605](supervise.md), [T-0607](supervise.md) and
+[T-1105](milestones.md) are all waiting on one race, and
+[T-0503](enter.md) is waiting on a machine nobody here can reach.
 
-⚠ **Two were authored and NOT implemented**, in their own pass per
-`docs/AGENTS.md`'s routing table: [T-0506](enter.md), which is `partial` with
-its remaining half named, and [T-0411](complete.md), which cannot be measured
-until a payload can be run and now can be.
-
-⚠ **Four entries changed status without new code**, and each says why in place:
-[T-1103](milestones.md) closed on clauses that only needed `run`;
-[T-0107](probe.md), [T-0108](probe.md) and [T-0204](image.md) the same;
-[T-0206](image.md) dropped from P1 to P3 because its premise was measured and
-found wrong.
+⚠ **Two entries were authored and not implemented**: [T-1206](gate.md) was
+authored and implemented in the same change because it is a defect fix, and
+[T-0912](deps.md) was authored from a measurement this tree already had.
 
 Derived by `scripts/todo-count.py` and asserted by `scripts/check-todo.py`.
 [INDEX.md](INDEX.md)'s Counts block carries the per-priority breakdown, and the
@@ -178,174 +179,111 @@ gate refuses a commit where the two disagree.
 
 ## What this session did
 
-⭐ **It opened by consolidating two branches nobody had merged.** `origin/main`
-was at M0's tip and carried neither M1 nor M2, so a clone of it could not run
-the acceptance in this file. Both were strict fast-forwards, so
-`main` now carries everything and [RULES.md](RULES.md) section 2 carries the
-cost so no session re-derives it. ⚠ The two stale branches still exist: see the
-open questions.
+### CI had been red for nine commits, and the reason was a merge
 
-### M3, `run`, and the four halves it closed
+⛔ **`.cargo/config.toml` points `CC_<target>` at `scripts/zig-cc.sh` and the
+workflow carried a SECOND declaration of that requirement** as a
+`bootstrap-env.sh` component list. Consolidating M1, M2 and M3 onto `main`
+brought `rustls` and its `ring` with it and turned a list that had been complete
+into one short by one word. Both red jobs died in the same place,
+`zig-cc.sh: zig is not on PATH`, and a local `./scripts/dev.sh check` stayed
+green throughout because this container has zig.
 
-`crates/podbox-enter` and the `run` verb, driven by `experiments/300-run.sh`,
-seven clauses, exit 0. [T-1104](milestones.md) is `partial`: its own `Prove`
-passes and [T-0505](enter.md), [T-0801](cli.md) and [T-0803](cli.md) do not
-exist yet.
+⭐ **[T-1206](gate.md) holds the invariant rather than the value.** Check 19
+derives the required components in two hops, from `.cargo/config.toml` to the
+wrapper it names to the component that wrapper says installs it, and hard-codes
+neither. Cases 19a and 19b plant each arm.
 
-⭐ **Clause 7 is the one that makes the others mean something.** Every other
-clause runs on this host, where `mount(2)` succeeds and podbox selects
-`namespace`. The reconstruction is where it is `EPERM`:
+### M3 closed: `exec`, the parity table as data, and the two names
 
-| | |
-| --- | --- |
-| stdout | `hi`, and nothing else |
-| the rung inside the reconstruction | **`chroot`** |
-| the same podbox on this host | `namespace` |
-| the banner | `does NOT provide: process, network, IPC or mount isolation` |
+⭐ **[T-0505](enter.md)**, `exec` as a fresh chroot. The degradation is stated in
+three places that cannot disagree, because all three read one pair of constants.
+⛔ Its own `Prove` could not have run in the order the work order puts it in: it
+was written around `run -d`, `--name` and `rm -f`, which are M4's, and M4 is what
+needs this entry. The rewrite is in the entry beside the original.
 
-[T-0107](probe.md), [T-0108](probe.md), [T-0204](image.md) and
-[T-1103](milestones.md) were all `partial` for a half that needed `run`, and all
-four are closed. ⭐ [T-1103](milestones.md)'s close showed the ownership wall
-from **inside** the container for the first time: `ls -ln /etc/shadow` reports
-gid 0, not the 42 the image declares.
+⭐ **[T-0801](cli.md), 131 rows over 53 verbs, and THE TABLE DECIDES.** Every
+argument beginning with `-` goes through `parity::admit` before any match arm, so
+a flag with no row cannot be quietly accepted and an arm for a flag with no row
+is unreachable. `podbox run --name c1` used to be "unknown option"; where the
+table says `None` it is now the row's own reason.
 
-### podbox stops being one architecture
+⭐ **[T-0803](cli.md)**, `docker` and `podman` through `argv[0]`, with the banner
+naming which. The operator's ruling is implemented against a **reachable
+daemon**: the socket is connected to and asked `/_ping` under a two-second
+timeout, so a stale socket file reads as absent, which is the state the machines
+podbox is for are in.
 
-⛔ **`crates/podbox-probe/src/sys.rs` declared 46 x86_64 syscall numbers by hand
-and `compile_error!`d everywhere else**, and `oci::ARCH` was the constant
-`"amd64"`. [T-0911](deps.md) and [T-0212](image.md).
+### The instrument that answered, and the store's contract
 
-| | before | after |
-| --- | --- | --- |
-| architectures the workspace compiles for | **1** | **6**, and one named blocker |
-| the shipping binary, x86_64 | 2,282,224 | 2,282,352 bytes, +128 for the tables |
-| records one store can hold for one tag | 1 | one per platform |
+⭐ **[T-0506](enter.md) point 5.** What can be detected was MEASURED rather than
+assumed: under `qemu-aarch64-static`, `/proc/cpuinfo` reports an ARMv8 processor
+and `/proc/self/exe` names the guest binary, so both are the emulator's;
+`/proc/sys/fs/binfmt_misc` is the host's, and that is what podbox reads. ⛔ The
+claim is conditional and says so: the other state is `NoEvidence` and carries
+what was checked.
 
-⭐ **The size question answered itself**: `syscalls` and `linux-raw-sys` are
-`const` tables and inlined assembly, so six architectures cost 128 bytes. ⚠ One
-build on one host, below what that instrument resolves.
+⭐ **[T-0210](image.md)**, seven invariants in the store's own header. ⛔ Writing
+I4 down found a defect nothing had run into: `rmi` and `prune` asked `in_use`
+OUTSIDE the index lock, so a `run` taking its hold in between kept its image lock
+and lost its blobs.
 
-⭐ **podbox does not merely compile for aarch64, it runs there**, and
-`podbox run --platform linux/arm64 <image> /bin/uname -m` prints `aarch64` on
-this amd64 host. ⛔ And a probe under `qemu-user` measures **QEMU**:
-[T-0506](enter.md) carries what podbox still owes about saying so.
+### M4 is built, and its acceptance fails
 
-⚠ `powerpc64le` does not build, and not for a rustc limit: `syscalls` 0.8.1
-gates powerpc, s390x and mips behind `asm_experimental_arch`, and clause 3 of
-`experiments/260-multiarch.sh` compiles powerpc64 inline assembly on stable.
-That clause goes **red** the day it starts building.
+⛔ **`./experiments/230-lifecycle-loop.sh 20` exits 1**: 10 of 20, 9 of 20 and
+1 of 3 over three runs, always at `stop`. That is the acceptance doing its job.
+[T-0602](supervise.md) carries the readings and the two candidates.
 
-### A registry with no certificate, and the rule that forbade it did not exist
+⚠ **Three defects the building of it found, each written where it belongs:**
+`std::fs::read("/dev/urandom")` has no EOF and allocated 13 GB before the OOM
+killer took it; a readiness pipe without `O_CLOEXEC` is inherited through the
+payload's `execve`, so `run -d` blocked for exactly as long as the container ran;
+and `si_status` is at byte 24 of a `siginfo_t` and not 20, which reported a
+SIGTERMed payload as exit 128 instead of 143.
 
-[T-0213](image.md). podbox could not reach a local registry at all.
-`--insecure-registry HOST` is docker's flag and meaning, `--tls-verify=false` is
-podman's, and neither is the other: not verifying a certificate and not having
-one are different asks.
+### Defects found in the harness rather than in podbox
 
-⛔ **`tls.rs` cited a rule that is not written where it said.** It claimed
-`docs/security/remote-ops.md` and `docs/AGENTS.md` both forbid disabling
-verification. `remote-ops.md` says nothing about TLS, and `AGENTS.md`'s note is
-an instruction to **the agent** about this container's proxy.
-
-⭐ **A defect the experiment found that no unit test could**: the first working
-build pulled a loopback registry **through the environment's proxy** and got
-`HTTP 405`. A loopback registry is never proxied now, and `NO_PROXY` is honoured,
-which `ureq` 2 does not do at all.
-
-### Two standing questions, answered by building the answer
-
-⭐ **On the operator's suggestion**, [T-0112](probe.md):
-`experiments/290-microvm.sh` boots a stock Alpine kernel under QEMU with an
-initramfs carrying busybox and podbox, in **about 6 seconds** under TCG.
-
-| | this host | the VM | the target |
-| --- | --- | --- | --- |
-| the `kcmp(2)` control | cannot answer, `ENOSYS` | **`ESRCH`** | `ESRCH` |
-| `landlock_create_ruleset` | `denied ENOSYS` | **`ok`, ABI 6** | - |
-
-⚠ A second **machine**, never a second **target**: a VM with every capability is
-the easy case and proves nothing about confinement.
-
-### A session reaches the code in one command
-
-[T-1005](packaging.md). `scripts/dev.sh` starts the environment and the build in
-the background and returns in a second, printing what to read while it works. A
-cold compile is 29 s and 87 crates; the opening reading is 5,944 words.
-
-⭐ **It found a defect on its first run.** [T-0113](probe.md): the write
-allowlist reported `/tmp` as a skip, because the scratch filename carried the
-**pid** and `cargo test` runs tests in parallel **threads** of one process.
-
-### What the four review passes found
-
-⭐ Each asked a different question and three of the four found something.
-
-1. **The door sweep.** ⛔ **[T-0212](image.md) opened a second door and only one
-   was guarded.** `find_for` took the platform and `find_one` did not, and
-   `extract` and `inspect` reach the store through the second: `podbox extract
-   alpine` silently unpacked whichever platform was pulled last. Fixed, and
-   `extract` grew `--platform`.
-2. **The guard mutation.** Four guards planted and each turned exactly its own
-   test red. ⛔ **And the harness itself was wrong first**: it read
-   `test result` with `head -1`, which took the **first suite's** result, and
-   that suite had run zero tests. Two mutations reported "caught" when nothing
-   had run. The aggregate across suites is what the numbers above are.
-3. **The claim audit.** Every number here was re-derived after the last commit,
-   and all six result files this session produced are tracked.
-4. **The cold pass.** A fresh clone: gate 0, markers 0, every experiment
-   executable, nothing leaked. ⚠ One real finding: `dev.sh --help` created its
-   state directory, so a read wrote. Fixed.
+- ⛔ `experiments/260-multiarch.sh` clause 4's reading depended on unstated
+  binfmt state and flipped between `namespace` and `unsupported`. The
+  registration is made once now, before clause 4, and its tracked line no longer
+  carries a pid.
+- ⛔ `timeout X podbox pull &` makes `$!` the pid of **`timeout`**, so killing it
+  leaves podbox running; `experiments/210-store-concurrency.sh` read a correct
+  refusal as a defect because of it.
+- ⛔ A backtick inside double quotes is command substitution:
+  `experiments/320-cli-contract.sh` ran `docker` and `podman` and printed
+  docker's help into its own report.
 
 ## In progress
 
-Nothing. Every entry this session opened is closed or is `partial` with the
-remaining half named and the milestone it lands in.
+⛔ **M4's race, and it is the next thing to work.** Every verb exists and the
+twenty-pass acceptance does not pass. Nothing about it is retried and nothing
+green is published: [T-1105](milestones.md), [T-0607](supervise.md) and
+[T-0602](supervise.md) are all `partial` with the readings in them.
 
 ## The work order
 
 ⭐ **This is the only work order.** Do not take one from the index or from a
 kickoff prompt.
 
-1. ⭐ **Finish M3's named remainder before starting M4.** [T-1104](milestones.md)
-   is `partial` and names exactly three: [T-0505](enter.md), `exec` as a fresh
-   chroot; [T-0801](cli.md), the verb and flag parity table **as data**, which is
-   `L` and is the biggest single piece of the CLI contract; and
-   [T-0803](cli.md), answering to `docker` and `podman` on PATH, which the
-   operator already ruled on 2026-09-08.
-2. **M4, the lifecycle.** [T-1105](milestones.md) and
-   [supervise.md](supervise.md). `create`, `start`, `ps`, `logs`, `stop`, `rm`,
-   `exec`, `inspect`, `kill`, `wait`, `cp`, twenty consecutive passes.
-   ⚠ It needs [T-0505](enter.md) from step 1, so the order above is not
-   negotiable.
-3. **M5, M6, M7 in order.** [T-0709](interpose.md) and [T-0410](complete.md) are
+1. ⛔ **Root-cause M4's race and close M4.** `./experiments/230-lifecycle-loop.sh 3`
+   reproduces it in about a minute. [T-0602](supervise.md) names two candidates
+   and establishes neither; ⚠ a third session-opening reading is that a hand-driven
+   loop of three against a WARM store passed three times, so what the script adds
+   is a cold store, an `rm` immediately before, and a `pull` at the start. Then
+   clauses 2, 3 and 4 of that script run for the first time and
+   [T-0604](supervise.md) and [T-0605](supervise.md) can close.
+2. **[T-0411](complete.md)**, a payload whose package sources are `http://` on a
+   runtime where tcp/80 hangs. ⚠ It could not be measured before a payload could
+   be run, and now it can.
+3. **[T-0912](deps.md)**, the powerpc gate. Measured stale on 2026-09-09: the
+   inline assembly compiles on stable and the gate is the crate's, so podbox can
+   clear it with `linux-raw-sys` and its own trap.
+4. **M5, M6, M7 in order.** [T-0709](interpose.md) and [T-0410](complete.md) are
    both P0 and land inside M6 and M5.
 
-⭐ **Three entries are P1 and belong beside the milestones rather than after
-them**, because each is about the gate or about honesty rather than a new
-capability:
-
-- [T-0506](enter.md), the half of the foreign-architecture work that is **not**
-  done: a `podbox probe` inside a `qemu-user` container measures the emulator,
-  and podbox does not yet mark the answer as the emulator's or key
-  `$store/probe.json` on the interpreter. [T-0112](probe.md) measured why that
-  matters.
-- [T-0411](complete.md), a payload whose own package sources are `http://` on a
-  runtime where tcp/80 hangs. ⚠ It cannot be measured before it can be run, and
-  now it can.
-- [T-0210](image.md), the store's concurrency contract, `L`. One ordering of one
-  case was driven; the contract is not written down, so every future change to
-  the store is a change to an unstated one. ⚠ **This session made that worse in
-  a way worth naming**: [T-0211](image.md) and [T-0113](probe.md) were both
-  concurrency defects in code nobody had written a contract for, and the second
-  was found by luck.
-
-⚠ [T-0206](image.md) dropped to P3. The acceptance no longer touches a
-quota-bearing registry, so what the fixture still buys is running with the
-network **off**, which is weaker than the problem it was filed for.
-
-⚠ [T-0207](image.md), [T-0208](image.md), [T-0209](image.md),
-[T-0205](image.md) and [T-1004](packaging.md) are P2 or P3 and are not in the
-order.
+⚠ [T-0606](supervise.md) stays `blocked` and is not in the order: `supervise` has
+no read channel on the target and no way to be made race-safe if it had one.
 
 ## Open questions for the operator
 

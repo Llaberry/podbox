@@ -95,26 +95,26 @@ pub const TABLE: &[Row] = &[
     Row { verb: "version", flag: Option::None, status: Native, note: "one artefact, so there is one version and no client/server split" },
     Row { verb: "probe", flag: Option::None, status: Native, note: "podbox's own verb, with no docker equivalent: what this machine permits, and the rung podbox selects" },
     Row { verb: "extract", flag: Option::None, status: Native, note: "podbox's own verb, with no docker equivalent: unpack the layers and write the ownership sidecar" },
-    // The lifecycle. ⚠ These are M4 and are named as absent rather than
-    // omitted, because a caller reads this table to find out.
-    Row { verb: "create", flag: Option::None, status: NoneStatus, note: "the lifecycle is M4 (TODO/supervise.md T-1105); no container state exists yet" },
-    Row { verb: "start", flag: Option::None, status: NoneStatus, note: "the lifecycle is M4: there is no created-but-not-started container to start" },
-    Row { verb: "stop", flag: Option::None, status: NoneStatus, note: "the lifecycle is M4: nothing records which process belongs to which container" },
-    Row { verb: "restart", flag: Option::None, status: NoneStatus, note: "the lifecycle is M4, and restarting is stop and start, neither of which exists" },
-    Row { verb: "kill", flag: Option::None, status: NoneStatus, note: "the lifecycle is M4. A pidfd addresses one process; it does not reach descendants that reparent" },
-    Row { verb: "rm", flag: Option::None, status: NoneStatus, note: "the lifecycle is M4. `podbox rmi` removes an IMAGE and is implemented" },
-    Row { verb: "ps", flag: Option::None, status: NoneStatus, note: "the lifecycle is M4: podbox keeps no container state to list" },
-    Row { verb: "logs", flag: Option::None, status: NoneStatus, note: "the lifecycle is M4. `run` gives the payload this terminal's stdout rather than capturing it" },
-    Row { verb: "wait", flag: Option::None, status: NoneStatus, note: "the lifecycle is M4. `run` already blocks until the payload exits and reports its code" },
-    Row { verb: "cp", flag: Option::None, status: NoneStatus, note: "the lifecycle is M4. The rootfs is an ordinary directory in the store meanwhile: `inspect --format {{.RootfsPath}}` names it" },
-    Row { verb: "top", flag: Option::None, status: NoneStatus, note: "the lifecycle is M4, and a chroot shares this machine's process table, so `top` would list the host's processes" },
-    Row { verb: "attach", flag: Option::None, status: NoneStatus, note: "there is no detached process to attach to, and there will be none before M4" },
+    // ⭐ M4, and each says the difference from docker's rather than implying
+    // there is none. TODO/supervise.md T-0601 to T-0607.
+    Row { verb: "create", flag: Option::None, status: Native, note: "writes a created record and starts nothing, as docker's does" },
+    Row { verb: "start", flag: Option::None, status: Native, note: "returns when the payload has reached its execve, established by a pipe rather than by a sleep (T-0602)" },
+    Row { verb: "stop", flag: Option::None, status: Degraded, note: "SIGTERM then SIGKILL to the PAYLOAD. podbox has no PID namespace, so a grandchild that reparented is outside its reach and is not signalled" },
+    Row { verb: "restart", flag: Option::None, status: NoneStatus, note: "not implemented: `stop` then `start` is the same thing and says which half failed" },
+    Row { verb: "kill", flag: Option::None, status: Degraded, note: "signals the payload. A pidfd addresses one process; it does not reach descendants that reparent" },
+    Row { verb: "rm", flag: Option::None, status: Native, note: "removes the record and the container's own directory; -f kills a running one first" },
+    Row { verb: "ps", flag: Option::None, status: Degraded, note: "reads the container table, never /proc. A container whose launcher was killed reads `dead` with the time it was noticed, and no exit code (T-0604)" },
+    Row { verb: "logs", flag: Option::None, status: Degraded, note: "the payload's stdout and stderr, interleaved into one file opened before the chroot. -f is not implemented (T-0605)" },
+    Row { verb: "wait", flag: Option::None, status: Degraded, note: "blocks on the launcher, bounded. ⛔ A container podbox did not see end has NO exit code and `wait` refuses rather than printing one" },
+    Row { verb: "cp", flag: Option::None, status: Degraded, note: "one file at a time, either way, gated through the containment check. A directory copy is not implemented" },
+    Row { verb: "top", flag: Option::None, status: NoneStatus, note: "a chroot shares this machine's process table, so `top` would list the host's processes and call them the container's" },
+    Row { verb: "attach", flag: Option::None, status: NoneStatus, note: "not implemented: `logs` is the same bytes and it does not need a signal proxy" },
     Row { verb: "pause", flag: Option::None, status: NoneStatus, note: "freezing a process group needs a cgroup this runtime does not grant" },
     Row { verb: "unpause", flag: Option::None, status: NoneStatus, note: "the counterpart of a verb podbox does not have" },
     Row { verb: "stats", flag: Option::None, status: NoneStatus, note: "resource accounting needs a cgroup this runtime does not grant" },
-    Row { verb: "diff", flag: Option::None, status: NoneStatus, note: "the lifecycle is M4, and podbox has no upper layer to difference against" },
+    Row { verb: "diff", flag: Option::None, status: NoneStatus, note: "podbox extracts into one directory and keeps no upper layer to difference against" },
     Row { verb: "port", flag: Option::None, status: NoneStatus, note: "podbox publishes no ports: the payload shares this machine's network namespace" },
-    Row { verb: "rename", flag: Option::None, status: NoneStatus, note: "the lifecycle is M4: there is no container name to change" },
+    Row { verb: "rename", flag: Option::None, status: NoneStatus, note: "not implemented: `rm` and a fresh `create` under the other name is what podbox offers" },
     Row { verb: "update", flag: Option::None, status: NoneStatus, note: "there are no resource limits to update" },
     // Building and moving images.
     Row { verb: "build", flag: Option::None, status: NoneStatus, note: "building runs a payload per layer and commits the result; podbox can run one but cannot commit one" },
@@ -124,7 +124,7 @@ pub const TABLE: &[Row] = &[
     Row { verb: "logout", flag: Option::None, status: NoneStatus, note: "the counterpart of a verb podbox does not have" },
     Row { verb: "save", flag: Option::None, status: NoneStatus, note: "not implemented; the store holds OCI blobs and nothing exports them yet" },
     Row { verb: "load", flag: Option::None, status: NoneStatus, note: "not implemented; `pull` is the only way into the store" },
-    Row { verb: "export", flag: Option::None, status: NoneStatus, note: "the lifecycle is M4, and an exported rootfs would carry the ownership podbox could not apply" },
+    Row { verb: "export", flag: Option::None, status: NoneStatus, note: "an exported rootfs would carry the ownership podbox could not apply, and would misrepresent what it holds" },
     Row { verb: "import", flag: Option::None, status: NoneStatus, note: "not implemented: podbox reads OCI images from a registry and nothing else builds a record" },
     Row { verb: "history", flag: Option::None, status: NoneStatus, note: "not implemented; `inspect` prints the record podbox holds" },
     Row { verb: "events", flag: Option::None, status: NoneStatus, note: "there is no daemon to emit events" },
@@ -135,7 +135,7 @@ pub const TABLE: &[Row] = &[
     Row { verb: "swarm", flag: Option::None, status: NoneStatus, note: "not implemented, and out of the shape TOOL.md section 2.0 describes" },
     Row { verb: "builder", flag: Option::None, status: NoneStatus, note: "the counterpart of a verb podbox does not have" },
     Row { verb: "context", flag: Option::None, status: NoneStatus, note: "there is no daemon to point a context at" },
-    Row { verb: "container", flag: Option::None, status: NoneStatus, note: "the lifecycle is M4; the verbs this group holds are listed one by one above" },
+    Row { verb: "container", flag: Option::None, status: NoneStatus, note: "the sub-command group is not implemented; every verb it holds is a top-level verb here and is listed above" },
     // ------------------------------------------------------- run's own flags
     Row { verb: "run", flag: Some("--rm"), status: Native, note: "removes the extracted rootfs when the payload exits" },
     Row { verb: "run", flag: Some("-e, --env"), status: Native, note: "repeatable; a later one wins" },
@@ -148,8 +148,8 @@ pub const TABLE: &[Row] = &[
     Row { verb: "run", flag: Some("-t, --tty"), status: Degraded, note: "REFUSED BY NAME where /dev/ptmx is unusable, rather than running without a pty and letting the payload discover it (T-0503)" },
     Row { verb: "run", flag: Some("-i, --interactive"), status: Stub, note: "accepted and a no-op: podbox never detaches stdin, so it is already interactive when the caller's is" },
     Row { verb: "run", flag: Some("-h, --help"), status: Native, note: "prints this verb's usage and exits 0" },
-    Row { verb: "run", flag: Some("-d, --detach"), status: NoneStatus, note: "detaching needs the lifecycle to have somewhere to put the process. M4" },
-    Row { verb: "run", flag: Some("--name"), status: NoneStatus, note: "a name identifies a container, and podbox has none until M4. Refused up front rather than accepted and lost" },
+    Row { verb: "run", flag: Some("-d, --detach"), status: Native, note: "starts a detached launcher and prints the container id, returning when the payload is running" },
+    Row { verb: "run", flag: Some("--name"), status: Native, note: "names the container. A name already in use is refused rather than making the second one unreachable" },
     Row { verb: "run", flag: Some("-v, --volume"), status: NoneStatus, note: "podbox cannot mount(2) on this runtime, so a volume would be a copy pretending to be a mount" },
     Row { verb: "run", flag: Some("-p, --publish"), status: NoneStatus, note: "the payload shares this machine's network namespace, so a published port is already this machine's port" },
     Row { verb: "run", flag: Some("--network"), status: NoneStatus, note: "there is no network namespace to select" },
@@ -167,7 +167,7 @@ pub const TABLE: &[Row] = &[
     Row { verb: "exec", flag: Some("-t, --tty"), status: Degraded, note: "REFUSED BY NAME where /dev/ptmx is unusable (T-0503)" },
     Row { verb: "exec", flag: Some("-i, --interactive"), status: Stub, note: "accepted and a no-op, as in run" },
     Row { verb: "exec", flag: Some("-h, --help"), status: Native, note: "prints this verb's usage and exits 0" },
-    Row { verb: "exec", flag: Some("-d, --detach"), status: NoneStatus, note: "detaching needs the lifecycle. M4" },
+    Row { verb: "exec", flag: Some("-d, --detach"), status: NoneStatus, note: "not implemented: an exec podbox does not watch has no exit code to report, which is the state T-0604 exists to avoid" },
     Row { verb: "exec", flag: Some("-u, --user"), status: NoneStatus, note: "podbox runs as uid 0 and cannot change to an unmapped id" },
     // ------------------------------------------------------ pull's own flags
     Row { verb: "pull", flag: Some("--platform"), status: Native, note: "a bare word is an architecture, as docker reads it" },
@@ -197,6 +197,25 @@ pub const TABLE: &[Row] = &[
     Row { verb: "probe", flag: Some("--strict"), status: Native, note: "exit non-zero below the namespace rung, so a caller gates without parsing" },
     Row { verb: "probe", flag: Some("--cached"), status: Native, note: "serve $store/probe.json where its key still holds" },
     Row { verb: "probe", flag: Some("-h, --help"), status: Native, note: "prints this verb's usage and exits 0" },
+    // ------------------------------------------------ the lifecycle's flags
+    Row { verb: "ps", flag: Some("-a, --all"), status: Native, note: "list containers that are not running too" },
+    Row { verb: "ps", flag: Some("-q, --quiet"), status: Native, note: "ids only" },
+    Row { verb: "ps", flag: Some("--no-trunc"), status: Native, note: "print full container ids" },
+    Row { verb: "ps", flag: Some("--format"), status: Native, note: "the same template shape as the other verbs" },
+    Row { verb: "ps", flag: Some("-h, --help"), status: Native, note: "prints this verb's usage and exits 0" },
+    Row { verb: "ps", flag: Some("-f, --filter"), status: NoneStatus, note: "not implemented: --format plus a caller's own filter is what podbox offers instead" },
+    Row { verb: "stop", flag: Some("-t, --time, --timeout"), status: Native, note: "seconds between SIGTERM and SIGKILL. Default 10, and a kill is reported on stderr" },
+    Row { verb: "stop", flag: Some("-h, --help"), status: Native, note: "prints this verb's usage and exits 0" },
+    Row { verb: "kill", flag: Some("-s, --signal"), status: Native, note: "by name or number. ⛔ An unknown one is refused rather than defaulted: sending the wrong signal is not something a caller can notice" },
+    Row { verb: "kill", flag: Some("-h, --help"), status: Native, note: "prints this verb's usage and exits 0" },
+    Row { verb: "rm", flag: Some("-f, --force"), status: Native, note: "kill a running container before removing it" },
+    Row { verb: "rm", flag: Some("-v, --volumes"), status: Stub, note: "accepted for parity: podbox has no volumes, so there are none to remove" },
+    Row { verb: "rm", flag: Some("-h, --help"), status: Native, note: "prints this verb's usage and exits 0" },
+    Row { verb: "logs", flag: Some("-h, --help"), status: Native, note: "prints this verb's usage and exits 0" },
+    Row { verb: "logs", flag: Some("-f, --follow"), status: NoneStatus, note: "not implemented: the log is a file in the store and `tail -f` on it is the same thing" },
+    Row { verb: "wait", flag: Some("-h, --help"), status: Native, note: "prints this verb's usage and exits 0" },
+    Row { verb: "start", flag: Some("-h, --help"), status: Native, note: "prints this verb's usage and exits 0" },
+    Row { verb: "cp", flag: Some("-h, --help"), status: Native, note: "prints this verb's usage and exits 0" },
     Row { verb: "system", flag: Some("--format"), status: Native, note: "the same template shape as the other verbs, plus `json .Field` for a field that is a document" },
     Row { verb: "system", flag: Some("--dir"), status: Native, note: "install-names: where to put the symlinks. Default: the directory this binary is in" },
     Row { verb: "system", flag: Some("--force"), status: Native, note: "install-names: take the `docker` name even where a docker daemon answers, and replace a file that is not already a link to this binary" },
@@ -339,7 +358,17 @@ mod tests {
             flag("run", "--env=A=1").map(|r| r.status),
             Some(Status::Native)
         );
-        assert_eq!(flag("run", "--name").map(|r| r.status), Some(Status::None));
+        // ⚠ `--name` was a `None` row until M4 and is `Native` now, so the
+        // refusal case is taken from a row that is still one rather than from a
+        // name that changed meaning under the test.
+        assert_eq!(
+            flag("run", "--name").map(|r| r.status),
+            Some(Status::Native)
+        );
+        assert_eq!(
+            flag("run", "--privileged").map(|r| r.status),
+            Some(Status::None)
+        );
         assert!(flag("run", "--nope").is_none());
         // ⚠ Per verb, not global: `--entrypoint` is run's and exec has no such
         // flag, so exec must not find run's row.

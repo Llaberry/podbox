@@ -80,6 +80,7 @@ decisions podbox has to make. Each writes its transcript to
 ./experiments/170-probe-cache.sh                # the probe cache, and the key the specification got wrong
 ./experiments/210-store-concurrency.sh          # the store's contract, against 8 real concurrent processes
 ./experiments/220-extract-path-safety.sh        # M2: a hostile layer is refused and a distro rootfs is not
+./experiments/230-lifecycle-loop.sh 20          # M4: the lifecycle, twenty consecutive times, no sleep anywhere
 ./experiments/260-multiarch.sh                  # six architectures check the workspace, and the one that does not
 ./experiments/270-multiarch-image.sh            # two platforms of one tag, and the ELF machine inside each tree
 ./experiments/280-insecure-registry.sh          # a registry with no certificate, and one nothing trusts
@@ -90,8 +91,8 @@ decisions podbox has to make. Each writes its transcript to
 ```
 
 ⚠ **The numbers jump from `170-` to `210-`, and again from `230-` to `260-`.**
-`180-` to `200-` are reserved by entries M1 authored, and `230-` to `250-` by
-M4, M5 and M6's acceptances; a number here is never reused even before its
+`180-` to `200-` are reserved by entries M1 authored, and `240-` to `250-` by
+M5 and M6's acceptances; a number here is never reused even before its
 script exists. [`../TODO/gate.md`](../TODO/gate.md) T-1205 records the four
 `Prove` clauses that named a taken number, and check 18 of the gate now refuses
 a fifth.
