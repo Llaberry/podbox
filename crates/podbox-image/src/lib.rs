@@ -35,6 +35,7 @@ pub mod registry;
 pub mod space;
 pub mod store;
 pub mod tls;
+pub mod transport;
 
 pub use error::{Error, Result};
 pub use reference::Reference;

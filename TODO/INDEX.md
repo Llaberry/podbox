@@ -83,6 +83,7 @@ the blocker named and what would clear it.
 | [T-0210](image.md) | P1 | image | open | The store's concurrency contract, written down and driven |
 | [T-0211](image.md) | P1 | image | done | An image lock outlives its holder whenever anything forks |
 | [T-0212](image.md) | P0 | image | done | The platform is decided at run time, and the store holds more than one |
+| [T-0213](image.md) | P0 | image | done | A registry with no certificate, or one nothing trusts, and the refusal kept |
 | [T-0301](extract.md) | P0 | extract | done | Extract in-process, at entry level, never through system `tar` |
 | [T-0302](extract.md) | P0 | extract | done | Ownership-neutral extraction plus the sidecar |
 | [T-0303](extract.md) | P0 | extract | done | Whiteouts are matched on the basename, never with a path glob |
@@ -100,6 +101,7 @@ the blocker named and what would clear it.
 | [T-0408](complete.md) | P2 | complete | open | zypper: fix the RIS index, not `repos.d` |
 | [T-0409](complete.md) | P2 | complete | open | Ownership failures from `dpkg`, `rpm` and `xbps` are warnings |
 | [T-0410](complete.md) | P0 | complete | open | Supply `/etc/nsswitch.conf`, or the supplied `/etc/passwd` is a no-op |
+| [T-0411](complete.md) | P1 | complete | open | A payload whose package sources are `http://`, on a runtime where tcp/80 hangs |
 | [T-0501](enter.md) | P0 | enter | open | Open every descriptor before the root changes |
 | [T-0502](enter.md) | P0 | enter | open | Resolve the program inside the new root, in the process that changed it |
 | [T-0503](enter.md) | P1 | enter | partial | Probe `/dev/ptmx`, and refuse `-t` by name where it is absent |
@@ -162,7 +164,7 @@ the blocker named and what would clear it.
 
 ## Counts
 
-99 items: 51 open, 5 partial, 2 blocked, 41 done.
+101 items: 52 open, 5 partial, 2 blocked, 42 done.
 
 Counted from the rows above by `scripts/todo-count.py` and asserted
 independently by `scripts/check-todo.py`, which is the gate. A number here
@@ -170,11 +172,11 @@ that disagrees with the rows cannot reach a commit.
 
 | Priority | Open | Partial | Blocked | Done | Total |
 | --- | --- | --- | --- | --- | --- |
-| P0 | 22 | 3 | 1 | 21 | 47 |
-| P1 | 16 | 2 | 1 | 15 | 34 |
+| P0 | 22 | 3 | 1 | 22 | 48 |
+| P1 | 17 | 2 | 1 | 15 | 35 |
 | P2 | 10 | 0 | 0 | 4 | 14 |
 | P3 | 3 | 0 | 0 | 1 | 4 |
-| **All** | **51** | **5** | **2** | **41** | **99** |
+| **All** | **52** | **5** | **2** | **42** | **101** |
 
 ## How the current ordering is derived
 

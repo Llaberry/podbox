@@ -22,6 +22,22 @@ use crate::format;
 pub const PULL_USAGE: &str = "\
 usage: podbox pull [--platform os/arch[/variant]] <image>
 
+  --tls-verify=B   verify the registry's certificate. Default true. false
+                   applies to every registry THIS invocation touches, which is
+                   podman's meaning, and it does NOT permit plain HTTP.
+  --insecure-registry HOST
+                   for HOST only: do not verify its certificate, and fall back
+                   to plain HTTP if HTTPS cannot connect. Repeatable. This is
+                   docker's flag and it means both things, as docker's does.
+                   Also $PODBOX_INSECURE_REGISTRIES (comma separated) and one
+                   host per line in $PODBOX_CONFIG, else
+                   $XDG_CONFIG_HOME/podbox/registries.conf.
+
+  ⛔ Every use of either is printed on stderr, naming the registry. podbox
+    never decides on its own to stop verifying or to speak HTTP: a downgrade
+    a caller did not ask for is the one thing an automated caller cannot
+    notice.
+
   --platform P     which manifest to take out of a multi-platform index.
                    Defaults to $PODBOX_DEFAULT_PLATFORM, then to docker's
                    $DOCKER_DEFAULT_PLATFORM, then to the platform this podbox
@@ -122,11 +138,18 @@ usage: podbox inspect [--format T] <image> [image...]
 pub fn pull(args: &[String]) -> i32 {
     let mut want: Option<&str> = None;
     let mut platform_flag: Option<String> = None;
-    let mut expect_platform = false;
+    let mut insecure: Vec<String> = Vec::new();
+    let mut tls_verify: Option<bool> = None;
+    // ⚠ Which flag is still waiting for its value, so `--platform <image>` is a
+    // usage error naming the flag rather than a pull of something odd.
+    let mut expecting: Option<&'static str> = None;
     for a in args {
-        if expect_platform {
-            platform_flag = Some(a.clone());
-            expect_platform = false;
+        if let Some(flag) = expecting {
+            match flag {
+                "--platform" => platform_flag = Some(a.clone()),
+                _ => insecure.push(a.clone()),
+            }
+            expecting = None;
             continue;
         }
         match a.as_str() {
@@ -134,10 +157,24 @@ pub fn pull(args: &[String]) -> i32 {
                 print!("{PULL_USAGE}");
                 return 0;
             }
-            "--platform" => expect_platform = true,
+            "--platform" => expecting = Some("--platform"),
+            "--insecure-registry" => expecting = Some("--insecure-registry"),
+            // ⚠ A bare `--tls-verify` is `=true`, as docker and podman read it.
+            "--tls-verify" => tls_verify = Some(true),
             other if other.starts_with("--platform=") => {
                 platform_flag = Some(other["--platform=".len()..].to_string());
             }
+            other if other.starts_with("--insecure-registry=") => {
+                insecure.push(other["--insecure-registry=".len()..].to_string());
+            }
+            other if other.starts_with("--tls-verify=") => match &other["--tls-verify=".len()..] {
+                "true" | "1" => tls_verify = Some(true),
+                "false" | "0" => tls_verify = Some(false),
+                v => {
+                    eprintln!("podbox pull: --tls-verify takes true or false, not {v:?}");
+                    return EXIT_USAGE;
+                }
+            },
             other if other.starts_with('-') => return unknown("pull", other, PULL_USAGE),
             other if want.is_none() => want = Some(other),
             other => {
@@ -146,8 +183,8 @@ pub fn pull(args: &[String]) -> i32 {
             }
         }
     }
-    if expect_platform {
-        eprintln!("podbox pull: --platform needs a value, for example linux/arm64");
+    if let Some(flag) = expecting {
+        eprintln!("podbox pull: {flag} needs a value");
         return EXIT_USAGE;
     }
     let Some(want) = want else {
@@ -160,13 +197,19 @@ pub fn pull(args: &[String]) -> i32 {
         Ok(p) => p,
         Err(e) => return fail(e),
     };
+    // ⛔ Also before the store is opened: a bad host in the config file or the
+    // environment is invalid input and exits 2, not 125.
+    let policy = match podbox_image::transport::Policy::resolve(&insecure, tls_verify) {
+        Ok(p) => p,
+        Err(e) => return fail(e),
+    };
 
     let store = match podbox_image::open_store() {
         Ok(s) => s,
         Err(e) => return fail(e),
     };
     let mut out = std::io::stdout().lock();
-    match pull::pull(&store, want, &platform, &mut out) {
+    match pull::pull(&store, want, &platform, &policy, &mut out) {
         Ok(done) => {
             // ⛔ The provenance of the probe answer is on stderr, never implied.
             // A cached rung and a measured one are different sentences.

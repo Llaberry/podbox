@@ -331,3 +331,57 @@ Decision:    Edit rather than replace. A rootfs whose `nsswitch.conf` names
              and prepending `files` restores the supplied file without removing
              what was there.
 Prove:       `./experiments/90-nsswitch-contract.sh` exits 0 and `podbox run --rm debian:12 sh -c 'id podboxsupplied'`
+
+---
+
+### T-0411 A payload whose package sources are `http://`, on a runtime where tcp/80 hangs
+
+Source:      Raised by the operator on 2026-09-09, beside [T-0213](image.md)
+Category:    complete
+Priority:    P1
+Effort:      M
+Status:      open
+
+Problem:     ⛔ **The registry half is fixed and the payload half is not.**
+             [T-0213](image.md) settles how **podbox** reaches a registry over
+             plain HTTP. It says nothing about the package sources **inside an
+             image**, and many base images ship `http://` ones: debian's
+             `deb http://deb.debian.org`, alpine's `http://dl-cdn.alpinelinux.org`,
+             archlinux's mirrorlist. ⚠ On the runtimes podbox targets tcp/80
+             egress is black-holed, so `apt-get update` inside a container does
+             not fail, it **hangs** until its own timeout, and an agent reads
+             that as podbox being slow.
+Premise:     ⭐ **Read, and it is the same reading T-0201 rests on.**
+             `TOOL.md` section 6.4 describes the M5 fixups as **protocol**
+             fixups rather than mirror fixups, which is exactly this: the
+             distribution's own mirrors are reachable, and the scheme is not.
+             ⚠ **NOT MEASURED HERE YET**, and it cannot be until M3: measuring
+             it means running `apt-get update` inside a container, and there is
+             no `podbox run`. The reading that exists is the host's, and the
+             host is not the target.
+Approach:    In the completion layer, beside the other section 6.4 fixups.
+             1. **Rewrite the scheme, never the host.** `http://deb.debian.org`
+                becomes `https://deb.debian.org`; the mirror the image chose is
+                the mirror podbox uses. ⛔ Substituting a mirror is a supply
+                chain change made on the payload's behalf, and it is not
+                podbox's to make.
+             2. ⛔ **Say so, per file, in the banner.** podbox edited a file the
+                payload will read, and [T-0804](cli.md)'s honesty rules have no
+                exception for a helpful edit.
+             3. **`--no-source-fixup` turns it off**, for a payload whose mirror
+                genuinely has no HTTPS, and then the hang is the caller's
+                choice and is named as such.
+             4. ⚠ **Verify the mirror speaks HTTPS before rewriting**, once, with
+                a bounded timeout, and leave the file alone when it does not.
+                Rewriting a source that then 404s is worse than the hang,
+                because the failure no longer names the cause.
+Decision:    Rewrite in the extracted rootfs at `run` time rather than at
+             `extract` time. ⚠ The rootfs is content-addressed and shared
+             between containers ([T-0204](image.md)); editing it at extraction
+             would make one container's fixup another's, and `--no-source-fixup`
+             would then depend on which container extracted first.
+             ⛔ **This is not the same decision as [T-0213](image.md)'s.** There
+             the caller names a registry and podbox obeys. Here podbox is
+             changing a file inside somebody else's image, so the default is the
+             conservative one and the disclosure is per file.
+Prove:       `podbox run --rm debian:latest sh -c 'apt-get update' ` completes rather than hanging, the banner names each file rewritten, and `--no-source-fixup` leaves every source file byte-identical to the extracted tree

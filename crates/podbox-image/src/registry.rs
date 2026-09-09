@@ -57,6 +57,16 @@ pub struct FetchedManifest {
 
 pub struct Client {
     agent: ureq::Agent,
+    /// ⚠ Agents by `(verify, proxy)`, built lazily. Separate rather than flags
+    /// on one agent, because a `ureq::Agent` carries one `ClientConfig`, one
+    /// proxy setting and one connection pool: verifying for one registry and
+    /// not another through the same pool is how a verified connection gets
+    /// reused for an unverified request.
+    agents: HashMap<(bool, bool), ureq::Agent>,
+    pub policy: crate::transport::Policy,
+    /// Endpoints whose HTTPS connect failed and which the policy permits over
+    /// HTTP. ⛔ Only ever populated for a host the caller named insecure.
+    http_endpoints: std::collections::BTreeSet<String>,
     /// One token per `<endpoint>|<scope>`. ⚠ Keyed on the scope as well as the
     /// host: a token minted for one repository does not authorise another, and
     /// a cache keyed on the host alone would send it anyway and read the 403 as
@@ -67,6 +77,10 @@ pub struct Client {
 
 impl Client {
     pub fn new() -> Client {
+        Client::with_policy(crate::transport::Policy::default())
+    }
+
+    pub fn with_policy(policy: crate::transport::Policy) -> Client {
         let (config, roots) = crate::tls::client_config();
         let agent = ureq::AgentBuilder::new()
             .tls_config(config)
@@ -81,9 +95,67 @@ impl Client {
             .build();
         Client {
             agent,
+            agents: HashMap::new(),
+            policy,
+            http_endpoints: std::collections::BTreeSet::new(),
             tokens: HashMap::new(),
             roots,
         }
+    }
+
+    /// The agent for one endpoint, and the scheme to use with it.
+    ///
+    /// ⛔ Two agents rather than one with a switch: a `ureq::Agent` carries one
+    /// `ClientConfig` and one connection pool, and verifying for one registry
+    /// and not another through the same pool is how a verified connection gets
+    /// reused for an unverified request.
+    fn agent_for(&mut self, endpoint: &str) -> ureq::Agent {
+        let verify = self.policy.verify(endpoint);
+        let proxy = self.policy.use_proxy(endpoint);
+        if verify && proxy {
+            return self.agent.clone();
+        }
+        self.agents
+            .entry((verify, proxy))
+            .or_insert_with(|| {
+                let (config, _roots) = if verify {
+                    crate::tls::client_config()
+                } else {
+                    crate::tls::client_config_unverified()
+                };
+                let mut b = ureq::AgentBuilder::new()
+                    .tls_config(config)
+                    .timeout_connect(CONNECT_TIMEOUT)
+                    .timeout_read(READ_TIMEOUT)
+                    .timeout_write(WRITE_TIMEOUT)
+                    .user_agent(concat!("podbox/", env!("CARGO_PKG_VERSION")));
+                // ⛔ A loopback registry is never reached through a proxy, and
+                // `NO_PROXY` is honoured. Measured on 2026-09-09: with an
+                // intercepting proxy in the environment, a plain-HTTP request
+                // to `localhost:5000` came back HTTP 405, which is the proxy
+                // refusing a non-CONNECT request and reads as a broken
+                // registry. `ureq` 2's `try_proxy_from_env` does not consult
+                // `NO_PROXY`, so this is where that is decided.
+                if proxy {
+                    b = b.try_proxy_from_env(true);
+                }
+                b.build()
+            })
+            .clone()
+    }
+
+    /// The base URL for an endpoint, `https://` unless this one has already
+    /// been found to need `http://`.
+    ///
+    /// ⚠ The fallback is remembered per endpoint for the life of the client, so
+    /// one failed HTTPS connect costs one timeout rather than one per blob.
+    fn base(&self, endpoint: &str) -> String {
+        let scheme = if self.http_endpoints.contains(endpoint) {
+            "http"
+        } else {
+            "https"
+        };
+        format!("{scheme}://{endpoint}")
     }
 
     /// `GET /v2/<repository>/manifests/<selector>`.
@@ -93,9 +165,11 @@ impl Client {
         repository: &str,
         selector: &str,
     ) -> Result<FetchedManifest> {
-        let url = format!("https://{endpoint}/v2/{repository}/manifests/{selector}");
+        // ⚠ A PATH, not a URL: `get` chooses the scheme from the endpoint's
+        // transport policy, so nothing above it hard-codes `https://`.
+        let path = format!("/v2/{repository}/manifests/{selector}");
         let scope = format!("repository:{repository}:pull");
-        let resp = self.get(&url, endpoint, &scope, Some(oci::ACCEPT))?;
+        let resp = self.get(&path, endpoint, &scope, Some(oci::ACCEPT))?;
         let media_type = resp
             .header("Content-Type")
             .map(|s| s.split(';').next().unwrap_or(s).trim().to_string());
@@ -108,12 +182,12 @@ impl Client {
             .take(MANIFEST_CEILING + 1)
             .read_to_end(&mut bytes)
             .map_err(|e| Error::Http {
-                what: format!("GET {}", redact(&url)),
+                what: format!("GET {}", redact(&path)),
                 detail: format!("reading the manifest body: {e}"),
             })?;
         if bytes.len() as u64 > MANIFEST_CEILING {
             return Err(Error::Http {
-                what: format!("GET {}", redact(&url)),
+                what: format!("GET {}", redact(&path)),
                 detail: format!("the manifest exceeds {MANIFEST_CEILING} bytes and was not read"),
             });
         }
@@ -155,15 +229,15 @@ impl Client {
         size: Option<u64>,
         sink: W,
     ) -> Result<W> {
-        let url = format!("https://{endpoint}/v2/{repository}/blobs/{want}");
+        let path = format!("/v2/{repository}/blobs/{want}");
         let scope = format!("repository:{repository}:pull");
-        let resp = self.get(&url, endpoint, &scope, None)?;
+        let resp = self.get(&path, endpoint, &scope, None)?;
         let mut verifier = Verifier::new(sink);
         let mut reader = resp.into_reader();
         let mut buf = vec![0u8; 128 * 1024];
         loop {
             let n = reader.read(&mut buf).map_err(|e| Error::Http {
-                what: format!("GET {}", redact(&url)),
+                what: format!("GET {}", redact(&path)),
                 detail: format!(
                     "reading the blob body after {} byte(s): {e}",
                     verifier.written()
@@ -182,24 +256,46 @@ impl Client {
     /// One GET, with the bearer dance and the bounded retry around it.
     fn get(
         &mut self,
-        url: &str,
+        path: &str,
         endpoint: &str,
         scope: &str,
         accept: Option<&str>,
     ) -> Result<ureq::Response> {
         let mut last: Option<Error> = None;
+        let mut target = format!("{}{path}", self.base(endpoint));
         for attempt in 0..ATTEMPTS {
             if attempt > 0 {
                 std::thread::sleep(backoff(attempt, None));
             }
-            match self.get_once(url, endpoint, scope, accept) {
+            match self.get_once(&target, endpoint, scope, accept) {
                 Ok(Attempt::Done(r)) => return Ok(*r),
                 Ok(Attempt::Retry { after, why }) => {
+                    // ⭐ TODO/image.md T-0213. A transport failure against an
+                    // endpoint the CALLER named insecure is the one case where
+                    // podbox retries over plain HTTP, and it says so.
+                    // ⛔ Never a discovery: `after_connect_failure` answers
+                    // `None` for every endpoint nobody named, which keeps
+                    // T-0201's finding intact. An automatic downgrade on a
+                    // network where tcp/80 is black-holed is a hang.
+                    if why.starts_with("transport:") && !self.http_endpoints.contains(endpoint) {
+                        if let Some(d) = self.policy.after_connect_failure(endpoint) {
+                            self.http_endpoints.insert(endpoint.to_string());
+                            let _ = writeln!(
+                                std::io::stderr(),
+                                "podbox: {endpoint} did not answer over HTTPS ({why}), and it \
+                                 is configured as an insecure registry, so this and every \
+                                 later request to it use {}://",
+                                d.scheme
+                            );
+                            target = format!("{}{}", self.base(endpoint), path);
+                            continue;
+                        }
+                    }
                     if attempt + 1 < ATTEMPTS {
                         std::thread::sleep(backoff(attempt + 1, after));
                     }
                     last = Some(Error::Http {
-                        what: format!("GET {}", redact(url)),
+                        what: format!("GET {}", redact(&target)),
                         detail: why,
                     });
                 }
@@ -207,7 +303,7 @@ impl Client {
             }
         }
         Err(last.unwrap_or_else(|| Error::Http {
-            what: format!("GET {}", redact(url)),
+            what: format!("GET {}", redact(&target)),
             detail: format!("gave up after {ATTEMPTS} attempt(s)"),
         }))
     }
@@ -219,7 +315,8 @@ impl Client {
         scope: &str,
         accept: Option<&str>,
     ) -> Result<Attempt> {
-        match self.send(url, scope, accept) {
+        let agent = self.agent_for(endpoint);
+        match self.send(&agent, url, scope, accept) {
             Ok(r) => Ok(Attempt::Done(Box::new(r))),
             Err(ureq::Error::Status(401, resp)) => {
                 // The challenge decides where the token comes from. ⚠ Read from
@@ -235,7 +332,7 @@ impl Client {
                 };
                 let token = self.token(endpoint, scope, &challenge)?;
                 self.tokens.insert(key(endpoint, scope), token);
-                match self.send(url, scope, accept) {
+                match self.send(&agent, url, scope, accept) {
                     Ok(r) => Ok(Attempt::Done(Box::new(r))),
                     Err(e) => Err(status_error(url, e)),
                 }
@@ -260,11 +357,12 @@ impl Client {
     #[allow(clippy::result_large_err)]
     fn send(
         &self,
+        agent: &ureq::Agent,
         url: &str,
         scope: &str,
         accept: Option<&str>,
     ) -> std::result::Result<ureq::Response, ureq::Error> {
-        let mut req = self.agent.get(url);
+        let mut req = agent.get(url);
         if let Some(a) = accept {
             req = req.set("Accept", a);
         }

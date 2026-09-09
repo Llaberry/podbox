@@ -33,6 +33,12 @@ pub struct Reference {
     pub repository: String,
     pub tag: Option<String>,
     pub digest: Option<Digest>,
+    /// ⭐ The caller wrote `http://`. TODO/image.md T-0213: this is carried
+    /// rather than refused here, because whether it is honoured depends on the
+    /// transport policy and a `Reference` is a name that knows nothing about
+    /// one. ⛔ The refusal still happens, in `pull`, where the policy is in
+    /// scope and the message can name the flag that would permit it.
+    pub plain_http: bool,
 }
 
 impl Reference {
@@ -44,7 +50,16 @@ impl Reference {
         for scheme in ["http://", "https://"] {
             if let Some(rest) = s.strip_prefix(scheme) {
                 if scheme == "http://" {
-                    return Err(Error::PlainHttpRefused(format!("{input:?} names http://")));
+                    // ⭐ TODO/image.md T-0213. The scheme is stripped and the
+                    // HOST is remembered, so the caller can be told which
+                    // registry to permit. ⛔ Parsing does not decide: a
+                    // `Reference` is a name and knows nothing about transport
+                    // policy, and threading a policy in here would put the
+                    // decision in the one place that cannot report it.
+                    // `Reference::plain_http` carries the fact upwards.
+                    let mut r = Reference::parse(rest)?;
+                    r.plain_http = true;
+                    return Ok(r);
                 }
                 // ⚠ `https://` is accepted and stripped rather than refused:
                 // it says nothing podbox does not already do, and refusing it
@@ -141,6 +156,7 @@ impl Reference {
             repository,
             tag,
             digest,
+            plain_http: false,
         })
     }
 
@@ -288,12 +304,24 @@ mod tests {
         assert_eq!(r.manifest_selector(), d);
     }
 
+    /// ⭐ **The contract moved on 2026-09-09 and did not weaken.** This used to
+    /// assert that `Reference::parse` returns an error. Parsing now records the
+    /// fact and `pull` decides, because only `pull` has the transport policy in
+    /// scope and can name the flag that would permit it (T-0213). ⛔ The
+    /// scheme is still never inferred and never downgraded into: a reference
+    /// with no scheme is `plain_http: false` and stays HTTPS.
     #[test]
-    fn plain_http_is_refused_by_name_and_never_downgraded_into() {
-        let e = Reference::parse("http://registry.example.com/x").unwrap_err();
-        let text = format!("{e}");
-        assert!(text.contains("HTTPS only"), "{text}");
-        assert!(text.contains("T-0201"), "{text}");
+    fn plain_http_is_recorded_and_never_inferred() {
+        let r = Reference::parse("http://registry.example.com/x").unwrap();
+        assert!(r.plain_http, "http:// was not carried up to the policy");
+        assert_eq!(r.endpoint(), "registry.example.com");
+
+        for bare in ["registry.example.com/x", "https://registry.example.com/x"] {
+            assert!(
+                !Reference::parse(bare).unwrap().plain_http,
+                "{bare} was read as plain HTTP"
+            );
+        }
     }
 
     #[test]

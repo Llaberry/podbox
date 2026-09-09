@@ -1,0 +1,36 @@
+== conditions
+date              2026-09-09T02:49:20Z
+host kernel       6.18.44-fc-v24
+podbox            podbox 0.1.0
+docker            Docker version 29.3.1
+proxy in env      yes (clause 3 is only meaningful when yes)
+
+== 1. the default refuses an explicit http:// and NAMES the flag
+  exit              2 (2 is invalid input)
+  names the flag    1
+
+== 2. the default refuses a certificate nothing trusts
+  exit              125 (125 is a runtime failure)
+  says              invalid peer certificate: Other(OtherError(CaUsedAsEndEntity
+
+== 3. --insecure-registry pulls the whole image over plain HTTP
+  exit              0
+  layers pulled     4
+
+== 4. and it changed NOTHING for any other registry
+  a DIFFERENT registry over http://: exit 2
+
+== 5. --tls-verify=false reaches the self-signed registry
+  exit              0
+  layers pulled     4
+  --tls-verify=false with an http:// reference: exit 2
+
+== 6. every downgrade is announced on stderr
+  announced insecure          2
+  announced the http fallback 1
+  a normal pull says it       0 time(s)
+
+== 7. the environment and the config file reach the same place
+  $PODBOX_INSECURE_REGISTRIES exit 0
+  $PODBOX_CONFIG file         exit 0
+  a URL where a host belongs: exit 2, registries.conf:2

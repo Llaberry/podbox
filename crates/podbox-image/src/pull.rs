@@ -26,6 +26,7 @@ use crate::reference::Reference;
 use crate::registry::Client;
 use crate::space;
 use crate::store::{self, Record, Store};
+use crate::transport::Policy;
 
 /// What the store needs beyond the payload: the index, a staging copy of the
 /// largest blob and the lock files.
@@ -59,11 +60,39 @@ impl Pulled {
 /// ⭐ `platform` is what the caller asked for, resolved by
 /// [`Platform::wanted`] before it gets here so the flag, the environment and
 /// the host are settled in one place rather than three.
-pub fn pull(store: &Store, want: &str, platform: &Platform, out: &mut dyn Write) -> Result<Pulled> {
+pub fn pull(
+    store: &Store,
+    want: &str,
+    platform: &Platform,
+    policy: &Policy,
+    out: &mut dyn Write,
+) -> Result<Pulled> {
     let reference = Reference::parse(want)?;
+
+    // ⭐ TODO/image.md T-0213. The refusal is HERE and not in `Reference::parse`,
+    // because only here is the transport policy in scope, and a refusal that
+    // cannot name the flag that would permit it is a refusal a caller cannot
+    // act on.
+    if reference.plain_http && !policy.permits_explicit_http(reference.endpoint()) {
+        return Err(Error::PlainHttpRefused(format!(
+            "{want:?} names http://, and {0} is not configured as an insecure \
+             registry. podbox does not downgrade a connection on its own: \
+             tcp/80 is black-holed on the runtimes podbox targets, so an \
+             automatic fallback hangs rather than failing (T-0201). Permit it \
+             deliberately with `--insecure-registry {0}`, with \
+             $PODBOX_INSECURE_REGISTRIES, or with a line in the registries \
+             config file",
+            reference.endpoint()
+        )));
+    }
+    // ⛔ Announced once, before anything is fetched. An agent cannot notice a
+    // downgraded transport the way a person might.
+    if let Some(said) = policy.disclosure(reference.endpoint()) {
+        let _ = writeln!(std::io::stderr(), "{said}");
+    }
     let probe = crate::probe_cache::resolve(store);
 
-    let mut client = Client::new();
+    let mut client = Client::with_policy(policy.clone());
     let endpoint = reference.endpoint().to_string();
     let repository = reference.repository.clone();
 
@@ -259,5 +288,70 @@ pub fn local(store: &Store, want: &str) -> Result<Option<Digest>> {
     match store.find(want)?.first() {
         Some(r) => Ok(Some(Digest::parse(&r.digest)?)),
         None => Ok(None),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// ⛔ The refusal T-0201 won, kept, and now able to say what would permit
+    /// it. A message a caller cannot act on is a message that costs a session.
+    #[test]
+    fn an_http_reference_is_refused_and_the_refusal_names_the_flag() {
+        let store = Store::open(
+            std::env::temp_dir().join(format!("podbox-pull-http-{}", std::process::id())),
+        )
+        .unwrap();
+        let mut out = Vec::new();
+        let e = pull(
+            &store,
+            "http://localhost:5000/x:latest",
+            &Platform::host(),
+            &Policy::default(),
+            &mut out,
+        );
+        let Err(e) = e else {
+            panic!("a pull succeeded with nothing listening")
+        };
+        let text = format!("{e}");
+        assert!(
+            text.contains("--insecure-registry localhost:5000"),
+            "{text}"
+        );
+        assert!(text.contains("T-0201"), "{text}");
+        // ⛔ And nothing was fetched: the refusal is before the network.
+        assert!(out.is_empty(), "it printed a transcript before refusing");
+        let _ = std::fs::remove_dir_all(store.root());
+    }
+
+    /// ⭐ The same reference, with the registry named insecure, gets past the
+    /// policy. ⚠ It then fails to CONNECT, because nothing is listening on
+    /// localhost:5000 in a test, and that is the right place to stop: this
+    /// asserts the policy decision, and `experiments/280-insecure-registry.sh`
+    /// drives the whole path against a registry that is really there.
+    #[test]
+    fn naming_the_registry_insecure_gets_past_the_policy() {
+        let store = Store::open(
+            std::env::temp_dir().join(format!("podbox-pull-ok-{}", std::process::id())),
+        )
+        .unwrap();
+        let mut out = Vec::new();
+        let e = pull(
+            &store,
+            "http://localhost:5000/x:latest",
+            &Platform::host(),
+            &Policy::with_insecure(&["localhost:5000"]),
+            &mut out,
+        );
+        let Err(e) = e else {
+            panic!("a pull succeeded with nothing listening")
+        };
+        let text = format!("{e}");
+        assert!(
+            !text.contains("--insecure-registry"),
+            "the policy still refused it: {text}"
+        );
+        let _ = std::fs::remove_dir_all(store.root());
     }
 }
