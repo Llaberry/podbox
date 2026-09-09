@@ -14,11 +14,13 @@ and exit codes, and where it cannot honour something it says so in one line.
 
 ## State
 
-**`podbox probe`, image acquisition and extraction work. Nothing runs a
-container yet.** This tree is milestones M0, M1 and M2 of
+**`podbox run` works: a command runs inside a pulled and extracted image, the
+payload owns stdout, and the exit code is the payload's own.** This tree is
+milestones M0 to M3 of
 [`TOOL.md`](references/Azathothas__container-research/tree/TOOL.md) section 5:
-the probe, then `pull` and the store, then unpacking a rootfs. Every other verb
-exits 125 and says so. The next milestone is M3, `run`.
+the probe, then `pull` and the store, then unpacking a rootfs, then entering
+one. The lifecycle verbs (`create`, `start`, `ps`, `logs`, `stop`, `rm`, `exec`)
+exit 125 and say so. The next milestone is M4, the lifecycle.
 
 ```sh
 podbox probe            # the rung on stdout, the evidence on stderr, exit 0
@@ -35,6 +37,8 @@ podbox image prune -af
 podbox inspect alpine:latest
 
 podbox extract alpine:latest        # unpack the layers, print the rootfs path
+podbox run alpine:latest /bin/echo hi
+podbox run --platform linux/arm64 alpine:latest /bin/uname -m
 ```
 
 ⛔ **It reports the mode it achieved and never lets a weaker one satisfy a
@@ -60,12 +64,18 @@ extraction fails.** Including one that traverses a symlink an earlier entry of
 the same layer created, which is the case a lexical check cannot see. A
 repaired layer cannot be told from a clean one, so podbox does not repair one.
 
+⭐ **It is not one architecture.** The workspace compiles for six, the platform
+is decided at run time rather than by a build constant, and the store holds one
+record per platform of a tag. On a host with `binfmt_misc` and `qemu-user`,
+`podbox run --platform linux/arm64` runs a foreign image. ⚠ `powerpc64le` does
+not build, and the blocker is named in `experiments/260-multiarch.sh`.
+
 `TODO/PROGRESS.md` carries the state line, the counts and the work order.
 
 | path | what it is |
 | --- | --- |
 | [`TODO/`](TODO/) | the work. `INDEX.md` lists every entry, `PROGRESS.md` carries the order, `reference-map.md` carries the corpus and its licence determinations |
-| [`crates/`](crates/) | the workspace of `TOOL.md` section 4.3. `podbox-probe`, `podbox-image`, `podbox-extract` and the M0 to M2 verbs of `podbox-cli` are implemented; the rest are skeletons |
+| [`crates/`](crates/) | the workspace of `TOOL.md` section 4.3. `podbox-probe`, `podbox-image`, `podbox-extract`, `podbox-enter` and the M0 to M3 verbs of `podbox-cli` are implemented; the rest are skeletons |
 | [`references/`](references/) | the corpus: 30 trees at pinned commits, with their trackers. Tracked, in the tree |
 | [`experiments/`](experiments/) | the reconstruction of the target runtime, seeded from `Azathothas/container-research`, plus this project's own measurements |
 | [`scripts/`](scripts/) | the gate, the count scripts, the corpus fetcher, the environment bootstrap, and the `zig cc` wrappers |
@@ -78,12 +88,17 @@ at its end. Everything binding is one link away from it.
 
 ## Building
 
-A session in a fresh container starts here. It is idempotent, so running it on
-a machine that already has everything costs a few seconds and changes nothing:
+⭐ **One command, and it returns in about a second.** It brings the environment
+up and compiles in the background, and it is idempotent:
 
 ```sh
-./scripts/common/bootstrap-env.sh
+./scripts/dev.sh          # environment and build, in the BACKGROUND
+./scripts/dev.sh status   # ready, stale, or failed with the log
+./scripts/dev.sh check    # what a change passes before it is committed
 ```
+
+`./scripts/common/bootstrap-env.sh` is the environment half on its own, and
+takes a component list. By hand, the build is:
 
 ```sh
 cargo build --release --target x86_64-unknown-linux-musl
@@ -101,13 +116,19 @@ is built separately:
 ## The gate
 
 ```sh
-./scripts/check-todo.py
+./scripts/check-todo.py   # nineteen checks. Must exit 0 at every commit
+./scripts/plant.sh        # break each one on purpose, assert it goes red
 ```
 
-It re-derives every count in `TODO/INDEX.md` from the rows, asserts that no
-status disagrees between the index and its entry, that every reference in
-`TODO/reference-map.md` resolves, and that every cited path and line exists.
-It runs in CI and it exits non-zero on a disagreement.
+The reader re-derives every count in `TODO/INDEX.md` from the rows, asserts that
+no status disagrees between the index and its entry, that every reference in
+`TODO/reference-map.md` resolves, that every cited path and line exists and is
+tracked by git, and that CI installs the toolchain `.cargo/config.toml` names.
+Both run in CI and both exit non-zero on a disagreement.
+
+⭐ **`plant.sh` is what makes the gate an assertion rather than a decoration.**
+A check that quietly matches nothing exits 0 exactly like one whose assertions
+all passed, and that is the state this repository shipped its first commit in.
 
 ## Licence
 

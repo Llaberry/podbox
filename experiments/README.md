@@ -79,24 +79,34 @@ decisions podbox has to make. Each writes its transcript to
 ./experiments/160-store-gc.sh                   # a GC under a holder, and the containment check
 ./experiments/170-probe-cache.sh                # the probe cache, and the key the specification got wrong
 ./experiments/220-extract-path-safety.sh        # M2: a hostile layer is refused and a distro rootfs is not
+./experiments/260-multiarch.sh                  # six architectures check the workspace, and the one that does not
+./experiments/270-multiarch-image.sh            # two platforms of one tag, and the ELF machine inside each tree
+./experiments/280-insecure-registry.sh          # a registry with no certificate, and one nothing trusts
+./experiments/290-microvm.sh                    # a stock kernel under QEMU, for the two questions this host cannot answer
+./experiments/300-run.sh                        # M3's acceptance: a command inside an image, and the rung it got
+./experiments/310-session-startup.sh            # what a cold session costs, and what dev.sh removes from it
 ```
 
-⚠ **The numbers jump from `170-` to `220-`.** `180-` to `210-` are reserved by
-entries M1 authored and not yet written, and a number here is never reused even
-before its script exists. [`../TODO/gate.md`](../TODO/gate.md) T-1205 records
-the four `Prove` clauses that named a taken number, and check 18 of the gate now
-refuses a fifth.
+⚠ **The numbers jump from `170-` to `220-`, and again from `230-` to `260-`.**
+`180-` to `210-` are reserved by entries M1 authored, and `230-` to `250-` by
+M4, M5 and M6's acceptances; a number here is never reused even before its
+script exists. [`../TODO/gate.md`](../TODO/gate.md) T-1205 records the four
+`Prove` clauses that named a taken number, and check 18 of the gate now refuses
+a fifth.
 
-⛔ `80-`, `90-`, `100-`, `125-`, `130-`, `150-` and `170-` need a running docker
-daemon, and `80-` needs `musl-gcc` for its fourth arm. `110-` needs
-`cargo-bloat` for its breakdown and exits 2 without it. `140-` needs to be able
-to `mount` a tmpfs and exits 2 where it cannot. `150-` needs outbound HTTPS to a
-registry. Each says which of its checks could not run rather than reporting a
-pass it did not earn.
+⛔ `80-`, `90-`, `100-`, `125-`, `130-`, `150-`, `170-`, `270-`, `280-` and
+`300-` need a running docker daemon, and `80-` needs `musl-gcc` for its fourth
+arm. `110-` needs `cargo-bloat` for its breakdown and exits 2 without it. `140-`
+needs to be able to `mount` a tmpfs and exits 2 where it cannot. `150-` needs
+outbound HTTPS to a registry. `260-`'s aarch64 arm needs `binfmt_misc` and
+`qemu-user`; `290-` needs `qemu-system-x86_64`, `busybox-static` and `cpio`.
+Each says which of its checks could not run rather than reporting a pass it did
+not earn.
 
-⭐ **`130-` and `150-` are `TODO/milestones.md` T-1101's and T-1102's acceptance
-as one command each**, so they are re-run rather than recalled. Neither builds
-anything: point `PODBOX_BIN` at a binary, or build the default first with
+⭐ **`130-`, `150-`, `220-` and `300-` are `TODO/milestones.md` T-1101's,
+T-1102's, T-1103's and T-1104's acceptance as one command each**, so they are
+re-run rather than recalled. None of them builds anything: point `PODBOX_BIN` at
+a binary, or build the default first with
 `cargo build --release --target x86_64-unknown-linux-musl`.
 
 ⚠ **`150-` and `160-` pull from a registry and `alpine:latest` is a moving

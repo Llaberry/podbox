@@ -190,7 +190,7 @@ trailing `|| echo absent` fires beside the real value.
 ## The gate, and why it is trusted
 
 ```sh
-./scripts/check-todo.py    # the reader. Eighteen checks. Must exit 0 at every commit
+./scripts/check-todo.py    # the reader. Nineteen checks. Must exit 0 at every commit
 ./scripts/todo-count.py    # the writer. Re-derives the counts; --set moves row and entry together
 ./scripts/plant.sh         # breaks each check on purpose and asserts it goes red
 ./scripts/common/check-markers.sh
