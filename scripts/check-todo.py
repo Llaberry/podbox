@@ -354,13 +354,36 @@ def check_size_ceiling(files):
         err(BLOAT_BASELINE, "carries no `total_bytes <n>` line, so the baseline "
                             "cannot be compared with anything.")
         return
-    total, limit = int(b.group(1)), int(ceiling)
-    if total >= limit:
-        err(BLOAT_BASELINE,
-            f"records total_bytes {total}, which is at or over the ceiling of "
-            f"{limit} declared in {CEILING_SCRIPT}. Raise the ceiling "
-            f"deliberately, with the delta that justifies it committed beside "
-            f"the change.")
+
+    # ⭐ TODO/gate.md T-1204. EVERY committed reading, not the baseline alone.
+    # The baseline is deliberately the "before" and stops being the shipping
+    # binary the moment a milestone lands, so a gate that reads only it holds a
+    # number the ceiling was never about: M1 moved the artefact from 496,184 to
+    # 2,130,672 bytes and this check stayed green throughout.
+    #
+    # ⚠ Every reading, and never "the newest by date". A date inside a file is a
+    # string this would have to parse and rank, and a stale file somebody forgot
+    # to delete would then silently outrank a real one. Asserting all of them
+    # needs no ordering and fails on the same file either way.
+    limit = int(ceiling)
+    readings = sorted(f for f in files
+                      if f.startswith("experiments/results/bloat-")
+                      and f.endswith(".txt"))
+    for rel in readings:
+        m = BLOAT_TOTAL.search(read(os.path.join(ROOT, rel)))
+        if not m:
+            # ⚠ Not an error. An arm that could not run records that it could
+            # not, and TODO/deps.md T-0910 rules a skip is not a pass; it is
+            # also not a size to hold.
+            continue
+        seen["size_ceiling"] += 1
+        total = int(m.group(1))
+        if total >= limit:
+            err(rel,
+                f"records total_bytes {total}, which is at or over the ceiling "
+                f"of {limit} declared in {CEILING_SCRIPT}. Raise the ceiling "
+                f"deliberately, with the delta that justifies it committed "
+                f"beside the change.")
 
 
 def check_experiment_numbers(files):

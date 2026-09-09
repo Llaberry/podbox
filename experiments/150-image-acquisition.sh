@@ -29,7 +29,15 @@ HERE="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 REPO="$(CDPATH= cd -- "$HERE/.." && pwd)"
 BIN="${PODBOX_BIN:-$REPO/target/x86_64-unknown-linux-musl/release/podbox}"
 OUT="$REPO/experiments/results/image-acquisition.txt"
-REFERENCE="${PODBOX_TEST_IMAGE:-alpine:latest}"
+# ⭐ ghcr, AND NOT DOCKER HUB, AND THE REASON IS MEASURED. TODO/image.md T-0206
+# says this clause cannot leave the Hub "because its whole question is whether
+# podbox's digest equals the one `docker image inspect` reports". ⛔ That
+# premise is wrong and was checked on 2026-09-09: docker pulls from ghcr.io
+# perfectly well, and its `RepoDigests[0]` for this reference is the same value
+# podbox records. The parity question needs a registry BOTH tools can reach, not
+# the Hub specifically, and ghcr has no anonymous pull quota that a third party
+# can exhaust on this project's behalf.
+REFERENCE="${PODBOX_TEST_IMAGE:-ghcr.io/pkgforge-dev/archlinux:latest}"
 WORK="$(mktemp -d)"
 STORE="$WORK/store"
 trap 'rm -rf "$WORK"' EXIT INT TERM
@@ -152,7 +160,7 @@ echo "== 4. a plain-HTTP registry is refused rather than downgraded"
 # ⛔ TODO/image.md T-0201. tcp/80 egress is broken on the runtime podbox
 # targets, so a fallback hangs instead of failing. `timeout` is the proof that
 # it did not hang: a downgrade would sit here until the timeout fired.
-timeout 30 "$BIN" pull "http://registry.invalid/library/alpine:latest" \
+timeout 30 "$BIN" pull "http://registry.invalid/library/archlinux:latest" \
 	>"$WORK/http.out" 2>"$WORK/http.err"
 http_rc=$?
 printf '  exit %s\n' "$http_rc"

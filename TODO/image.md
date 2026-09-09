@@ -393,7 +393,7 @@ Prove:       `./experiments/95-podman-vfs-ignorechown.sh` exits 0 or 1, never 2,
 
 Source:      Found while re-running `experiments/150-image-acquisition.sh` against its own committed reading
 Category:    image
-Priority:    P1
+Priority:    P3
 Effort:      L
 Status:      open
 
@@ -435,7 +435,43 @@ Decision:    A fixture in this tree over `registry:2` from Docker Hub. Pulling
              credential, and `docs/security/secrets.md` keeps credentials out of
              this tree, so the acceptance would then run only where somebody has
              one.
-Prove:       `./experiments/180-registry-fixture.sh` exits 0 with the network to registry-1.docker.io blocked
+Prove:       `./experiments/180-registry-fixture.sh` exits 0 with ALL outbound network blocked
+
+⛔ **CORRECTED 2026-09-09 BY MEASUREMENT, AND THE PREMISE ABOVE WAS WRONG.** The
+`Premise` says `150-image-acquisition.sh` "cannot follow them, because its whole
+question is whether podbox's digest equals the one `docker image inspect`
+reports for the same tag". That reads as though the Hub were required. It is
+not: **docker pulls from `ghcr.io` perfectly well**, checked on this host on
+2026-09-09, and its `RepoDigests[0]` for
+`ghcr.io/pkgforge-dev/archlinux:latest` is
+`sha256:b2507f1964270cab3cc190aa8df858521f6a7e45e969146a012877891d5dfc9b`,
+which is the value podbox records. The question needs a registry **both tools can
+reach**, not the Hub.
+
+⭐ **So the stated problem is gone, and it cost one line.** Every script the
+acceptance runs now reaches a registry with no anonymous pull quota, or none at
+all:
+
+| script | registry |
+| --- | --- |
+| `110-`, `130-`, `170-`, `220-`, `260-` | none: no network at all |
+| `140-`, `160-` | `public.ecr.aws` |
+| `150-`, `270-` | `ghcr.io` |
+
+⚠ **And the operator's note that M2 made this worse was inherited from this
+entry rather than measured.** It said `extract` needs a pulled image so the
+acceptance spends quota on two. `220-extract-path-safety.sh` builds its store
+**by hand** from crafted layers and pulls nothing, so extraction never cost a
+pull in the acceptance at all.
+
+⚠ **What the fixture would still buy, which is why this stays open at P3 rather
+than closing.** ghcr having no quota today is a policy, not a guarantee, and
+`public.ecr.aws` is somebody else's too. A fixture on loopback is the only thing
+that makes the acceptance runnable with the network **off**, which is a stronger
+property than "no quota" and is the one an unattended agent on a broken network
+actually needs. ⛔ It is not closed as "no longer needed": the `Problem` above is
+mitigated, not answered, and the `Prove` now says all outbound network blocked
+rather than one host.
 
 ---
 

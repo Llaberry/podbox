@@ -216,7 +216,7 @@ Source:      Found by reading check 17 against the tree after M1 landed
 Category:    gate
 Priority:    P1
 Effort:      S
-Status:      open
+Status:      done 2026-09-09
 
 Problem:     Check 17 reads `experiments/results/bloat-baseline.txt` and asserts
              its `total_bytes` is under the ceiling. That file is deliberately
@@ -244,7 +244,23 @@ Decision:    Every reading, not "the newest by date". A date inside a file is a
              somebody forgot to delete would then silently outrank a real one.
              Asserting all of them needs no ordering and fails on the same file
              either way.
-Prove:       `./scripts/plant.sh` reports 19 caught, 0 missed, with the new case planting a `total_bytes` over the ceiling into `experiments/results/bloat-image.txt`
+Prove:       `./scripts/plant.sh` reports case 17d caught, planting a `total_bytes` over the ceiling into `experiments/results/bloat-image.txt`
+
+**Done 2026-09-09.** Check 17 now reads every tracked
+`experiments/results/bloat-*.txt` and asserts each `total_bytes` under the
+ceiling, and plant case **17d** is the one that was missing rather than failing:
+before it, a shipping binary over the ceiling was invisible to a clone with no
+toolchain. 17b stays beside it, because the baseline's own assertion is about
+there being a "before" at all and is a different claim.
+
+⚠ **A reading with no `total_bytes` line is skipped rather than failed.** An arm
+that could not run records that it could not, [T-0910](deps.md) rules a skip is
+not a pass, and it is equally not a size to hold.
+
+⚠ The `Prove` above said "19 caught" when it was authored. The harness is at 21,
+because three cases have been added since for other checks, so the count is not
+quoted: `docs/AGENTS.md`'s rule that a value lives in one file applies to this
+one too, and its home is `scripts/plant.sh`'s own verdict line.
 
 ---
 

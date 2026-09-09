@@ -45,7 +45,7 @@ command -v git >/dev/null 2>&1 || { echo "SKIP: no git" >&2; exit 2; }
 
 # ⛔ GUARD 3: ONE LIST. Everything any case may touch is named here once, and
 # both the backup and the restore iterate this and nothing else.
-FILES="TODO/INDEX.md TODO/PROGRESS.md TODO/probe.md TODO/reference-map.md README.md docs/conventions/prose.md experiments/110-bloat-delta.sh experiments/results/bloat-baseline.txt"
+FILES="TODO/INDEX.md TODO/PROGRESS.md TODO/probe.md TODO/reference-map.md README.md docs/conventions/prose.md experiments/110-bloat-delta.sh experiments/results/bloat-baseline.txt experiments/results/bloat-image.txt"
 
 # ⛔ CHECK 18'S SUBJECT IS A NUMBER THAT IS ALREADY TAKEN, so writing one here
 # literally would put a second name on it in this very file and make the clean
@@ -269,6 +269,14 @@ case_plant "17b a baseline over the ceiling" "at or over the ceiling" \
 
 case_plant "17c a baseline with no total" "carries no \`total_bytes <n>\` line" \
   sh -c 'sed -i -E "s/^total_bytes /total_bytes_renamed /" experiments/results/bloat-baseline.txt'
+
+# ⭐ TODO/gate.md T-1204. The case that was MISSING rather than failing: check 17
+# read the baseline alone, so a shipping binary over the ceiling was invisible to
+# a clone with no toolchain. Planting into bloat-image.txt is the shipping
+# reading, and 17b's plant into the baseline stays beside it because the two
+# assert different things.
+case_plant "17d a shipped reading over the ceiling" "at or over the ceiling" \
+  sh -c 'sed -i -E "s/^total_bytes [0-9]+$/total_bytes ${CEILING_NUM}/" experiments/results/bloat-image.txt'
 
 # ⚠ Check 18 has two cases because its two halves fail apart, and the four real
 # collisions were all the first kind: a document promising a script at a number
