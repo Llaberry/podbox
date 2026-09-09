@@ -104,14 +104,14 @@ Acceptance, run on 2026-09-08:
 
 ```
 $ ./scripts/check-todo.py
-check-todo: 95 rows, 95 entries, 60 open, 5 partial, 2 blocked, 28 done
+check-todo: 96 rows, 96 entries, 51 open, 5 partial, 2 blocked, 38 done
 check-todo: ok
 $ ./scripts/plant.sh
   plants   18 caught, 0 missed
   controls 3 quiet, 0 fired
 $ cargo test --workspace
-  173 tests. ⚠ 4 runs of 6 green; 2 red on ONE pre-existing test, and the
-  failure is [T-0211](image.md), authored this session. See below.
+  175 tests, 6 runs of 6 green. ⚠ It was 4 of 6 until [T-0211](image.md) was
+  fixed; the two new tests are that entry's plant.
 $ cargo build --release --target x86_64-unknown-linux-musl
     Finished `release` profile [optimized] target(s)
 $ readelf -l target/x86_64-unknown-linux-musl/release/podbox | grep -c INTERP
@@ -143,7 +143,7 @@ correction [T-1103](milestones.md)'s own `Prove` needed.
 
 ## Counts
 
-96 entries: 52 open, 5 partial, 2 blocked, 37 done.
+96 entries: 51 open, 5 partial, 2 blocked, 38 done.
 
 ⚠ Eight entries were **authored and not implemented** this session, in their own
 pass per `docs/AGENTS.md`'s routing table: [T-0206](image.md) to

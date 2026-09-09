@@ -15,10 +15,16 @@
 //! parity with it is what M1 is accepted on ([`TODO/milestones.md`](../../../TODO/milestones.md) T-1102).
 //!
 //! ⚠ One store for images and containers, not one per container. The GC race
-//! that decides it is T-0204, and the answer is [`ImageLock`]: an advisory lock
-//! on an inheritable fd rather than a pid file, because a pid file is stale the
-//! moment a process dies unexpectedly and the check that clears a stale one is
-//! the race being closed.
+//! that decides it is T-0204, and the answer is [`Lock`]: an advisory lock on an
+//! fd rather than a pid file, because a pid file is stale the moment a process
+//! dies unexpectedly and the check that clears a stale one is the race being
+//! closed.
+//!
+//! ⛔ That fd is `O_CLOEXEC`, and the one caller that wants the payload to
+//! inherit it says so with [`Lock::keep_across_exec`] immediately before its
+//! `execve`. T-0211 is what the other shape cost: an fd left inheritable from
+//! open time is inherited by every unrelated `fork` while the lock is held, and
+//! each such child keeps the `flock` alive for its own lifetime.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -318,7 +324,7 @@ impl Store {
 
     /// The store-wide lock, held across an index read-modify-write.
     pub fn lock(&self) -> Result<Lock> {
-        Lock::acquire(&self.root.join(STORE_LOCK), sys::LOCK_EX, true)
+        Lock::acquire(&self.root.join(STORE_LOCK), sys::LOCK_EX)
     }
 
     fn image_lock_path(&self, record: &Record) -> Result<PathBuf> {
@@ -326,14 +332,32 @@ impl Store {
         Ok(self.root.join(LOCKS).join(format!("{}.lock", d.hex())))
     }
 
-    /// ⭐ T-0204's mechanism. A **shared** advisory lock on an fd that is left
-    /// inheritable, so it survives the exec into the payload and is released
-    /// only when the last holder's fd is closed, however that process ends.
-    /// Several containers may share one image, so the lock is shared; the GC
-    /// asks for an exclusive one and is refused while any holder remains.
+    /// ⭐ T-0204's mechanism. A **shared** advisory lock, released only when the
+    /// last holder's fd is closed, however that process ends. Several
+    /// containers may share one image, so the lock is shared; the GC asks for
+    /// an exclusive one and is refused while any holder remains.
+    ///
+    /// ⛔ Two defences, because they cover different failures, and
+    /// [`TODO/image.md`](../../../TODO/image.md) T-0211 is what having neither
+    /// cost. `O_CLOEXEC` keeps the lock out of an unrelated **exec**, and
+    /// registering the fd with [`sys::close_in_children`] keeps it out of an
+    /// unrelated **fork** — which `O_CLOEXEC` cannot do, because there is no
+    /// close-on-fork and `flock` is held on the open file description a fork
+    /// duplicates. The one caller that wants a payload to inherit it says so
+    /// with [`Lock::hand_to_payload`], which undoes both.
     pub fn hold(&self, record: &Record) -> Result<Lock> {
         let path = self.image_lock_path(record)?;
-        Lock::acquire(&path, sys::LOCK_SH, false)
+        let lock = Lock::acquire(&path, sys::LOCK_SH)?;
+        if !sys::close_in_children(lock.fd) {
+            return Err(Error::Store(format!(
+                "{} image locks are already held by this process, which is every \
+                 slot podbox has for fds a fork must shed. Holding one more \
+                 would leak it into every child forked from here (T-0211), so \
+                 it is refused rather than held unsafely",
+                sys::FORK_CLOSE_SLOTS
+            )));
+        }
+        Ok(lock)
     }
 
     /// Whether any process holds [`Store::hold`] on this image.
@@ -347,7 +371,7 @@ impl Store {
         if !path.exists() {
             return Ok(false);
         }
-        match Lock::try_acquire(&path, sys::LOCK_EX, true) {
+        match Lock::try_acquire(&path, sys::LOCK_EX) {
             Ok(Some(_probe)) => Ok(false),
             Ok(None) => Ok(true),
             Err(e) => Err(e),
@@ -576,7 +600,7 @@ pub struct Lock {
 }
 
 impl Lock {
-    fn open(path: &Path, cloexec: bool) -> Result<i64> {
+    fn open(path: &Path) -> Result<i64> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)
                 .map_err(|e| Error::io(parent.display().to_string(), e))?;
@@ -587,14 +611,13 @@ impl Lock {
                 path.display()
             )));
         };
-        // ⭐ NOT `O_CLOEXEC` for an image lock. T-0204's mechanism, read out of
-        // `references/qaidvoid__onelf/tree/crates/onelf-rt/src/main.rs:275-278`:
-        // the guard is held THROUGH the exec with its fd left inheritable, so a
-        // concurrent GC cannot delete what a running payload is using.
-        let mut flags = sys::O_RDWR | sys::O_CREAT;
-        if cloexec {
-            flags |= sys::O_CLOEXEC;
-        }
+        // ⛔ `O_CLOEXEC`, like every other fd in this tree. T-0204's mechanism
+        // wants the image lock to survive **one** exec, and T-0211 is what it
+        // cost to get that by leaving the fd inheritable from the moment it was
+        // opened: every unrelated fork in between inherits it too.
+        // [`Lock::keep_across_exec`] is the deliberate act, made one call before
+        // the `execve` it is for.
+        let flags = sys::O_RDWR | sys::O_CREAT | sys::O_CLOEXEC;
         sys::open(&c, flags, 0o644).map_err(|e| {
             Error::Store(format!(
                 "opening the lock {}: {} ({})",
@@ -608,8 +631,8 @@ impl Lock {
     /// `None` where somebody else holds it. ⛔ Always `LOCK_NB`: a blocking
     /// `flock` on a lock held through an exec is an unbounded wait, which
     /// `RULES.md` section 8 forbids.
-    fn try_acquire(path: &Path, op: u64, cloexec: bool) -> Result<Option<Lock>> {
-        let fd = Lock::open(path, cloexec)?;
+    fn try_acquire(path: &Path, op: u64) -> Result<Option<Lock>> {
+        let fd = Lock::open(path)?;
         match sys::flock(fd, op | sys::LOCK_NB) {
             Ok(_) => Ok(Some(Lock {
                 fd,
@@ -631,9 +654,9 @@ impl Lock {
         }
     }
 
-    fn acquire(path: &Path, op: u64, cloexec: bool) -> Result<Lock> {
+    fn acquire(path: &Path, op: u64) -> Result<Lock> {
         for _ in 0..LOCK_ATTEMPTS {
-            if let Some(l) = Lock::try_acquire(path, op, cloexec)? {
+            if let Some(l) = Lock::try_acquire(path, op)? {
                 return Ok(l);
             }
             std::thread::sleep(LOCK_SLEEP);
@@ -646,10 +669,59 @@ impl Lock {
             LOCK_SLEEP * LOCK_ATTEMPTS
         )))
     }
+
+    /// Hand this one lock to the payload, and to nothing else.
+    ///
+    /// ⭐ T-0204 needs the image lock to outlive `podbox` itself: the guard is
+    /// what stops a concurrent `rmi` or `prune` deleting a rootfs a running
+    /// container is executing out of, and podbox is not the process that holds
+    /// the container open. This undoes both of [`Store::hold`]'s defences for
+    /// this one descriptor — it stops being shed by `clone_fork` and its
+    /// `FD_CLOEXEC` is cleared — so the very next `fork` and `execve` carry it
+    /// into the payload.
+    ///
+    /// ⛔ Called immediately before the fork that leads to that `execve`, never
+    /// at open time. T-0211 is what the second shape costs: a lock that is
+    /// inheritable for its whole life is inherited by every unrelated `fork` in
+    /// that window — in this tree, by the fifty short-lived children one
+    /// `podbox probe` makes — and each one holds the `flock` open for its own
+    /// lifetime. The image then reads as in use after its holder released it,
+    /// and `rmi` refuses an image nothing is using.
+    ///
+    /// ⚠ The returned fd is deliberately raw: its consumer is the code between
+    /// `fork` and `execve`, where allocating is not allowed.
+    pub fn hand_to_payload(&self) -> Result<i64> {
+        // ⛔ Order matters. The fd stops being shed only after `FD_CLOEXEC` is
+        // cleared, so a fork racing this call either sheds it or inherits a
+        // descriptor that is still close-on-exec. Neither outcome leaks a lock.
+        let flags = sys::fcntl(self.fd, sys::F_GETFD, 0).map_err(|e| {
+            Error::Store(format!(
+                "reading the descriptor flags of {}: {} ({})",
+                self.path.display(),
+                e.name(),
+                e.0
+            ))
+        })?;
+        let cleared = (flags as u64) & !sys::FD_CLOEXEC;
+        sys::fcntl(self.fd, sys::F_SETFD, cleared).map_err(|e| {
+            Error::Store(format!(
+                "clearing FD_CLOEXEC on {}: {} ({})",
+                self.path.display(),
+                e.name(),
+                e.0
+            ))
+        })?;
+        sys::stop_closing_in_children(self.fd);
+        Ok(self.fd)
+    }
 }
 
 impl Drop for Lock {
     fn drop(&mut self) {
+        // ⛔ Deregistered before the close, so a fork racing this never sheds a
+        // descriptor number that has already been handed back to the kernel and
+        // reused by another thread.
+        sys::stop_closing_in_children(self.fd);
         // Closing the fd releases the flock. ⚠ That is also what makes the
         // lock correct across an unexpected death: the kernel closes the fd.
         let _ = sys::close(self.fd);
@@ -791,6 +863,119 @@ mod tests {
         drop(held);
         assert!(!s.in_use(&r).unwrap());
         assert!(s.remove("alpine:latest").is_ok());
+        let _ = std::fs::remove_dir_all(s.root());
+    }
+
+    /// ⭐ T-0211's plant. This is the defect that surfaced as an intermittent
+    /// failure of the test above at 2 runs of 6 of the full workspace, and it is
+    /// made to fail on demand here rather than once a week.
+    ///
+    /// ⛔ Red before the fix: with the image lock opened without `O_CLOEXEC`,
+    /// the forked child below inherits the fd, the `flock` outlives
+    /// `drop(held)`, and `in_use` answers true for an image nothing is using.
+    /// The forking thread in the real suite is `probe_cache`'s, whose `measure`
+    /// makes one fresh child per probe; the `clone_fork` here is that, reduced
+    /// to the one call that matters.
+    #[test]
+    fn a_fork_while_the_lock_is_held_does_not_extend_it() {
+        let s = scratch("forkhold");
+        let r = record("docker.io/library/alpine", Some("latest"), 17);
+        s.put_record(r.clone()).unwrap();
+
+        let held = s.hold(&r).unwrap();
+        assert!(s.in_use(&r).unwrap(), "the holder itself did not register");
+
+        // ⛔ A pipe, not a sleep. `clone_fork` sheds the registered fds in the
+        // child before it returns there, so the child is only known to have
+        // shed once it has run at all — and a parent that asserts before the
+        // child is scheduled reads the fd as still open and fails for a reason
+        // that has nothing to do with the defect. That is the same shape of
+        // intermittent failure T-0211 itself arrived as, so this test is made
+        // to wait for the fact rather than for a duration.
+        let mut fds = [0i32; 2];
+        sys::pipe2(&mut fds, 0).unwrap();
+        let (r_fd, w_fd) = (fds[0] as i64, fds[1] as i64);
+
+        // ⚠ `clone_fork` and not `std::process::Command`: the defect is about
+        // what a bare `fork` inherits, and spawning a process would exec and so
+        // hide it behind the `FD_CLOEXEC` the other test covers.
+        let pid = unsafe { sys::clone_fork(sys::SIGCHLD) }.unwrap();
+        if pid == 0 {
+            // ---- child. It has already shed; say so, then outlive the drop.
+            let _ = sys::write(w_fd, b"x");
+            std::thread::sleep(std::time::Duration::from_millis(400));
+            // ⛔ Never returns into the test harness: exits without unwinding.
+            sys::exit_group(0);
+        }
+        let _ = sys::close(w_fd);
+        let mut ack = [0u8; 1];
+        assert_eq!(sys::read(r_fd, &mut ack).unwrap(), 1, "the child never ran");
+
+        drop(held);
+        let free = s.in_use(&r).map(|u| !u);
+
+        let mut status = 0;
+        let _ = sys::close(r_fd);
+        let _ = sys::wait4(pid, &mut status);
+        assert!(
+            free.unwrap(),
+            "the holder released the lock and it is still held: a forked child \
+             inherited the fd, which is TODO/image.md T-0211"
+        );
+        let _ = std::fs::remove_dir_all(s.root());
+    }
+
+    /// ⭐ T-0211's second half, and it is a **different** failure from the one
+    /// above rather than the same one written twice.
+    ///
+    /// `clone_fork` sheds registered fds, so nothing podbox forks itself can
+    /// carry a lock away. ⛔ `std::process::Command` forks inside libstd and
+    /// never passes through `clone_fork`, so the shed list cannot reach it and
+    /// `O_CLOEXEC` on the descriptor is the only thing that does. Reverting
+    /// either defence turns exactly one of these two tests red, which is how it
+    /// was confirmed they are independent.
+    #[test]
+    fn a_spawned_process_does_not_inherit_the_lock() {
+        let s = scratch("spawnhold");
+        let r = record("docker.io/library/alpine", Some("latest"), 19);
+        s.put_record(r.clone()).unwrap();
+
+        let held = s.hold(&r).unwrap();
+        // ⛔ The child announces itself on stdout and the parent reads that
+        // before asserting. `O_CLOEXEC` takes the fd away at the **exec**, so a
+        // parent that asserts while the child is still between `fork` and
+        // `execve` measures the fork window instead — which is the other test's
+        // subject, and would make this one fail for the wrong reason.
+        let mut child = std::process::Command::new("/bin/sh")
+            .arg("-c")
+            .arg("echo ready; sleep 2")
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .expect("/bin/sh");
+        let mut line = [0u8; 6];
+        {
+            use std::io::Read;
+            child
+                .stdout
+                .as_mut()
+                .unwrap()
+                .read_exact(&mut line)
+                .expect("the child never reached its exec");
+        }
+        assert_eq!(&line, b"ready\n");
+
+        drop(held);
+        let free = s.in_use(&r).map(|u| !u);
+        // ⚠ Reaped before the assertion, so a failure does not also leave a
+        // process behind for whatever runs next.
+        let _ = child.kill();
+        let _ = child.wait();
+        assert!(
+            free.unwrap(),
+            "the holder released the lock and a spawned process is still \
+             holding it: the lock fd was not O_CLOEXEC, which is the exec half \
+             of TODO/image.md T-0211"
+        );
         let _ = std::fs::remove_dir_all(s.root());
     }
 

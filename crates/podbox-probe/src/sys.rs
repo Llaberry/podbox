@@ -115,6 +115,7 @@ pub const SYS_SETGROUPS: i64 = 116;
 pub const SYS_MKNOD: i64 = 133;
 pub const SYS_STATFS: i64 = 137;
 pub const SYS_FLOCK: i64 = 73;
+pub const SYS_FCNTL: i64 = 72;
 pub const SYS_READLINK: i64 = 89;
 pub const SYS_PIVOT_ROOT: i64 = 155;
 pub const SYS_PRCTL: i64 = 157;
@@ -232,6 +233,18 @@ pub const LOCK_EX: u64 = 2;
 pub const LOCK_NB: u64 = 4;
 pub const LOCK_UN: u64 = 8;
 
+/// `fcntl(2)`'s descriptor-flag commands, and the only flag that lives there.
+///
+/// ⭐ `FD_CLOEXEC` is a property of the DESCRIPTOR, not of the open file
+/// description, which is why it can be cleared on one fd immediately before an
+/// exec without affecting any other fd onto the same file.
+/// [`TODO/image.md`](../../../TODO/image.md) T-0211 is that distinction: an fd
+/// opened inheritable is inherited by every fork, and an fd made inheritable
+/// one call before `execve` is inherited by exactly the payload.
+pub const F_GETFD: u64 = 1;
+pub const F_SETFD: u64 = 2;
+pub const FD_CLOEXEC: u64 = 1;
+
 /// `AT_FDCWD` is `-100`, and every syscall taking it wants it sign-extended.
 pub const AT_FDCWD: u64 = -100i64 as u64;
 
@@ -293,6 +306,70 @@ pub unsafe fn sys(nr: i64, args: [u64; 6]) -> Sysres {
     split(unsafe { syscall6(nr, args[0], args[1], args[2], args[3], args[4], args[5]) })
 }
 
+// -------------------------------------------------- fds that a fork must shed
+//
+// ⛔ `O_CLOEXEC` is close-on-EXEC and there is no close-on-FORK. A `fork`
+// duplicates every descriptor, and `flock(2)` is held on the OPEN FILE
+// DESCRIPTION the duplicates share, so the lock lives until the last of them is
+// closed. A child that never execs — and this tree makes one per `clone`
+// probe — therefore holds an image lock that `O_CLOEXEC` cannot take from it.
+// [`TODO/image.md`](../../../TODO/image.md) T-0211.
+//
+// ⭐ The list is exact rather than a blanket close of everything above stderr:
+// podbox knows which descriptors these are, and closing a range would also shut
+// fds a caller handed podbox deliberately.
+
+/// How many such fds may be registered at once. ⚠ Fixed, because the child
+/// drains this between `clone` and `execve`, where allocation is not permitted.
+/// podbox holds one image lock per container; sixteen is far past what any
+/// single process does, and a seventeenth is refused by name rather than
+/// dropped silently.
+pub const FORK_CLOSE_SLOTS: usize = 16;
+
+static FORK_CLOSE: [core::sync::atomic::AtomicI64; FORK_CLOSE_SLOTS] =
+    [const { core::sync::atomic::AtomicI64::new(-1) }; FORK_CLOSE_SLOTS];
+
+/// Register `fd` to be closed in every child [`clone_fork`] makes.
+///
+/// Returns false where every slot is taken, and the caller reports that rather
+/// than proceeding: an unregistered lock fd is the defect, not a detail.
+pub fn close_in_children(fd: i64) -> bool {
+    use core::sync::atomic::Ordering;
+    for slot in &FORK_CLOSE {
+        if slot
+            .compare_exchange(-1, fd, Ordering::AcqRel, Ordering::Acquire)
+            .is_ok()
+        {
+            return true;
+        }
+    }
+    false
+}
+
+/// Stop shedding `fd`, either because it is being closed or because it is about
+/// to be handed to a payload on purpose.
+pub fn stop_closing_in_children(fd: i64) {
+    use core::sync::atomic::Ordering;
+    for slot in &FORK_CLOSE {
+        let _ = slot.compare_exchange(fd, -1, Ordering::AcqRel, Ordering::Acquire);
+    }
+}
+
+/// Close every registered fd. ⛔ Called in the child by [`clone_fork`] itself
+/// and nowhere else, so a caller that forgets cannot exist.
+///
+/// ⚠ Async-signal-safe: an atomic load and a `close(2)` per slot, no allocation
+/// and no lock.
+fn shed_registered_fds() {
+    use core::sync::atomic::Ordering;
+    for slot in &FORK_CLOSE {
+        let fd = slot.load(Ordering::Acquire);
+        if fd >= 0 {
+            let _ = close(fd);
+        }
+    }
+}
+
 // ---------------------------------------------------------------- wrappers
 //
 // Each takes what the kernel takes and returns the kernel's answer. Nothing
@@ -327,6 +404,16 @@ pub fn cempty() -> CBuf {
 
 pub fn close(fd: i64) -> Sysres {
     unsafe { sys(SYS_CLOSE, [fd as u64, 0, 0, 0, 0, 0]) }
+}
+
+/// `fcntl(2)`, for the descriptor-flag commands only.
+///
+/// ⚠ Restricted to `F_GETFD` and `F_SETFD` by its own callers rather than by
+/// its signature: the commands taking a pointer argument (`F_GETLK`,
+/// `F_SETLK`, `F_GETOWN_EX`) need a struct this takes no room for, and calling
+/// one through here would hand the kernel an integer where it reads an address.
+pub fn fcntl(fd: i64, cmd: u64, arg: u64) -> Sysres {
+    unsafe { sys(SYS_FCNTL, [fd as u64, cmd, arg, 0, 0, 0]) }
 }
 
 pub fn open(path: &CBuf, flags: u64, mode: u64) -> Sysres {
@@ -590,11 +677,21 @@ pub fn dup2(old: i64, new: i64) -> Sysres {
 /// stack under copy-on-write; sharing the address space instead would have two
 /// processes on one stack.
 ///
+/// ⭐ The child sheds every fd registered with [`close_in_children`] before
+/// this returns to it. That is here rather than in each caller's `Ok(0)` arm on
+/// purpose: an image lock leaking into an unrelated child is
+/// [`TODO/image.md`](../../../TODO/image.md) T-0211, and a guard belongs where a
+/// caller who knows nothing about it still passes through.
+///
 /// # Safety
 /// The caller must do nothing in the child but async-signal-safe work on
 /// buffers that already exist: no allocation, no `std` IO, no locks.
 pub unsafe fn clone_fork(flags: u64) -> Sysres {
-    unsafe { sys(SYS_CLONE, [flags, 0, 0, 0, 0, 0]) }
+    let r = unsafe { sys(SYS_CLONE, [flags, 0, 0, 0, 0, 0]) };
+    if matches!(r, Ok(0)) {
+        shed_registered_fds();
+    }
+    r
 }
 
 /// # Safety

@@ -81,7 +81,7 @@ the blocker named and what would clear it.
 | [T-0208](image.md) | P2 | image | open | `--platform`, and a store that can hold two variants of one tag |
 | [T-0209](image.md) | P2 | image | open | Registry authentication, without a credential ever entering this tree |
 | [T-0210](image.md) | P1 | image | open | The store's concurrency contract, written down and driven |
-| [T-0211](image.md) | P1 | image | open | An image lock outlives its holder whenever anything forks |
+| [T-0211](image.md) | P1 | image | done | An image lock outlives its holder whenever anything forks |
 | [T-0301](extract.md) | P0 | extract | done | Extract in-process, at entry level, never through system `tar` |
 | [T-0302](extract.md) | P0 | extract | done | Ownership-neutral extraction plus the sidecar |
 | [T-0303](extract.md) | P0 | extract | done | Whiteouts are matched on the basename, never with a path glob |
@@ -159,7 +159,7 @@ the blocker named and what would clear it.
 
 ## Counts
 
-96 items: 52 open, 5 partial, 2 blocked, 37 done.
+96 items: 51 open, 5 partial, 2 blocked, 38 done.
 
 Counted from the rows above by `scripts/todo-count.py` and asserted
 independently by `scripts/check-todo.py`, which is the gate. A number here
@@ -168,10 +168,10 @@ that disagrees with the rows cannot reach a commit.
 | Priority | Open | Partial | Blocked | Done | Total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 21 | 3 | 1 | 19 | 44 |
-| P1 | 19 | 2 | 1 | 13 | 35 |
+| P1 | 18 | 2 | 1 | 14 | 35 |
 | P2 | 10 | 0 | 0 | 4 | 14 |
 | P3 | 2 | 0 | 0 | 1 | 3 |
-| **All** | **52** | **5** | **2** | **37** | **96** |
+| **All** | **51** | **5** | **2** | **38** | **96** |
 
 ## How the current ordering is derived
 

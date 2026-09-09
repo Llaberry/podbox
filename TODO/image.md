@@ -609,7 +609,7 @@ Source:      Found by `cargo test --workspace` failing intermittently at the clo
 Category:    image
 Priority:    P1
 Effort:      S
-Status:      open
+Status:      done 2026-09-09
 
 Problem:     `Store::hold` opens the image lock **without** `O_CLOEXEC`, which
              is [T-0204](image.md)'s mechanism and is right: the guard has to
@@ -660,22 +660,53 @@ Premise:     ⭐ **Measured on 2026-09-08, twice: once by accident and once on
              image lock is held leaks that lock into 50 short-lived children.
              Today's `pull` takes the probe answer before it holds anything,
              which is why this has never been seen outside the suite.
-Approach:    Keep the fd inheritable **only across the exec it exists for**, and
-             not across every unrelated fork. Open the lock `O_CLOEXEC` like
-             every other fd in this tree, and clear `FD_CLOEXEC` with
-             `fcntl(F_SETFD, 0)` on that one descriptor immediately before the
-             `execve` that hands the container its rootfs, which is where
-             [enter.md](enter.md) M3 does the exec.
-             ⚠ That inverts the default rather than adding a special case: an
-             fd that escapes into an unrelated child is the accident, and the
-             payload's inheritance is the deliberate act.
-             ⛔ The test that found this is the plant: it has to be made to fail
-             on demand rather than once a week. A case that forks a child while
-             the lock is held, asserts `in_use` is false after the drop, and is
-             therefore red before the fix and green after.
+Approach:    ⛔ **CORRECTED ON 2026-09-09 BY BUILDING IT: the approach written
+             here first could not have worked, and the test proved it.** It said
+             to open the lock `O_CLOEXEC` and clear `FD_CLOEXEC` before the one
+             exec that wants it. `O_CLOEXEC` is close-on-**exec**, and there is
+             no close-on-**fork**: a `fork` duplicates every descriptor
+             unconditionally, and `flock(2)` is held on the open file
+             description the duplicates share, so it lives until the last of
+             them closes. The child that reproduces this defect — `clone_accepted`
+             in `crates/podbox-probe/src/child.rs:119`, one per `clone` probe —
+             **never execs at all**, so no `FD_CLOEXEC` setting can reach it.
+             The first build of this entry was red with the entry's own fix
+             applied.
+
+             ⭐ **Two defences, because they cover two different failures.**
+             1. **The fork.** A fixed-size registry of fds that a fork must
+                shed, in `crates/podbox-probe/src/sys.rs`, drained inside
+                `clone_fork` itself before it returns into the child.
+                `Store::hold` registers its fd and `Lock::drop` deregisters it.
+                ⚠ Inside `clone_fork` and not in each caller's `Ok(0)` arm, so a
+                caller who knows nothing about image locks still passes through
+                it. Exact rather than a blanket close of everything above
+                stderr: podbox knows which descriptors these are, and a range
+                close would also shut fds a caller handed podbox deliberately.
+                ⚠ Fixed-size and atomic because the child drains it between
+                `clone` and `execve`, where allocation is not permitted; a
+                seventeenth lock is refused by name rather than held unshed.
+             2. **The exec.** `O_CLOEXEC` on the lock fd. `std::process::Command`
+                forks inside libstd and never passes through `clone_fork`, so
+                the shed list cannot reach it and the flag is the only thing
+                that does.
+             `Lock::hand_to_payload` undoes both for the one descriptor
+             [enter.md](enter.md)'s M3 exec hands to the container, immediately
+             before the fork that leads to that exec.
+             ⛔ The test that found this is the plant. Two tests, one per
+             defence, and each mutation turns exactly **one** of them red, which
+             is how it was confirmed they are independent rather than one
+             mechanism written twice.
 Decision:    Fix the inheritance, not the test. Marking the test `#[serial]` or
              giving it its own process would hide a defect that is real outside
              the suite; the suite found something and the finding is the point.
-             ⚠ `fcntl(2)` is not yet in `crates/podbox-probe/src/sys.rs` and is
-             two lines there.
-Prove:       `cargo test -p podbox-image a_fork_while_the_lock_is_held_does_not_extend_it` passes, and it fails with `O_CLOEXEC` removed from `Store::hold`
+             ⚠ `fcntl(2)` was not in `crates/podbox-probe/src/sys.rs` and is two
+             lines there.
+             ⛔ **Neither test may wait on a duration.** Both were written with a
+             sleep first and both were then intermittent for a *third* reason:
+             the child sheds after `clone` returns to it, and a parent that
+             asserts before the child is scheduled reads the fd as still open.
+             That is the same shape of failure this entry exists for, so each
+             test waits on a **fact** — a byte through a pipe from the forked
+             child, a line of stdout from the spawned one — and not on a delay.
+Prove:       `cargo test -p podbox-image a_fork_while_the_lock_is_held_does_not_extend_it` and `cargo test -p podbox-image a_spawned_process_does_not_inherit_the_lock` both pass; the first fails with the `sys::close_in_children` registration removed from `Store::hold` and the second with `O_CLOEXEC` removed from `Lock::open`, and neither mutation fails both
