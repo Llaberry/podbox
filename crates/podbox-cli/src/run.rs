@@ -102,6 +102,14 @@ fn parse(args: &[String]) -> std::result::Result<Opts, i32> {
             i += 1;
             continue;
         }
+        // ⛔ TODO/cli.md T-0801. THE TABLE DECIDES, and the match arms below
+        // only implement what it already admitted. A flag with no row cannot
+        // reach an arm, so an arm for an unlisted flag is unreachable rather
+        // than a second, quieter surface; and a `None` row is refused here with
+        // its own reason instead of reading as an unknown option.
+        if a.starts_with('-') {
+            crate::parity::admit("run", a, RUN_USAGE)?;
+        }
         match a.as_str() {
             "-h" | "--help" => {
                 print!("{RUN_USAGE}");
@@ -140,9 +148,15 @@ fn parse(args: &[String]) -> std::result::Result<Opts, i32> {
                 }
             },
             other if other.starts_with('-') => {
-                eprintln!("podbox run: unknown option {other:?}");
-                eprint!("{RUN_USAGE}");
-                return Err(EXIT_USAGE);
+                // ⛔ Unreachable through the table above, and it is here as an
+                // assertion rather than as a fallback: the table admitted this
+                // flag and this parser has no arm for it, which is a defect in
+                // podbox and is reported as one.
+                eprintln!(
+                    "podbox run: {other:?} is in the parity table and this parser has \
+                     no arm for it. That is a bug in podbox (TODO/cli.md T-0801)"
+                );
+                return Err(podbox_image::error::EXIT_RUNTIME_ERROR);
             }
             other => o.image = Some(other.to_string()),
         }
@@ -317,6 +331,13 @@ pub fn run(args: &[String]) -> i32 {
     let findings = podbox_probe::run();
     let selection = podbox_probe::select::Selection::choose(&findings);
     let mut banner = podbox_probe::report::banner(&findings, &selection);
+    // ⭐ TODO/cli.md T-0803. Where podbox was reached under somebody else's
+    // name, the banner says which name was used and that this is podbox.
+    // Taking the name is the product requirement; taking it silently is what
+    // TOOL.md section 4.1 forbids.
+    if let Some(note) = crate::names::alias_note() {
+        banner.push_str(&note);
+    }
     if !cfg.config.user.is_empty() {
         // ⚠ Read and REPORTED, never applied. podbox cannot setuid to an id
         // this machine does not map, which is the wall the project is about.
@@ -466,7 +487,11 @@ fn extract_now(
     Ok(())
 }
 
-fn config_of(
+/// The image's config blob.
+///
+/// ⚠ `pub(crate)` because `exec` reads the same blob for the same reason, and a
+/// second copy of it is the copy that drifts: `docs/conventions/code.md`.
+pub(crate) fn config_of(
     store: &podbox_image::Store,
     record: &podbox_image::Record,
 ) -> std::result::Result<podbox_image::oci::Config, i32> {
@@ -529,6 +554,54 @@ mod tests {
             "always"
         );
         assert_eq!(parse(&v(&["img"])).unwrap().pull, "missing");
+    }
+
+    /// ⭐ TODO/cli.md T-0801. Every flag the table ADMITS for this verb reaches
+    /// an arm of this parser. The other direction is held by construction: an
+    /// argument starting with `-` goes through `parity::admit` first, so an arm
+    /// for a flag with no row is unreachable rather than a second surface.
+    #[test]
+    fn every_flag_the_table_admits_is_handled_by_this_parser() {
+        for r in crate::parity::TABLE
+            .iter()
+            .filter(|r| r.verb == "run" && r.flag.is_some())
+        {
+            if r.status == crate::parity::Status::None {
+                // ⚠ A `None` row is refused BY `admit`, so reaching an arm is
+                // exactly what it must not do. Asserted the other way round.
+                let got = parse(&v(&[
+                    r.flag.unwrap().split(',').next().unwrap().trim(),
+                    "img",
+                    "true",
+                ]));
+                assert_eq!(got.unwrap_err(), EXIT_USAGE, "{:?} was not refused", r.flag);
+                continue;
+            }
+            for spelling in r.flag.unwrap().split(',') {
+                let f = spelling.trim();
+                if f == "-h" || f == "--help" {
+                    assert_eq!(parse(&v(&[f])).unwrap_err(), 0, "{f} did not print usage");
+                    continue;
+                }
+                // ⚠ ASSERTED ON THE EXIT CODE, not on a shape parsing. A
+                // valued flag needs a value, a boolean one does not, and one
+                // with a closed set of values (`--pull`) rejects any value this
+                // test could invent: all three are legitimate and only one of
+                // them parses. What no legitimate arm ever returns is
+                // EXIT_RUNTIME_ERROR, which is the fallback arm's own code and
+                // means exactly "the table admits this flag and nothing
+                // implements it".
+                for shape in [v(&[f, "V", "img", "true"]), v(&[f, "img", "true"])] {
+                    if let Err(code) = parse(&shape) {
+                        assert_ne!(
+                            code,
+                            podbox_image::error::EXIT_RUNTIME_ERROR,
+                            "{f} is in the parity table and this parser has no arm for it"
+                        );
+                    }
+                }
+            }
+        }
     }
 
     #[test]

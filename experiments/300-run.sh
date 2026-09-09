@@ -257,6 +257,55 @@ else
 fi
 [ "$recon_ok" -eq 1 ] || say "  ⚠ clause 7 did not run, so the chroot rung is unmeasured here"
 
+# --------------------------------------------------------------------- 8
+say ""
+say "== 8. T-0505: exec is a fresh chroot, and every channel says so"
+# ⛔ `docker exec` enters the container's namespaces. podbox has none to enter,
+# so the whole content of this clause is that the difference is STATED rather
+# than discovered: on stderr for a person, in `inspect` for a program, and by
+# refusing to invent the thing it cannot attach to.
+out="$(timeout 900 "$BIN" exec "$IMAGE" /bin/sh -c 'echo marker' 2>"$WORK/e8")"
+rc=$?
+say "  stdout            [$out]"
+say "  exit              $rc"
+[ "$out" = "marker" ] || { say "  FAIL: stdout was not exactly the payload's output"; fail=1; }
+[ "$rc" -eq 0 ] || { say "  FAIL: expected exit 0"; fail=1; }
+say "  says              $(grep -o 'this is a [a-z-]* re-entry' "$WORK/e8" | head -1)"
+grep -q 'not an entry into a running container' "$WORK/e8" || {
+	say "  FAIL: exec ran without saying it is not a namespace entry"
+	fail=1
+}
+# ⭐ The same fact, to a program rather than to a reader, and it has to be the
+# same fact: the banner and this field read one pair of constants.
+shares="$(timeout 300 "$BIN" inspect --format '{{.Exec.Shares}}' "$IMAGE" 2>/dev/null)"
+mode="$(timeout 300 "$BIN" inspect --format '{{.Exec.Mode}}' "$IMAGE" 2>/dev/null)"
+say "  {{.Exec.Shares}}  [$shares]   {{.Exec.Mode}}  [$mode]"
+[ "$shares" = "filesystem" ] || { say "  FAIL: inspect does not report the sharing"; fail=1; }
+grep -q "$mode" "$WORK/e8" || {
+	say "  FAIL: the banner and inspect do not name the same mode"
+	fail=1
+}
+# ⛔ No default command. An image's Cmd is what `run` starts, and re-running it
+# from `exec` is a process the caller did not ask for.
+# ⚠ The status is read once, from the process that produced it, into a variable.
+timeout 300 "$BIN" exec "$IMAGE" >/dev/null 2>&1
+rc=$?
+say "  exec with no command: rc=$rc  (want 2, invalid input)"
+[ "$rc" -eq 2 ] || {
+	say "  FAIL: exec fell back to the image's Cmd, or used the wrong exit code"
+	fail=1
+}
+# ⛔ And it never pulls: an empty store is a refusal that names `run`, not a fetch.
+err="$(PODBOX_STORE="$WORK/empty-store" timeout 300 "$BIN" exec "$IMAGE" /bin/true 2>&1 >/dev/null)"
+rc=$?
+say "  against an empty store: rc=$rc"
+say "    $(printf '%s' "$err" | grep -o 'never pulls.*' | cut -c1-72)"
+[ "$rc" -eq 125 ] || { say "  FAIL: expected exit 125"; fail=1; }
+printf '%s' "$err" | grep -q 'never pulls' || {
+	say "  FAIL: the refusal does not say exec never pulls"
+	fail=1
+}
+
 cat "$WORK/report"
 mkdir -p "$(dirname "$OUT")"
 cp "$WORK/report" "$OUT"

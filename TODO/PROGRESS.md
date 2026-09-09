@@ -143,14 +143,16 @@ $ ./experiments/280-insecure-registry.sh
 $ ./experiments/290-microvm.sh
   landlock ok ABI 6, kcmp ESRCH, in about 6 s under TCG
 $ ./experiments/300-run.sh
-  7 clauses; clause 7 is the chroot rung inside the reconstruction
+  8 clauses; clause 7 is the chroot rung inside the reconstruction, clause 8 exec
 $ ./experiments/310-session-startup.sh
   a cold compile is 29 s and 87 crates; dev.sh returns in 1 s
+$ ./experiments/320-cli-contract.sh
+  113 parity rows, 53 verbs; docker and podman both run the payload and say so
 ```
 
 ## Counts
 
-105 entries: 47 open, 3 partial, 2 blocked, 53 done.
+105 entries: 44 open, 2 partial, 2 blocked, 57 done.
 
 ⭐ **Six entries were authored this session and five of them are already
 `done`**, which is the opposite of the last session's shape and is worth saying

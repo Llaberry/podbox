@@ -85,6 +85,7 @@ decisions podbox has to make. Each writes its transcript to
 ./experiments/290-microvm.sh                    # a stock kernel under QEMU, for the two questions this host cannot answer
 ./experiments/300-run.sh                        # M3's acceptance: a command inside an image, and the rung it got
 ./experiments/310-session-startup.sh            # what a cold session costs, and what dev.sh removes from it
+./experiments/320-cli-contract.sh               # the parity table as data, and the docker and podman names
 ```
 
 ⚠ **The numbers jump from `170-` to `220-`, and again from `230-` to `260-`.**
@@ -100,13 +101,17 @@ arm. `110-` needs `cargo-bloat` for its breakdown and exits 2 without it. `140-`
 needs to be able to `mount` a tmpfs and exits 2 where it cannot. `150-` needs
 outbound HTTPS to a registry. `260-`'s aarch64 arm needs `binfmt_misc` and
 `qemu-user`; `290-` needs `qemu-system-x86_64`, `busybox-static` and `cpio`.
+⚠ `320-` is the odd one: a docker daemon is not a dependency there but a
+CONDITION, and it decides which half of clause 5 can be measured, because the
+operator's ruling of 2026-09-08 is about what podbox does when one answers.
 Each says which of its checks could not run rather than reporting a pass it did
 not earn.
 
 ⭐ **`130-`, `150-`, `220-` and `300-` are `TODO/milestones.md` T-1101's,
-T-1102's, T-1103's and T-1104's acceptance as one command each**, so they are
-re-run rather than recalled. None of them builds anything: point `PODBOX_BIN` at
-a binary, or build the default first with
+T-1102's, T-1103's and T-1104's acceptance as one command each**, and `320-` is
+`TODO/cli.md` T-0801's and T-0803's, so all five are re-run rather than
+recalled. None of them builds anything: point `PODBOX_BIN` at a binary, or build
+the default first with
 `cargo build --release --target x86_64-unknown-linux-musl`.
 
 ⚠ **`150-` and `160-` pull from a registry and `alpine:latest` is a moving

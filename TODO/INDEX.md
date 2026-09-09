@@ -108,7 +108,7 @@ the blocker named and what would clear it.
 | [T-0502](enter.md) | P0 | enter | done | Resolve the program inside the new root, in the process that changed it |
 | [T-0503](enter.md) | P1 | enter | partial | Probe `/dev/ptmx`, and refuse `-t` by name where it is absent |
 | [T-0504](enter.md) | P1 | enter | done | Refuse a rootfs path that is a symlink |
-| [T-0505](enter.md) | P1 | enter | open | `exec` is a fresh chroot, and `inspect` says so |
+| [T-0505](enter.md) | P1 | enter | done | `exec` is a fresh chroot, and `inspect` says so |
 | [T-0506](enter.md) | P0 | enter | partial | A foreign-architecture container, and never a rung measured by the emulator |
 | [T-0601](supervise.md) | P0 | supervise | open | One pidfd per direct child, `waitid` for status |
 | [T-0602](supervise.md) | P0 | supervise | open | Never decide "running" by sleeping and looking |
@@ -126,9 +126,9 @@ the blocker named and what would clear it.
 | [T-0707](interpose.md) | P1 | interpose | open | The paths that must not be rewritten |
 | [T-0708](interpose.md) | P2 | interpose | open | Intercept the operations the runtime cannot provide |
 | [T-0709](interpose.md) | P0 | interpose | open | Select the interposer by `DT_NEEDED`, and refuse on the version predicate |
-| [T-0801](cli.md) | P0 | cli | open | The verb and flag parity table |
+| [T-0801](cli.md) | P0 | cli | done | The verb and flag parity table |
 | [T-0802](cli.md) | P0 | cli | open | docker's exit codes, unaltered |
-| [T-0803](cli.md) | P1 | cli | open | Answer to `docker` and `podman` on PATH |
+| [T-0803](cli.md) | P1 | cli | done | Answer to `docker` and `podman` on PATH |
 | [T-0804](cli.md) | P0 | cli | open | The honesty rules, and one switch that makes every degradation fatal |
 | [T-0805](cli.md) | P1 | cli | open | Diagnostics that name the operation, the errno, the mechanism and the remedy |
 | [T-0806](cli.md) | P0 | cli | open | Never prompt, never wait unbounded, and check space before every large write |
@@ -153,7 +153,7 @@ the blocker named and what would clear it.
 | [T-1101](milestones.md) | P0 | milestones | done | M0 the probe, and nothing else |
 | [T-1102](milestones.md) | P1 | milestones | done | M1 image acquisition |
 | [T-1103](milestones.md) | P0 | milestones | done | M2 extraction that survives the ownership wall |
-| [T-1104](milestones.md) | P0 | milestones | partial | M3 `run` on the chroot rung |
+| [T-1104](milestones.md) | P0 | milestones | done | M3 `run` on the chroot rung |
 | [T-1105](milestones.md) | P0 | milestones | open | M4 the lifecycle, twenty times |
 | [T-1106](milestones.md) | P1 | milestones | open | M5 environment completion, ten distributions |
 | [T-1107](milestones.md) | P1 | milestones | open | M6 the interposer |
@@ -168,7 +168,7 @@ the blocker named and what would clear it.
 
 ## Counts
 
-105 items: 47 open, 3 partial, 2 blocked, 53 done.
+105 items: 44 open, 2 partial, 2 blocked, 57 done.
 
 Counted from the rows above by `scripts/todo-count.py` and asserted
 independently by `scripts/check-todo.py`, which is the gate. A number here
@@ -176,11 +176,11 @@ that disagrees with the rows cannot reach a commit.
 
 | Priority | Open | Partial | Blocked | Done | Total |
 | --- | --- | --- | --- | --- | --- |
-| P0 | 18 | 2 | 1 | 28 | 49 |
-| P1 | 16 | 1 | 1 | 20 | 38 |
+| P0 | 17 | 1 | 1 | 30 | 49 |
+| P1 | 14 | 1 | 1 | 22 | 38 |
 | P2 | 10 | 0 | 0 | 4 | 14 |
 | P3 | 3 | 0 | 0 | 1 | 4 |
-| **All** | **47** | **3** | **2** | **53** | **105** |
+| **All** | **44** | **2** | **2** | **57** | **105** |
 
 ## How the current ordering is derived
 

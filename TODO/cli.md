@@ -19,7 +19,7 @@ Source:      `TOOL.md` section 6.8
 Category:    cli
 Priority:    P0
 Effort:      L
-Status:      open
+Status:      done 2026-09-09
 
 Problem:     A tool that needs its user to learn its differences has not
              replaced anything. Thousands of agents reach for `docker` because
@@ -48,7 +48,51 @@ Approach:    Implement the table as data, not as a match arm per flag, so that
 Decision:    A table plus a generated parser, over a hand-written one. The table
              is what section 6.8 already is, and generating from it makes "the flag
              exists and is unlisted" impossible.
-Prove:       `podbox system info --format '{{json .Parity}}' | jq -e 'length >= 60 and all(.status | IN("Native","Degraded","Stub","None"))'`
+Prove:       `./experiments/320-cli-contract.sh` clauses 1 to 3, whose first clause is `podbox system info --format '{{json .Parity}}' | jq -e 'length >= 60 and all(.status | IN("Native","Degraded","Stub","None"))'`
+
+**Done, 2026-09-09.** `crates/podbox-cli/src/parity.rs` is the table,
+`crates/podbox-cli/src/system.rs` is `podbox system info`, and
+`experiments/320-cli-contract.sh` drives all three of the contracts below
+against the shipped binary.
+
+| | |
+| --- | --- |
+| rows | **113** |
+| of which verbs | **53** |
+| statuses used | Native, Degraded, Stub, None, and no fifth |
+| rows with no reason | **0** |
+
+⭐ **THE TABLE DECIDES, and that is the whole difference from a table that
+merely describes.** Every argument beginning with `-` goes through
+`parity::admit` before any match arm, so the two failures a hand-written parser
+has are both structural rather than discouraged: a flag with no row cannot be
+quietly accepted, because it never reaches an arm; and an arm for a flag with no
+row is unreachable, because `admit` refused it first. A unit test walks the
+table and asserts every row the table admits reaches an arm, ⚠ **by the exit
+code rather than by a shape parsing**: `--pull` takes a closed set of values and
+rejects anything a test could invent, so what the test asserts is that no shape
+returns the fallback arm's own `EXIT_RUNTIME_ERROR`.
+
+⭐ **The refusal carries the row's own reason**, so a caller that reads the
+table and then runs the verb gets the same sentence back from the same place:
+`podbox run --name c1` exits 2 with "`--name` is in the parity table with status
+None: a name identifies a container, and podbox has none until M4", and
+`podbox ps` exits 125 with that verb's row. Clause 3 asserts the message a verb
+prints is byte-for-byte the note the table published.
+
+⛔ **`--format` grew exactly one function, `json`.** `{{json .Parity}}` is
+docker's own spelling and it is T-0801's `Prove`, so refusing it would have made
+the acceptance unwritable. It is not a general function call: a verb declares
+which of its fields are already documents, `{{json .X}}` on a plain string
+quotes and escapes it, and every other function is still refused by name. ⚠ The
+alternative, guessing from the value's first byte, makes a string that happens
+to begin with `[` come out unquoted, which is a wrong answer that parses.
+
+⚠ **A `None` row is not a placeholder.** It is the sentence a caller gets
+instead of a flag being ignored, so deleting one makes podbox quieter and less
+honest rather than smaller. A test asserts every one of them carries a reason
+longer than a milestone number, which caught eleven rows whose whole note was
+"the lifecycle is M4".
 
 ---
 
@@ -86,7 +130,7 @@ Source:      `TOOL.md` section 2.0, section 6.8
 Category:    cli
 Priority:    P1
 Effort:      S
-Status:      open
+Status:      done 2026-09-09
 
 Problem:     An agent runs `docker`. If podbox is only reachable as `podbox`,
              it has replaced nothing on the machines it is for.
@@ -115,7 +159,36 @@ Decision:    Symlinks over a wrapper script. A shell wrapper is a second
              being present: on the target runtime `docker` on PATH is a podman
              alias with no daemon behind it, so a binary check would refuse on
              exactly the machines podbox is for.
-Prove:       `ln -sf "$(command -v podbox)" /tmp/bin/docker && PATH=/tmp/bin:$PATH docker run --rm alpine:latest /bin/echo hi | grep -qx hi`, and podbox refuses to install the `docker` symlink where `docker info` succeeds unless the flag is given
+Prove:       `./experiments/320-cli-contract.sh` clauses 4 and 5: both names run the payload and say which tool ran, and the `docker` name is refused where a daemon answers unless `--force`
+
+**Done, 2026-09-09.** `crates/podbox-cli/src/names.rs`, the banner line in `run`
+and `exec`, `podbox system install-names`, and clauses 4 and 5 of
+`experiments/320-cli-contract.sh`.
+
+⭐ **Multicall on `argv[0]`, and the banner names which name was used.** Taking
+the name is the product requirement; taking it silently is what `TOOL.md`
+section 4.1 forbids, so every `run` and `exec` reached as `docker` or `podman`
+carries one extra line saying this is podbox and where the differences are
+listed.
+
+⛔ **The daemon check is on a REACHABLE DAEMON and it is a real request.** The
+socket named by `$DOCKER_HOST`, or `/var/run/docker.sock`, is connected to and
+asked `/_ping` under a two-second timeout, so a stale socket file with nothing
+behind it reads as absent, which is the state the machines podbox is for are
+actually in. ⚠ A `$DOCKER_HOST` that is not a `unix://` socket is a THIRD state:
+podbox says the guard itself is degraded and continues, which is the half of
+`dockless`'s posture worth keeping.
+
+⭐ **The ruling is about the `docker` name only.** On this machine, where a
+daemon answers, `podbox system install-names` installs `podman`, refuses
+`docker` with the reason, and exits 125; `--force` installs it. ⚠ Clause 5 reads
+which state the machine is in first and asserts the other half where it can, so
+a machine with no daemon reports the refusal half as unmeasured rather than as a
+pass.
+
+⛔ **Symlinks, never copies and never a wrapper script**, and the clause asserts
+it on the filesystem rather than on an exit code. A file that is already a link
+to this binary is left alone; anything else needs `--force`.
 
 ---
 

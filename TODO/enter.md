@@ -204,7 +204,7 @@ Source:      `TOOL.md` section 4.2, section 6.8; `paper_final.md` section 10.6
 Category:    enter
 Priority:    P1
 Effort:      S
-Status:      open
+Status:      done 2026-09-09
 
 Problem:     `docker exec` enters the container's namespaces. podbox has none to
              enter, so its `exec` re-runs the section 6.5 sequence against the same
@@ -224,7 +224,42 @@ Decision:    A fresh chroot rather than refusing `exec`. `exec` is load-bearing
              for M4's lifecycle test and for every agent workflow, and the
              filesystem-only sharing is enough for the overwhelming majority of
              uses provided it is stated.
-Prove:       `podbox run -d --name execprobe alpine:latest sleep 30 && podbox exec execprobe sh -c 'echo marker' | grep -qx marker && podbox inspect --format '{{.Exec.Shares}}' execprobe | grep -qx filesystem && podbox rm -f execprobe`
+Prove:       `./experiments/320-cli-contract.sh` clause 4 and `./experiments/300-run.sh` clause 8: exec's stdout is the payload's, the banner says it is a fresh chroot, and `inspect --format '{{.Exec.Shares}}'` reads `filesystem`
+
+⛔ **The `Prove` above was rewritten, and the original is here because the
+rewrite is the finding.** It read
+
+```
+podbox run -d --name execprobe alpine:latest sleep 30 && podbox exec execprobe ... && podbox rm -f execprobe
+```
+
+and every verb in it except `exec` is M4's: `run -d`, `--name` and `rm` need
+container state, which [T-1105](milestones.md) creates. ⛔ The work order puts
+this entry BEFORE M4 because M4 needs it, so a `Prove` that needs M4 could never
+have run in the order it was written for. The mechanism does not depend on that
+half: `exec` re-enters a rootfs, and today a rootfs is named by an image
+reference and at M4 by a container name that resolves to the same directory.
+
+**Done, 2026-09-09.** `crates/podbox-cli/src/exec.rs`, `Exec.Mode` and
+`Exec.Shares` on `inspect`, and clause 8 of `experiments/300-run.sh`.
+
+⭐ **The degradation is stated in three places and they cannot disagree**,
+because all three read one pair of constants in `crates/podbox-cli/src/images.rs`:
+the banner on every `exec`, `podbox inspect --format '{{.Exec.Mode}}'` for a
+program, and the `Degraded` row for the verb in [T-0801](cli.md)'s parity table.
+A unit test asserts the banner contains what `inspect` reports, and clause 8
+asserts it on the shipped binary.
+
+⛔ **`exec` never pulls and never extracts.** A verb that creates the thing it
+claims to attach to is exactly the lie `TOOL.md` section 4.1 forbids, so an
+image the store does not hold, or holds and has never extracted, is a refusal
+naming `podbox run`. ⚠ It also has no default command: an image's `Cmd` is what
+`run` starts, and re-running it from `exec` is a process nobody asked for.
+
+⛔ **`--format` had to learn a dotted name for this.** `{{.Exec.Shares}}` was
+refused as an unsupported traversal, because the walker rejected any `.` inside
+a name. A dotted name is now ONE registered name, so an unregistered one is
+still refused rather than resolving half of itself and rendering a blank.
 
 ---
 

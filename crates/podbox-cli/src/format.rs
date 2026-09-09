@@ -46,6 +46,7 @@ impl std::fmt::Display for Bad {
 fn walk(
     template: &str,
     known: &[&str],
+    documents: &[&str],
     mut value: impl FnMut(&str) -> Option<String>,
     out: &mut String,
 ) -> Result<(), Bad> {
@@ -72,10 +73,25 @@ fn walk(
         let expr = after[..end].trim();
         rest = &after[end + 2..];
 
+        // ⭐ `json` is the ONE function podbox answers, and it is here because
+        // docker's own spelling for "give me this field as a document" is
+        // `{{json .Field}}`. TODO/cli.md T-0801's Prove is that template.
+        // ⚠ It is not a general function call: anything else after a name, and
+        // any other function, is still refused by name below.
+        let (as_json, expr) = match expr.strip_prefix("json ") {
+            Some(inner) => (true, inner.trim()),
+            Option::None => (false, expr),
+        };
         let Some(name) = expr.strip_prefix('.') else {
             return Err(Bad::Unsupported(expr.to_string()));
         };
-        if name.contains(char::is_whitespace) || name.contains('|') || name.contains('.') {
+        // ⚠ A dot INSIDE the name is allowed and is not a traversal. docker
+        // writes a nested field as `{{.Exec.Shares}}`, and podbox has no object
+        // graph to walk: the whole thing is one registered name, so a name that
+        // is not registered is refused exactly like any other rather than
+        // resolving half of itself. Whitespace and a pipe are still a template
+        // feature podbox does not have.
+        if name.contains(char::is_whitespace) || name.contains('|') {
             return Err(Bad::Unsupported(expr.to_string()));
         }
         if !known.contains(&name) {
@@ -84,8 +100,17 @@ fn walk(
                 known: known.iter().map(|k| format!(".{k}")).collect(),
             });
         }
+        // ⛔ A field is either already a JSON document or a plain string, and
+        // the verb says which. `{{json .X}}` on a string quotes and escapes it;
+        // `{{.X}}` on a document prints the document. Guessing from the value's
+        // first byte would make a string that happens to start with `[` come
+        // out unquoted, which is a wrong answer that parses.
+        let is_document = documents.contains(&name);
         if let Some(v) = value(name) {
-            out.push_str(&v);
+            match (as_json, is_document) {
+                (true, false) => out.push_str(&serde_json::Value::String(v).to_string()),
+                _ => out.push_str(&v),
+            }
         }
     }
 }
@@ -98,18 +123,36 @@ fn walk(
 /// never ran the loop, printed nothing and exited **0**. A caller's typo read as
 /// an empty result set, which is the wrong answer that looks like a right one.
 pub fn check(template: &str, known: &[&str]) -> Result<(), Bad> {
+    check_with_documents(template, known, &[])
+}
+
+/// The same, for a verb that has a field whose value is already a JSON
+/// document. ⚠ `documents` is a subset of `known`, never a second list of
+/// names: a name in one and not the other would be a field only one of the two
+/// paths can see.
+pub fn check_with_documents(template: &str, known: &[&str], documents: &[&str]) -> Result<(), Bad> {
     let mut sink = String::new();
-    walk(template, known, |_| None, &mut sink)
+    walk(template, known, documents, |_| None, &mut sink)
 }
 
 /// Expand `{{.Field}}` against `fields`, and the two escapes docker expands in
 /// a format string before the template sees it.
 pub fn render(template: &str, fields: &[(&str, String)]) -> Result<String, Bad> {
+    render_with_documents(template, fields, &[])
+}
+
+/// The same, naming the fields whose values are already JSON documents.
+pub fn render_with_documents(
+    template: &str,
+    fields: &[(&str, String)],
+    documents: &[&str],
+) -> Result<String, Bad> {
     let known: Vec<&str> = fields.iter().map(|(k, _)| *k).collect();
     let mut out = String::new();
     walk(
         template,
         &known,
+        documents,
         |name| {
             fields
                 .iter()
@@ -169,12 +212,35 @@ mod tests {
         assert!(text.contains(".Repository"), "{text}");
     }
 
+    /// ⭐ TODO/cli.md T-0801's `Prove` is `{{json .Parity}}`, and `json` is the
+    /// one function podbox answers. A field the verb declares a document is
+    /// printed as one; anything else is quoted and escaped.
+    #[test]
+    fn the_one_function_podbox_answers_is_json() {
+        let mut f = fields();
+        f.push(("Parity", "[{\"status\":\"Native\"}]".into()));
+        let docs = ["Parity"];
+        assert_eq!(
+            render_with_documents("{{json .Parity}}", &f, &docs).unwrap(),
+            "[{\"status\":\"Native\"}]"
+        );
+        // ⛔ A plain string under `json` is quoted, so a caller piping into a
+        // parser gets a document either way.
+        assert_eq!(
+            render_with_documents("{{json .Tag}}", &f, &docs).unwrap(),
+            "\"latest\""
+        );
+        // ⚠ And an unknown field is still unknown under `json`.
+        assert!(render_with_documents("{{json .Nope}}", &f, &docs).is_err());
+    }
+
     #[test]
     fn a_template_feature_podbox_does_not_have_is_refused_rather_than_guessed() {
         for bad in [
             "{{json .}}",
             "{{.Repository | upper}}",
             "{{if .Tag}}x{{end}}",
+            "{{upper .Tag}}",
         ] {
             assert!(render(bad, &fields()).is_err(), "{bad} was accepted");
         }
@@ -187,5 +253,17 @@ mod tests {
     #[test]
     fn whitespace_inside_the_braces_is_the_go_spelling_and_is_accepted() {
         assert_eq!(render("{{ .Tag }}", &fields()).unwrap(), "latest");
+    }
+
+    /// ⭐ TODO/enter.md T-0505's `Prove` is `{{.Exec.Shares}}`. A dotted name is
+    /// ONE registered name here, so an unregistered one is refused rather than
+    /// resolving its first component and rendering a blank.
+    #[test]
+    fn a_dotted_name_is_one_name_and_an_unregistered_one_is_still_refused() {
+        let mut f = fields();
+        f.push(("Exec.Shares", "filesystem".into()));
+        assert_eq!(render("{{.Exec.Shares}}", &f).unwrap(), "filesystem");
+        assert!(render("{{.Exec.Nope}}", &f).is_err());
+        assert!(render("{{.Exec}}", &f).is_err());
     }
 }

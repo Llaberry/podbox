@@ -268,7 +268,7 @@ Source:      `TOOL.md` section 5 M3
 Category:    milestones
 Priority:    P0
 Effort:      M
-Status:      partial 2026-09-09
+Status:      done 2026-09-09
 
 Problem:     ⭐ This is the product requirement the whole specification exists
              for: an agent that knows docker must need zero new knowledge.
@@ -280,11 +280,11 @@ Decision:    The banner goes to stderr. A banner on stdout corrupts every
              pipeline the payload is in, and the payload's stdout is data.
 Prove:       `./experiments/300-run.sh` exits 0. Clause 7 is the command above, with the store pre-pulled outside and staged in
 
-**Partial, 2026-09-09. The `Prove` above passes and the milestone's named work
-does not all exist yet**, which is why this is `partial` rather than `done`.
-
-⭐ **What passes.** `experiments/300-run.sh`, seven clauses, exit 0. Clause 7 is
-this entry's own acceptance, run inside the reconstruction:
+**Done, 2026-09-09.** `experiments/300-run.sh`, **eight clauses, exit 0**, and
+the three entries this milestone was `partial` for are closed:
+[T-0505](enter.md) is clause 8, and [T-0801](cli.md) and [T-0803](cli.md) are
+`experiments/320-cli-contract.sh`. Clause 7 is this entry's own acceptance, run
+inside the reconstruction:
 
 | | |
 | --- | --- |
@@ -306,11 +306,15 @@ fails on an unverifiable certificate. That is a fact about the reconstruction
 and not about `run`; acquisition is M1's and `150-image-acquisition.sh` proves
 it.
 
-⛔ **What is left, named rather than implied:** [T-0505](enter.md), `exec` as a
-fresh chroot; [T-0801](cli.md), the verb and flag parity table as data; and
-[T-0803](cli.md), answering to `docker` and `podman` on PATH. Each is its own
-entry and each is `open`. [T-0802](cli.md)'s exit codes are **done** and are
-clause 2.
+⭐ **The three entries this was `partial` for closed on the same day**, and
+each brought its own clause rather than a claim: [T-0505](enter.md) is clause 8
+here, and [T-0801](cli.md) and [T-0803](cli.md) are clauses 1 to 5 of
+`experiments/320-cli-contract.sh`. [T-0802](cli.md)'s exit codes are clause 2.
+
+⚠ **[T-0506](enter.md) stays `partial` and is NOT this milestone's blocker.**
+Its `run` half is clause 5 above; its remaining half is that a `podbox probe`
+run inside a foreign-architecture container measures the emulator and does not
+yet say so, which is a probe question rather than a `run` one.
 
 ---
 

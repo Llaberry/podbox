@@ -1,5 +1,5 @@
 == conditions
-date              2026-09-09T03:12:16Z
+date              2026-09-09T07:22:34Z
 host kernel       6.18.44-fc-v24
 host arch         x86_64
 podbox            podbox 0.1.0
@@ -43,3 +43,12 @@ image             ghcr.io/pkgforge-dev/archlinux:latest
   exit              0
   rung inside       chroot   (this host selects namespace)
   says it does NOT provide: does NOT provide: process, network, IPC or mount isolation
+
+== 8. T-0505: exec is a fresh chroot, and every channel says so
+  stdout            [marker]
+  exit              0
+  says              this is a fresh-chroot re-entry
+  {{.Exec.Shares}}  [filesystem]   {{.Exec.Mode}}  [fresh-chroot]
+  exec with no command: rc=2  (want 2, invalid input)
+  against an empty store: rc=125
+    never pulls: `podbox run ghcr.io/pkgforge-dev/archlinux:latest ...` is w

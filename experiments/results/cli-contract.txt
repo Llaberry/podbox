@@ -1,0 +1,39 @@
+== conditions
+date              2026-09-09T07:21:32Z
+host kernel       6.18.44-fc-v24
+podbox            podbox 0.1.0
+jq                jq-1.7
+
+== 1. T-0801's own acceptance: the table is data
+  exit              0
+  rows              113
+  of which verbs    53
+  statuses          Degraded Native None Stub
+  length >= 60 and every status one of the four: rc=0
+  rows with no note 0
+
+== 2. the table DECIDES, rather than describing what a parser does
+  run --name        rc=2
+    podbox run: --name is in the parity table with status None: a name identifies a container, and p
+  run --no-such-flag rc=2
+    podbox run: unknown option "--no-such-flag". It has no row in the parity table; `podbox system i
+  run -i (a Stub)   rc=0
+
+== 3. every verb the table calls None says so with docker's 125
+  ps       rc=125  message is the table's row: yes
+  create   rc=125  message is the table's row: yes
+  start    rc=125  message is the table's row: yes
+  stop     rc=125  message is the table's row: yes
+  logs     rc=125  message is the table's row: yes
+  cp       rc=125  message is the table's row: yes
+
+== 4. T-0803: podbox answers to `docker` and `podman` on PATH
+  docker  stdout [hi] rc=0  banner says: invoked as `docker`
+  podman  stdout [hi] rc=0  banner says: invoked as `podman`
+
+== 5. T-0803's ruling: the docker name is refused where a daemon answers
+  a docker daemon here: reachable
+  install-names     rc=125
+    podbox system install-names: a docker daemon is reachable (/var/run/docker.sock answered /_ping)
+  install-names --force rc=0, docker link: made
+  every installed name is a symlink: yes

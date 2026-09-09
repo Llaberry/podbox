@@ -14,9 +14,13 @@
 //! exits 2, and a runtime failure exits 125.
 #![forbid(unsafe_op_in_unsafe_fn)]
 
+mod exec;
 mod format;
 mod images;
+mod names;
+mod parity;
 mod run;
+mod system;
 
 use std::io::Write;
 
@@ -33,6 +37,8 @@ const USAGE: &str = "\
 usage: podbox <command> [options]
 
   run          extract an image if needed and run a command inside it
+  exec         run a command in an already extracted image. ⛔ A FRESH CHROOT,
+               sharing only the filesystem, never a namespace entry
   probe        report what this machine permits, and the rung podbox selects
   pull         fetch an image into the content-addressed store
   extract      unpack a pulled image's layers into a rootfs
@@ -41,9 +47,13 @@ usage: podbox <command> [options]
   tag          point a second name at one manifest digest
   image        ls | rm | prune | tag
   inspect      print one image's record
+  system info  what this podbox is, and the verb and flag parity table AS DATA
+  system install-names
+               install `docker` and `podman` as symlinks to this binary
   version      print the version
 
-  Every other docker verb is not implemented yet and says so with exit 125.
+  Every other docker verb is named in that table with the reason podbox does
+  not have it, and says so with exit 125 rather than being silently ignored.
 ";
 
 const PROBE_USAGE: &str = "\
@@ -88,6 +98,7 @@ fn main() -> std::process::ExitCode {
     let rest = if argv.len() > 2 { &argv[2..] } else { &[] };
     match argv.get(1).map(String::as_str) {
         Some("run") => exit(run::run(rest)),
+        Some("exec") => exit(exec::exec(rest)),
         Some("probe") => exit(probe(rest)),
         Some("pull") => exit(images::pull(rest)),
         Some("extract") => exit(images::extract(rest)),
@@ -96,6 +107,8 @@ fn main() -> std::process::ExitCode {
         Some("tag") => exit(images::tag(rest)),
         Some("inspect") => exit(images::inspect(rest)),
         Some("image") => exit(image_group(rest)),
+        Some("system") => exit(system::system(rest)),
+        Some("info") => exit(system::info(rest)),
         Some("version") | Some("--version") | Some("-v") => {
             println!("podbox {}", env!("CARGO_PKG_VERSION"));
             std::process::ExitCode::SUCCESS
@@ -106,15 +119,34 @@ fn main() -> std::process::ExitCode {
         }
         other => {
             let mut err = std::io::stderr().lock();
-            let _ = writeln!(
-                err,
-                "podbox: {}: not implemented yet (milestones M0 and M1 implement \
-                 probe, pull, extract, images, rmi, tag, image and inspect; \
-                 TOOL.md section 5)",
-                other.unwrap_or("no command given")
-            );
+            let name = other.unwrap_or("");
+            // ⛔ TODO/cli.md T-0801. The parity table answers, so a docker verb
+            // podbox does not have gets the REASON it does not, from the one
+            // place that records it, rather than a milestone number that ages.
+            match parity::verb(name) {
+                Some(row) => {
+                    let _ = writeln!(err, "podbox: {name}: {}", row.note);
+                    let _ = writeln!(
+                        err,
+                        "podbox: `podbox system info --format '{{{{json .Parity}}}}'` is \
+                         every verb and flag podbox has and every one it does not"
+                    );
+                }
+                None => {
+                    let _ = writeln!(
+                        err,
+                        "podbox: {}: podbox has no such command, and neither does the \
+                         parity table (TOOL.md section 6.8)",
+                        if name.is_empty() {
+                            "no command given"
+                        } else {
+                            name
+                        }
+                    );
+                    let _ = write!(err, "{USAGE}");
+                }
+            }
             let _ = writeln!(err, "podbox: invoked as {argv0}");
-            let _ = write!(err, "{USAGE}");
             exit(EXIT_RUNTIME_ERROR)
         }
     }

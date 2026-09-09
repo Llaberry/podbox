@@ -132,9 +132,15 @@ usage: podbox inspect [--format T] <image> [image...]
 
   Fields: .Id .Digest .RepoTags .RepoDigests .Architecture .Os .Created
           .Platform .Size .Store .Layers .RootfsPath .Extracted
+          .Exec.Mode .Exec.Shares
 
   ⚠ .RootfsPath is where the rootfs WOULD be. .Extracted says whether it is
     there; `podbox extract` is what puts it there.
+
+  ⛔ .Exec.* is what `podbox exec` against this image WOULD be, not a property
+    of the image. It is a fresh chroot re-entry sharing only the filesystem
+    (TODO/enter.md T-0505), and a caller reads it rather than assuming
+    docker's namespace entry.
 
   Without --format, one JSON array, as docker prints.
 ";
@@ -734,7 +740,23 @@ pub const INSPECT_FIELDS: &[&str] = &[
     // writable at all.
     "RootfsPath",
     "Extracted",
+    // ⛔ TODO/enter.md T-0505. What `podbox exec` against this image WOULD be,
+    // and not a property of the image. It is constant because podbox has one
+    // exec mechanism; when M4 gives a container its own record the same two
+    // names sit on that record and answer from the container that was entered.
+    "Exec.Mode",
+    "Exec.Shares",
 ];
+
+/// `podbox exec`'s mode, in one word each, for `inspect` and for the banner.
+///
+/// ⛔ TODO/enter.md T-0505. `docker exec` enters the container's namespaces.
+/// podbox has none to enter, so its `exec` re-runs the section 6.5 sequence
+/// against the same rootfs: it shares the filesystem tree and NOTHING else, not
+/// the process table, not `/proc`, not signals, not the original's environment.
+/// A caller reads these rather than assuming.
+pub const EXEC_MODE: &str = "fresh-chroot";
+pub const EXEC_SHARES: &str = "filesystem";
 
 fn image_fields(r: &Record, store: &Store, no_trunc: bool) -> Vec<(&'static str, String)> {
     let id = r.config_digest.clone();
@@ -792,6 +814,8 @@ fn inspect_fields(r: &Record, store: &Store) -> Vec<(&'static str, String)> {
             "Extracted",
             podbox_extract::is_extracted(store, &r.manifest_digest).to_string(),
         ),
+        ("Exec.Mode", EXEC_MODE.to_string()),
+        ("Exec.Shares", EXEC_SHARES.to_string()),
     ]
 }
 
@@ -812,6 +836,9 @@ fn inspect_json(r: &Record, store: &Store) -> String {
         "Layers": r.layers,
         "ManifestDigest": r.manifest_digest,
         "PulledAt": r.pulled_at,
+        // ⛔ T-0505, and nested here because it is nested in --format too. A
+        // caller that reads one and not the other must not find two shapes.
+        "Exec": { "Mode": EXEC_MODE, "Shares": EXEC_SHARES },
     })
     .to_string()
 }
