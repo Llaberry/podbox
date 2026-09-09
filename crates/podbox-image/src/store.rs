@@ -495,10 +495,67 @@ impl Store {
     }
 
     pub fn find_one(&self, want: &str) -> Result<Record> {
-        self.find(want)?
-            .into_iter()
-            .next()
-            .ok_or_else(|| Error::NoSuchImage(want.to_string()))
+        self.find_one_for(want, None)
+    }
+
+    /// One record, or a refusal that says why there is more than one.
+    ///
+    /// ⛔ **NEVER `.next()` ON AN AMBIGUOUS REFERENCE.** Until 2026-09-09 this
+    /// took the first hit, and that was harmless only because a store could not
+    /// hold two records for one tag. [T-0212](../../../TODO/image.md) made it
+    /// hold one per platform, and the same line then meant `podbox extract
+    /// alpine` silently unpacked whichever platform was pulled most recently:
+    /// selected **by position**, which `docs/conventions/code.md` forbids and
+    /// which `Store::find`'s own comment calls out three functions above.
+    ///
+    /// ⚠ The host's platform is preferred rather than demanded, because a store
+    /// holding exactly one foreign platform and asked for no platform in
+    /// particular is not ambiguous: there is one answer and refusing it would be
+    /// pedantry. Ambiguity is two or more surviving that preference.
+    pub fn find_one_for(
+        &self,
+        want: &str,
+        platform: Option<&crate::platform::Platform>,
+    ) -> Result<Record> {
+        let hits = self.find(want)?;
+        if hits.is_empty() {
+            return Err(Error::NoSuchImage(want.to_string()));
+        }
+        if hits.len() == 1 && platform.is_none() {
+            return Ok(hits.into_iter().next().expect("length checked"));
+        }
+        let host = crate::platform::Platform::host();
+        let prefer = platform.unwrap_or(&host);
+        let narrowed: Vec<Record> = hits
+            .iter()
+            .filter(|r| r.platform == prefer.to_string())
+            .cloned()
+            .collect();
+        match narrowed.len() {
+            1 => Ok(narrowed.into_iter().next().expect("length checked")),
+            0 if platform.is_some() => {
+                let mut have: Vec<String> = hits.iter().map(|r| r.platform.clone()).collect();
+                have.sort_unstable();
+                have.dedup();
+                Err(Error::NoSuchImage(format!(
+                    "{want} for {prefer}. The store holds it for {}",
+                    have.join(", ")
+                )))
+            }
+            0 if hits.len() == 1 => Ok(hits.into_iter().next().expect("length checked")),
+            _ => {
+                let mut have: Vec<String> = hits.iter().map(|r| r.platform.clone()).collect();
+                have.sort_unstable();
+                have.dedup();
+                Err(Error::Usage(format!(
+                    "{want} names {} images in this store, for {}. podbox will \
+                     not pick one by position: name the platform with \
+                     --platform, or the image by its digest",
+                    hits.len(),
+                    have.join(", ")
+                )))
+            }
+        }
     }
 
     // ------------------------------------------------------------ the writes
@@ -1047,6 +1104,56 @@ mod tests {
     /// ⭐ The multi-architecture case, and the one a platform-blind key gets
     /// wrong silently: the second pull deletes the first, its blobs are
     /// collected, and a caller who pulled both is left with one.
+    /// ⭐ The door sweep's finding, and it is the same defect as `find_for`'s
+    /// through a **different** door: `extract` and `inspect` reach the store by
+    /// `find_one`, which took `.next()`.
+    #[test]
+    fn an_ambiguous_reference_is_refused_by_name_and_never_by_position() {
+        let s = scratch("ambig");
+        for (plat, arch, n) in [("linux/amd64", "amd64", 31), ("linux/arm64", "arm64", 33)] {
+            let mut r = record("docker.io/library/alpine", Some("latest"), n);
+            r.platform = plat.into();
+            r.architecture = arch.into();
+            s.put_record(r).unwrap();
+        }
+
+        // ⚠ No platform asked for: the HOST's is preferred, and there is
+        // exactly one of those, so this is not ambiguous.
+        let got = s.find_one("alpine:latest").unwrap();
+        assert_eq!(got.platform, crate::platform::Platform::host().to_string());
+
+        // ⛔ A platform the store does not hold is refused NAMING what it does.
+        let e = s
+            .find_one_for(
+                "alpine:latest",
+                Some(&crate::platform::Platform::parse("linux/riscv64").unwrap()),
+            )
+            .unwrap_err();
+        let text = format!("{e}");
+        assert!(text.contains("linux/amd64"), "{text}");
+        assert!(text.contains("linux/arm64"), "{text}");
+
+        // ⛔ And where the host's platform is not among them either, it refuses
+        // rather than taking the first.
+        let solo = scratch("ambig2");
+        for (plat, arch, n) in [
+            ("linux/riscv64", "riscv64", 35),
+            ("linux/s390x", "s390x", 37),
+        ] {
+            let mut r = record("docker.io/library/alpine", Some("latest"), n);
+            r.platform = plat.into();
+            r.architecture = arch.into();
+            solo.put_record(r).unwrap();
+        }
+        let e = solo.find_one("alpine:latest").unwrap_err();
+        let text = format!("{e}");
+        assert!(text.contains("will not pick one by position"), "{text}");
+        assert!(text.contains("--platform"), "{text}");
+
+        let _ = std::fs::remove_dir_all(s.root());
+        let _ = std::fs::remove_dir_all(solo.root());
+    }
+
     #[test]
     fn two_platforms_of_one_tag_are_two_images_and_not_one() {
         let s = scratch("twoplat");

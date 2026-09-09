@@ -77,6 +77,11 @@ usage: podbox extract [--force] <image>
   repair one.
 
   --force          extract again over an existing rootfs
+  --platform P     which platform, where the store holds more than one
+
+  ⛔ A reference naming more than one image is REFUSED rather than resolved by
+    position. The store holds one record per platform, and picking the most
+    recently pulled would unpack an architecture nobody asked for.
 ";
 
 pub const IMAGES_USAGE: &str = "\
@@ -470,13 +475,24 @@ pub fn prune(args: &[String]) -> i32 {
 pub fn extract(args: &[String]) -> i32 {
     let mut want: Option<&str> = None;
     let mut force = false;
+    let mut platform_flag: Option<String> = None;
+    let mut expect_platform = false;
     for a in args {
+        if expect_platform {
+            platform_flag = Some(a.clone());
+            expect_platform = false;
+            continue;
+        }
         match a.as_str() {
             "-h" | "--help" => {
                 print!("{EXTRACT_USAGE}");
                 return 0;
             }
             "--force" => force = true,
+            "--platform" => expect_platform = true,
+            other if other.starts_with("--platform=") => {
+                platform_flag = Some(other["--platform=".len()..].to_string());
+            }
             other if other.starts_with('-') => return unknown("extract", other, EXTRACT_USAGE),
             other if want.is_none() => want = Some(other),
             other => {
@@ -485,16 +501,29 @@ pub fn extract(args: &[String]) -> i32 {
             }
         }
     }
+    if expect_platform {
+        eprintln!("podbox extract: --platform needs a value, for example linux/arm64");
+        return EXIT_USAGE;
+    }
     let Some(want) = want else {
         eprint!("{EXTRACT_USAGE}");
         return EXIT_USAGE;
+    };
+    // ⚠ `None` where no flag was given, so `find_one_for` prefers the host's
+    // platform and refuses only where that leaves more than one.
+    let platform = match platform_flag.as_deref() {
+        Some(p) => match podbox_image::platform::Platform::parse(p) {
+            Ok(p) => Some(p),
+            Err(e) => return fail(e),
+        },
+        None => None,
     };
 
     let store = match podbox_image::open_store() {
         Ok(s) => s,
         Err(e) => return fail(e),
     };
-    let record = match store.find_one(want) {
+    let record = match store.find_one_for(want, platform.as_ref()) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("podbox extract: {e}");

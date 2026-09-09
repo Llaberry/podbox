@@ -39,7 +39,10 @@ STAMP="$STATE/last-build-inputs"
 TARGET="${PODBOX_TARGET:-x86_64-unknown-linux-musl}"
 BIN="$REPO/target/$TARGET/release/podbox"
 
-mkdir -p "$STATE"
+# ⚠ Created where state is actually written, not at the top. `--help` and
+# `status` on a machine that has never run this must not leave a directory
+# behind: a read that writes is a read a reader cannot trust.
+need_state() { mkdir -p "$STATE"; }
 
 # What a build depends on. ⚠ Deliberately not `find .`: `target/` and
 # `references/` are enormous and neither is an input to the build.
@@ -95,6 +98,7 @@ do_work() {
 }
 
 start_bg() {
+	need_state
 	if running; then
 		echo "dev.sh: already running (pid $(cat "$PIDFILE")). Attaching rather than"
 		echo "        starting a second cargo: two builds on one target directory"
@@ -178,6 +182,7 @@ wait)
 	exec "$0" status
 	;;
 build)
+	need_state
 	# ⛔ Foreground, for after a source change. It does NOT bootstrap: by the
 	# time a session is editing code the environment is already up, and paying
 	# for an apt check on every edit is the cost this script exists to remove.
@@ -206,7 +211,7 @@ check)
 			rc=1
 		fi
 	done
-	[ "$rc" -eq 0 ] && inputs_digest >"$STAMP"
+	[ "$rc" -eq 0 ] && { need_state; inputs_digest >"$STAMP"; }
 	exit "$rc"
 	;;
 -h | --help | help)

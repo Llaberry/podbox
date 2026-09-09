@@ -858,6 +858,33 @@ platforms this question needs.
 
 ---
 
+⛔ **A SECOND DOOR, FOUND BY THE SESSION'S OWN DOOR SWEEP ON 2026-09-09 AND
+FIXED.** `Store::find_for` was given the platform and `Store::find_one` was not,
+and `extract` and `inspect` reach the store through the second. `find_one` took
+`.next()`, which was harmless only while a store could not hold two records for
+one tag; **this entry is what made it hold one per platform**, so the same line
+then meant `podbox extract alpine` silently unpacked whichever platform was
+pulled most recently. Selected **by position**, which
+`docs/conventions/code.md` forbids and which `Store::find`'s own comment calls
+out three functions above.
+
+⭐ **`find_one_for` prefers the host's platform and refuses what survives that.**
+Preferring rather than demanding, because a store holding exactly one foreign
+platform and asked for nothing in particular is not ambiguous; ambiguity is two
+or more surviving the preference, and then podbox names them and stops.
+`extract` grew `--platform`; `inspect` did not, because docker's has none either
+and the refusal is now the honest answer there.
+
+| | |
+| --- | --- |
+| `podbox extract <img>` on a two-platform store | the host's, `linux/amd64` |
+| `podbox extract --platform linux/arm64 <img>` | the other one |
+| `podbox extract --platform linux/riscv64 <img>` | exit 125, `The store holds it for linux/amd64, linux/arm64` |
+
+⚠ **The door sweep is the only lens that finds this.** Every test of `find_for`
+passed throughout, because `find_for` was never the door that was open.
+
+
 ### T-0213 A registry with no certificate, or one nothing trusts, and the refusal kept
 
 Source:      Asked for by the operator on 2026-09-09
