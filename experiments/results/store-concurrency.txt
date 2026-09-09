@@ -1,0 +1,29 @@
+== conditions
+date              2026-09-09T07:43:06Z
+host kernel       6.18.44-fc-v24
+podbox            podbox 0.1.0
+workers           8
+references        3
+
+== 1. I1 and I2: 8 writers, 3 references, one index
+  exit codes        0 0 0 0 0 0 0 0
+  verify           blobs=12 bad=0 records=3 missing=0 partials=0
+  distinct images  3 (want 3)
+
+== 2. I4: a prune racing a hold never deletes what the hold needs
+  image locks held while the payload runs: 1
+  prune -af        rc=0
+    skipped: public.ecr.aws/docker/library/alpine:latest is in use by a running container
+  the holder exited 0
+  verify           blobs=4 bad=0 records=1 missing=0 partials=0
+
+== 3. I5: what a SIGKILL leaves, and that opening the store sweeps it
+  staging files while it ran:   1
+  staging files after SIGKILL:  1
+  after any later command:      0
+  verify           blobs=2 bad=0 records=0 missing=0 partials=0
+
+== 4. I5 again, from the other side: the sweep leaves a live writer alone
+  staging files mid-pull:       1
+  the pull exited               0  (a sweep that took its file would not)
+  verify           blobs=4 bad=0 records=1 missing=0 partials=0

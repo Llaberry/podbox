@@ -28,7 +28,24 @@ HERE="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 REPO="$(CDPATH= cd -- "$HERE/.." && pwd)"
 OUT="$REPO/experiments/results/multiarch.txt"
 WORK="$(mktemp -d)"
-trap 'rm -rf "$WORK"' EXIT INT TERM
+# ⛔ ONE REGISTRATION, MADE BEFORE CLAUSE 4 AND REMOVED BY THE TRAP. Measured on
+# 2026-09-09: clause 4 used to run with whatever binfmt state the machine
+# happened to be in, and its reading flipped between `namespace` and
+# `unsupported` because of it. `podbox probe` re-execs ITSELF once per probe
+# (a successful unshare, chroot or setuid mutates the prober), so an aarch64
+# podbox reached through an explicit `qemu-aarch64-static ./podbox` cannot start
+# its own children unless the kernel routes aarch64 binaries somewhere. With no
+# registration every child exits 127 and the rung reads `unsupported`; with one
+# they run and it reads `namespace`. Both are qemu's answers and neither is an
+# ARM machine's, but a tracked reading that depends on an unstated condition
+# cannot reproduce, so the condition is made here rather than assumed.
+BINFMT_NAME="podbox-probe-aarch64-$$"
+cleanup() {
+	[ -f "/proc/sys/fs/binfmt_misc/$BINFMT_NAME" ] &&
+		echo -1 >"/proc/sys/fs/binfmt_misc/$BINFMT_NAME" 2>/dev/null
+	rm -rf "$WORK"
+}
+trap cleanup EXIT INT TERM
 
 cd "$REPO" || exit 2
 command -v cargo >/dev/null 2>&1 || { echo "SKIP: cargo is not on PATH" >&2; exit 2; }
@@ -152,6 +169,35 @@ else
 	else
 		printf '  binary          %s\n' "$(file -b "$BIN" | cut -c1-58)" >>"$WORK/report"
 		printf '  bytes           %s\n' "$(stat -c %s "$BIN")" >>"$WORK/report"
+
+		# ⛔ THE MAGIC IS WRITTEN WITH BACKSLASH ESCAPES THE KERNEL PARSES, NOT
+		# AS RAW BYTES. Measured on 2026-09-09, the hard way: `printf` emitting
+		# real NUL bytes gets the registration TRUNCATED at the first one,
+		# leaving a 7-byte magic that matches EVERY 64-bit ELF. Every native
+		# binary on the machine is then routed to the aarch64 interpreter and
+		# dies with ELOOP, including the shell needed to undo it.
+		registered=no
+		if [ -f /proc/sys/fs/binfmt_misc/register ] && [ -x /usr/bin/qemu-aarch64-static ]; then
+			echo ":$BINFMT_NAME:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-aarch64-static:PF" \
+				>/proc/sys/fs/binfmt_misc/register 2>/dev/null
+			# ⛔ Read the magic back and refuse anything but 40 hex characters,
+			# because proceeding on a short one is what breaks the machine.
+			magic="$(sed -n 's/^magic //p' "/proc/sys/fs/binfmt_misc/$BINFMT_NAME" 2>/dev/null)"
+			if [ "${#magic}" -eq 40 ]; then
+				registered=yes
+			elif [ -n "$magic" ]; then
+				printf '  FAIL: the magic registered as %d hex chars, not 40. Removing.\n' \
+					"${#magic}" >>"$WORK/report"
+				echo -1 >"/proc/sys/fs/binfmt_misc/$BINFMT_NAME" 2>/dev/null
+				fail=1
+			fi
+		fi
+		printf '  binfmt for aarch64 registered: %s   ⚠ the probe re-execs itself\n' \
+			"$registered" >>"$WORK/report"
+		printf '    once per probe, so without one every child exits 127 and the\n' >>"$WORK/report"
+		printf '    rung below reads `unsupported` instead of qemu'"'"'s `namespace`.\n' >>"$WORK/report"
+		[ "$registered" = yes ] || skipped=1
+
 		ver="$(qemu-aarch64-static "$BIN" version 2>&1)"
 		ver_rc=$?
 		printf '  version         %-24s rc=%d\n' "$ver" "$ver_rc" >>"$WORK/report"
@@ -185,25 +231,21 @@ elif [ ! -x "$BIN" ]; then
 	printf '  SKIP: no aarch64 binary to run\n' >>"$WORK/report"
 	skipped=1
 else
-	name="podbox-probe-aarch64-$$"
-	# ⛔ THE MAGIC IS WRITTEN WITH BACKSLASH ESCAPES THE KERNEL PARSES, NOT AS
-	# RAW BYTES. Measured on 2026-09-09, the hard way: `printf` emitting real
-	# NUL bytes gets the registration TRUNCATED at the first one, leaving a
-	# 7-byte magic that matches EVERY 64-bit ELF. Every native binary on the
-	# machine is then routed to the aarch64 interpreter and dies with ELOOP,
-	# including the shell needed to undo it. `echo` with single quotes keeps
-	# the backslashes literal so the kernel does the parsing.
-	if echo ":$name:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-aarch64-static:PF" \
-		>/proc/sys/fs/binfmt_misc/register 2>/dev/null; then
-		# ⛔ Read the registration back and refuse to proceed on a short magic,
-		# because proceeding is what breaks the machine.
+	name="$BINFMT_NAME"
+	# ⭐ THE REGISTRATION WAS MADE ONCE, BEFORE CLAUSE 4, and the trap removes
+	# it. Registering a second one here would leave clause 4's reading depending
+	# on whether this clause ran, which is the drift this arrangement removes.
+	if [ -f "/proc/sys/fs/binfmt_misc/$name" ]; then
 		magic="$(sed -n 's/^magic //p' "/proc/sys/fs/binfmt_misc/$name")"
 		if [ "${#magic}" -ne 40 ]; then
-			printf '  FAIL: the magic registered as %d hex chars, not 40. Removing.\n' "${#magic}" >>"$WORK/report"
+			printf '  FAIL: the magic is %d hex chars, not 40. Removing.\n' "${#magic}" >>"$WORK/report"
 			echo -1 >"/proc/sys/fs/binfmt_misc/$name" 2>/dev/null
 			fail=1
 		else
-			printf '  registered      %s, flags %s\n' "$name" \
+			# ⚠ THE FLAGS, NOT THE NAME. The registration is named after this
+			# script's pid, and a tracked reading that carries a per-run value
+			# differs on every run and can therefore never reproduce.
+			printf '  registered      an aarch64 entry, flags %s\n' \
 				"$(sed -n 's/^flags: //p' "/proc/sys/fs/binfmt_misc/$name")" >>"$WORK/report"
 			# The F flag opens the interpreter NOW and holds it, so a chroot
 			# with no qemu inside it still runs the binary. That is exactly
@@ -221,11 +263,68 @@ else
 				printf '  FAIL: the F flag did not carry the interpreter into the chroot\n' >>"$WORK/report"
 				fail=1
 			fi
-			echo -1 >"/proc/sys/fs/binfmt_misc/$name" 2>/dev/null
-			printf '  unregistered    %s\n' "$name" >>"$WORK/report"
+			# --------------------------------------------------- 6
+			# ⭐ T-0506 POINT 5, and it needs the registration above to be
+			# LIVE, so it is measured here rather than in a clause of its
+			# own: with an interpreter registered for aarch64, an aarch64
+			# podbox running on this amd64 host must say that the emulator
+			# answered, and must key its cache on that.
+			echo >>"$WORK/report"
+			echo "== 6. T-0506 point 5: the answer is labelled with its instrument" >>"$WORK/report"
+			doc="$WORK/emulated.json"
+			qemu-aarch64-static "$BIN" probe --json >"$doc" 2>/dev/null
+			rc=$?
+			if [ "$rc" -ne 0 ] || [ ! -s "$doc" ]; then
+				printf '  SKIP: the aarch64 probe produced no document (rc=%d)\n' "$rc" >>"$WORK/report"
+				skipped=1
+			elif ! command -v jq >/dev/null 2>&1; then
+				printf '  SKIP: jq is not on PATH\n' >>"$WORK/report"
+				skipped=1
+			else
+				emulated="$(jq -r '.measured_by.emulated' "$doc")"
+				interp="$(jq -r '.measured_by.interpreter' "$doc")"
+				keyed="$(jq -r '.cache_key.interpreter' "$doc")"
+				printf '  measured_by.emulated    %s\n' "$emulated" >>"$WORK/report"
+				printf '  measured_by.interpreter %s\n' "$interp" >>"$WORK/report"
+				printf '  cache_key.interpreter   %s\n' "$keyed" >>"$WORK/report"
+				[ "$emulated" = "true" ] || {
+					printf '  FAIL: an emulated probe reported itself as the machine\n' >>"$WORK/report"
+					fail=1
+				}
+				[ "$interp" = "$keyed" ] || {
+					printf '  FAIL: the document and the cache key name different instruments\n' >>"$WORK/report"
+					fail=1
+				}
+				# ⛔ And the banner, which is what a person sees.
+				qemu-aarch64-static "$BIN" probe 2>&1 >/dev/null |
+					grep -o 'MEASURED BY [^,]*' | head -1 | sed 's/^/  banner says: /' >>"$WORK/report"
+				qemu-aarch64-static "$BIN" probe 2>&1 >/dev/null | grep -q 'NOT BY THIS MACHINE' || {
+					printf '  FAIL: the banner does not say the emulator answered\n' >>"$WORK/report"
+					fail=1
+				}
+				# ⭐ THE HALF THAT MATTERS FOR THE CACHE: a native run and an
+				# emulated one share a store and must never serve each other.
+				st="$WORK/interp-store"
+				rm -rf "$st"
+				PODBOX_STORE="$st" "$REPO/target/x86_64-unknown-linux-musl/release/podbox" \
+					probe --cached >/dev/null 2>&1
+				why="$(PODBOX_STORE="$st" qemu-aarch64-static "$BIN" probe --cached 2>&1 >/dev/null |
+					grep -o 'measured now, because .*' | head -1)"
+				printf '  the emulated run against the native cache:\n    %s\n' \
+					"$(printf '%s' "$why" | cut -c1-110)" >>"$WORK/report"
+				printf '%s' "$why" | grep -q 'the instrument changed' || {
+					printf '  FAIL: an answer taken natively was served to the emulator\n' >>"$WORK/report"
+					fail=1
+				}
+			fi
+
+			# ⚠ NOT unregistered here. The trap owns it, so clause 6 below
+			# still has it and no clause depends on the order of the others.
+			printf '  the trap removes it on the way out\n' >>"$WORK/report"
 		fi
 	else
-		printf '  SKIP: could not register a binfmt entry here\n' >>"$WORK/report"
+		printf '  SKIP: no binfmt entry was registered, so neither the F flag nor\n' >>"$WORK/report"
+		printf '        T-0506 point 5 can be measured here\n' >>"$WORK/report"
 		skipped=1
 	fi
 fi

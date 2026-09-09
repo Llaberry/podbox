@@ -16,8 +16,10 @@
 //! crate is considered against that number.
 #![forbid(unsafe_op_in_unsafe_fn)]
 
+pub mod binfmt;
 pub mod child;
 pub mod identity;
+pub mod interp;
 pub mod json;
 pub mod mounts;
 pub mod probes;

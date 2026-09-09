@@ -269,7 +269,7 @@ Source:      Found on 2026-09-09 by running `podbox probe` under `qemu-aarch64`,
 Category:    enter
 Priority:    P0
 Effort:      M
-Status:      partial 2026-09-09
+Status:      done 2026-09-09
 
 Problem:     ⛔ **A probe run under `qemu-user` measures the emulator, and
              printing its rung as the machine's is the exact lie podbox exists
@@ -351,9 +351,50 @@ rather than "is there any interpreter at all". A magic too short to reach byte
 18 does not select on the architecture, and podbox treats that as no match
 rather than as a match.
 
-⛔ **The half of this entry that is NOT done is its point 5**, and it is named
-rather than quietly dropped: a `podbox probe` run inside a foreign-architecture
-container measures the **emulator**, and podbox does not yet mark the answer as
-the emulator's or key `$store/probe.json` on the interpreter.
-[T-0112](probe.md) measured why that matters, and it lands with M4.
+**Point 5 done, 2026-09-09.** `crates/podbox-probe/src/interp.rs`,
+`measured_by` in `report::document`, a line in the banner, and `interpreter` as
+the eighth component of the cache key. Driven by
+`experiments/260-multiarch.sh` clause 6.
+
+| | |
+| --- | --- |
+| `measured_by.emulated`, aarch64 podbox under qemu on this amd64 host | **`true`** |
+| `measured_by.interpreter` and `cache_key.interpreter` | both `/usr/bin/qemu-aarch64-static` |
+| what the banner says, beside the rung | `⛔ MEASURED BY /usr/bin/qemu-aarch64-static, NOT BY THIS MACHINE` |
+| that answer offered to a native podbox sharing the store | refused: `the instrument changed` |
+
+⭐ **What can be detected was measured rather than assumed**, by running the
+arm64 rootfs's own tools under `qemu-aarch64-static`:
+
+| asked | under the emulator | usable |
+| --- | --- | --- |
+| `/proc/cpuinfo` | `model name: ARMv8 Processor rev 0 (v8l)` | ⛔ no, emulated |
+| `readlink /proc/self/exe` | the guest binary's own path | ⛔ no, emulated |
+| `/proc/self/maps` | guest mappings only; qemu's own are filtered out | ⛔ no |
+| `ls /proc/sys/fs/binfmt_misc` | the **host's** registrations | ⭐ yes |
+
+⛔ **So the claim is conditional and says so.** podbox cannot prove it is
+running natively; what it establishes is that this machine routes binaries of
+podbox's **own** ELF machine through an interpreter. The other state is
+`NoEvidence`, it carries the list of what was checked, and it is never printed
+as "measured natively": `TODO/probe.md` T-0109 rule 1 forbids collapsing "no
+evidence" into an answer.
+
+⚠ **Two routes in, and only one leaves a `binfmt_misc` trace.** An explicit
+`qemu-aarch64-static ./podbox` involves no registration at all, so the
+environment is checked for the variables qemu-user reads. That is weaker
+evidence and is reported as its own sentence rather than merged with the first.
+
+⛔ **The reader moved to `podbox-probe` rather than being copied.**
+`podbox-enter::binfmt` asks "can this machine execute a FOREIGN image"; this
+asks the mirror question about podbox's OWN architecture. One parser answers
+both, and `podbox-enter` re-exports it.
+
+⚠ **A defect this found in `experiments/260-multiarch.sh`**: clause 4's reading
+depended on whatever binfmt state the machine happened to be in, because
+`podbox probe` re-execs itself once per probe and an explicitly-invoked aarch64
+podbox cannot start its own children without a registration. The rung read
+`namespace` on a machine that had one and `unsupported` on a machine that did
+not, and the committed reading recorded only the first. The registration is now
+made once, before clause 4, and the trap removes it.
 

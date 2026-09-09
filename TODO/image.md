@@ -619,7 +619,7 @@ Source:      Found while reviewing M1 adversarially; `docs/conventions/code.md`,
 Category:    image
 Priority:    P1
 Effort:      L
-Status:      open
+Status:      done 2026-09-09
 
 Problem:     The store takes one exclusive lock around each index
              read-modify-write and nothing else. What happens when two podboxes
@@ -652,6 +652,48 @@ Decision:    A stress experiment rather than a unit test. The failure is a race,
              imagined. ⚠ The suite keeps its deterministic tests for the pieces;
              the contract is proved against real concurrent processes.
 Prove:       `./experiments/210-store-concurrency.sh` exits 0 with 8 concurrent workers over 3 references, and the store verifies afterwards
+
+**Done, 2026-09-09.** The contract is seven invariants in
+`crates/podbox-image/src/store.rs`'s module header, ⛔ **in the code rather than
+here**, because a contract nobody reads while changing the store is not one.
+`experiments/210-store-concurrency.sh` drives it in four clauses, against real
+concurrent processes rather than a mock.
+
+| clause | what it drives | reading |
+| --- | --- | --- |
+| 1 | I1, I2: eight writers, three DIFFERENT references, one index | 8 exits of 0, 3 distinct records, 12 blobs, 0 bad, 0 missing, 0 partials |
+| 2 | I4: `prune -af` against a live `run` | the payload exits 0, prune names what it skipped, nothing it needed was deleted |
+| 3 | I5: a `SIGKILL` mid-pull, then any later command | 1 staging file left, 0 after the next command |
+| 4 | I5 from the other side: a sweep against a pull in flight | the pull exits 0 and its blobs verify |
+
+⛔ **THE DEFECT THE CONTRACT FOUND, and it was found by writing I4 down rather
+than by running anything:** `rmi` and `prune` asked `Store::in_use` **outside**
+the index lock and `delete` took the lock afterwards. A `run` taking its
+`Store::hold` in between kept its image lock and lost its blobs, and had the
+lock FILE unlinked underneath it, so the next holder would have created a fresh
+lock that excluded nobody. The check now happens inside `delete`, under the
+lock, and `Store::hold` takes the same lock while it acquires the image lock.
+`Held::Refuse` and `Held::Skip` are what let one checked place serve `rmi`'s
+refusal and `prune`'s named skip.
+
+⭐ **The orphaned staging file is swept, and what decides "orphaned" is a lock
+rather than a pid.** A writer holds an exclusive `flock` on its own staging file
+for as long as it is writing, so a file `Store::open` can lock is a file nobody
+is writing. ⛔ Never a pid: a pid is reused, and the check that clears a stale
+pid file is the race this whole mechanism replaces. Clause 4 is the half that
+matters, because a sweep that removes what it can SEE breaks every pull in
+flight.
+
+⛔ **A staging name is now unique per CALL.** It carried only the pid, which is
+[T-0113](probe.md) one crate over: two threads of one process take one name and
+overwrite each other. `cargo test` runs tests in threads and
+[T-0207](image.md)'s bounded concurrency would make it reachable in production.
+The index's own temporary file had the same shape and the same fix.
+
+⚠ **A trap this experiment paid for, recorded in it:** `timeout 900 podbox pull &`
+makes `$!` the pid of **`timeout`**, so `kill -9 "$!"` kills the wrapper and
+leaves podbox running. Clause 3 then read the sweep correctly refusing to take a
+live writer's file as a defect, and reported a FAIL that was the harness's.
 
 ---
 

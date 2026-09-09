@@ -1,5 +1,5 @@
 == conditions
-date              2026-09-09T02:25:22Z
+date              2026-09-09T07:45:08Z
 host kernel       6.18.44-fc-v24
 host arch         x86_64
 rustc             rustc 1.98.1 (48a229cea 2026-09-01)
@@ -29,7 +29,10 @@ qemu-aarch64      qemu-aarch64 version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)
 
 == 4. podbox RUNS on aarch64, and what that sentence is worth
   binary          ELF 64-bit LSB executable, ARM aarch64, version 1 (SYSV), 
-  bytes           1879464
+  bytes           1988464
+  binfmt for aarch64 registered: yes   ⚠ the probe re-execs itself
+    once per probe, so without one every child exits 127 and the
+    rung below reads `unsupported` instead of qemu's `namespace`.
   version         podbox 0.1.0             rc=0
   rung, aarch64   namespace   ⛔ QEMU'S ANSWER, NOT AN ARM MACHINE'S
   rung, host      namespace   the same host, measured natively
@@ -47,8 +50,16 @@ qemu-aarch64      qemu-aarch64 version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)
     gives garbage block counts, and the writable rows are sane.
 
 == 5. binfmt_misc with F, which is how a foreign image will run
-  registered      podbox-probe-aarch64-5451, flags PF
+  registered      an aarch64 entry, flags PF
   in a bare chroot with NO qemu in it: podbox 0.1.0 (rc=0)
   ⭐ That is the mechanism podbox run uses for a foreign
     image, and it needs nothing copied into the rootfs.
-  unregistered    podbox-probe-aarch64-5451
+
+== 6. T-0506 point 5: the answer is labelled with its instrument
+  measured_by.emulated    true
+  measured_by.interpreter /usr/bin/qemu-aarch64-static
+  cache_key.interpreter   /usr/bin/qemu-aarch64-static
+  banner says: MEASURED BY /usr/bin/qemu-aarch64-static
+  the emulated run against the native cache:
+    measured now, because the instrument changed: none took the cached answer and this process is /usr/bin/qemu-aa
+  the trap removes it on the way out

@@ -19,21 +19,11 @@
 
 use std::path::{Path, PathBuf};
 
-/// Where the kernel exposes its registrations.
-pub const BINFMT_DIR: &str = "/proc/sys/fs/binfmt_misc";
-
-/// One registration, as podbox reads it.
-#[derive(Debug, Clone)]
-pub struct Registration {
-    pub name: String,
-    pub interpreter: String,
-    pub enabled: bool,
-    /// ⭐ The `F` flag: the interpreter is opened at registration time and held
-    /// open, so it is reachable from inside a chroot that does not contain it.
-    pub fix_binary: bool,
-    /// The ELF `e_machine` the magic selects on, where podbox could read one.
-    pub machine: Option<u16>,
-}
+// ⭐ The reader moved to `podbox-probe` and is re-exported here, so every
+// existing caller keeps one name for it and there is exactly one parser.
+// `podbox_probe::interp` needs the same registrations to answer the mirror
+// question, "is an interpreter registered for podbox's OWN architecture".
+pub use podbox_probe::binfmt::{machine_for, registrations, Registration, BINFMT_DIR};
 
 /// What podbox can say about running `want` on this host.
 #[derive(Debug, Clone)]
@@ -47,98 +37,6 @@ pub enum Support {
     InterpreterNeedsCopyIn(Registration),
     /// Nothing is registered for this architecture.
     None { why: String },
-}
-
-/// The ELF machine number for an OCI architecture name.
-///
-/// ⚠ These are the ELF specification's `EM_*` values, and they are what a
-/// `binfmt_misc` magic actually matches on. Mapping an OCI name to one is the
-/// only way to answer "is there an interpreter for THIS image" rather than
-/// "is there any interpreter at all".
-pub fn machine_for(arch: &str) -> Option<u16> {
-    Some(match arch {
-        "amd64" => 0x3e,
-        "386" => 0x03,
-        "arm64" => 0xb7,
-        "arm" => 0x28,
-        "riscv64" => 0xf3,
-        "ppc64le" | "ppc64" => 0x15,
-        "s390x" => 0x16,
-        "loong64" => 0x102,
-        "mips64le" | "mips64" => 0x08,
-        _ => return None,
-    })
-}
-
-fn parse_one(path: &Path) -> Option<Registration> {
-    let text = std::fs::read_to_string(path).ok()?;
-    let name = path.file_name()?.to_string_lossy().to_string();
-    let mut interpreter = String::new();
-    let mut enabled = false;
-    let mut flags = String::new();
-    let mut magic = String::new();
-    let mut offset: usize = 0;
-    for line in text.lines() {
-        let line = line.trim();
-        if line == "enabled" {
-            enabled = true;
-        } else if let Some(v) = line.strip_prefix("interpreter ") {
-            interpreter = v.trim().to_string();
-        } else if let Some(v) = line.strip_prefix("flags:") {
-            flags = v.trim().to_string();
-        } else if let Some(v) = line.strip_prefix("magic ") {
-            magic = v.trim().to_string();
-        } else if let Some(v) = line.strip_prefix("offset ") {
-            offset = v.trim().parse().unwrap_or(0);
-        }
-    }
-    // ⚠ `e_machine` is a little-endian u16 at byte 18 of an ELF header, so it
-    // is hex characters 36 and 37 of the magic when the registration starts at
-    // offset 0. A magic shorter than that does not select on the architecture
-    // at all, which is worth knowing rather than guessing at.
-    let machine = {
-        let start = 18usize.checked_sub(offset).map(|b| b * 2);
-        match start {
-            Some(s) if magic.len() >= s + 4 => {
-                let lo = u8::from_str_radix(&magic[s..s + 2], 16).ok();
-                let hi = u8::from_str_radix(&magic[s + 2..s + 4], 16).ok();
-                match (lo, hi) {
-                    (Some(l), Some(h)) => Some(u16::from(l) | (u16::from(h) << 8)),
-                    _ => None,
-                }
-            }
-            _ => None,
-        }
-    };
-    Some(Registration {
-        name,
-        interpreter,
-        enabled,
-        fix_binary: flags.contains('F'),
-        machine,
-    })
-}
-
-/// Every enabled registration this machine carries.
-pub fn registrations() -> Vec<Registration> {
-    let dir = match std::fs::read_dir(BINFMT_DIR) {
-        Ok(d) => d,
-        Err(_) => return Vec::new(),
-    };
-    let mut out = Vec::new();
-    for e in dir.flatten() {
-        let name = e.file_name();
-        // ⚠ `register` and `status` are the control files, not registrations.
-        if name == "register" || name == "status" {
-            continue;
-        }
-        if let Some(r) = parse_one(&e.path()) {
-            if r.enabled {
-                out.push(r);
-            }
-        }
-    }
-    out
 }
 
 /// Whether this machine can run `arch`, and how.

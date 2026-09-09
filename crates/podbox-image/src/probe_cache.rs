@@ -125,6 +125,22 @@ pub fn resolve(store: &Store) -> Probe {
                     let diff = live.differences(&cached);
                     if diff.is_empty() {
                         None
+                    } else if diff == ["interpreter"] {
+                        // ⛔ TODO/enter.md T-0506 point 5, and it is a DIFFERENT
+                        // sentence: nothing about the confinement moved, the
+                        // answer in the file was simply taken by another
+                        // instrument. Calling that "the confinement changed"
+                        // would send a reader looking for a namespace that did
+                        // not change.
+                        Some(format!(
+                            "the instrument changed: {} took the cached answer and this \
+                             process is {}, so that answer is about the other one",
+                            cached
+                                .interpreter
+                                .as_deref()
+                                .unwrap_or("an unrecorded instrument"),
+                            live.interpreter.as_deref().unwrap_or("unrecorded"),
+                        ))
                     } else {
                         Some(format!(
                             "the confinement changed: {} differ(s) from the cached run",
@@ -182,6 +198,12 @@ fn key_of(document: &str) -> Option<ConfinementKey> {
         setgroups: get("setgroups"),
         seccomp: get("seccomp"),
         seccomp_filters: get("seccomp_filters"),
+        // ⛔ TODO/enter.md T-0506 point 5. A document written before podbox
+        // keyed on the instrument has no `interpreter`, so it stays `None` and
+        // never matches a live key, which always has one. That is the intended
+        // behaviour and not a migration: an answer whose instrument is unknown
+        // is exactly the answer that must not be served.
+        interpreter: get("interpreter"),
     })
 }
 
@@ -247,6 +269,7 @@ mod tests {
             setgroups: Some("allow".into()),
             seccomp: Some("0".into()),
             seccomp_filters: Some("0".into()),
+            interpreter: Some("none".into()),
         };
         let confined = ConfinementKey {
             mnt_ns: Some("mnt:[4026532567]".into()),
@@ -255,6 +278,55 @@ mod tests {
         };
         assert_eq!(host.boot_id, confined.boot_id);
         assert!(!host.differences(&confined).is_empty());
+    }
+
+    /// ⭐ TODO/enter.md T-0506 point 5. An answer taken by an emulator must
+    /// never be served to a process that is not that emulator, and the reason
+    /// must name the instrument rather than a confinement that did not move.
+    #[test]
+    fn an_answer_taken_by_another_instrument_is_never_served() {
+        let s = scratch("interp");
+        // Measure once, then rewrite only the instrument in the stored key, so
+        // this test changes exactly one component and nothing else.
+        let first = resolve(&s);
+        assert!(matches!(first.source, Source::Measured(_)));
+        let path = s.root().join(CACHE_FILE);
+        let text = std::fs::read_to_string(&path).unwrap();
+        let live = key_of(&text).unwrap();
+        let mine = live.interpreter.clone().expect("the live key names one");
+        let doctored = text.replace(
+            &format!("\"interpreter\":\"{mine}\""),
+            "\"interpreter\":\"/usr/bin/qemu-aarch64-static\"",
+        );
+        assert_ne!(doctored, text, "the document does not carry the instrument");
+        std::fs::write(&path, &doctored).unwrap();
+
+        let again = resolve(&s);
+        match &again.source {
+            Source::Measured(why) => {
+                assert!(why.contains("the instrument changed"), "{why}");
+                assert!(why.contains("qemu-aarch64-static"), "{why}");
+                // ⛔ And NOT the confinement sentence: nothing about the
+                // confinement moved, and sending a reader to look for that is
+                // the wrong message however right the refusal is.
+                assert!(!why.contains("the confinement changed"), "{why}");
+            }
+            other => panic!("served an answer another instrument took: {other:?}"),
+        }
+        let _ = std::fs::remove_dir_all(s.root());
+    }
+
+    /// ⛔ A document written before podbox keyed on the instrument carries no
+    /// `interpreter`, and must not match a live key that does. Not a migration:
+    /// an answer whose instrument is unknown is exactly the one to re-measure.
+    #[test]
+    fn a_key_from_before_the_instrument_was_recorded_never_matches() {
+        let live = identity::confinement_key(&identity::read());
+        let old = ConfinementKey {
+            interpreter: None,
+            ..live.clone()
+        };
+        assert!(live.differences(&old).contains(&"interpreter"));
     }
 
     #[test]

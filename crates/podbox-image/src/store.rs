@@ -25,6 +25,55 @@
 //! `execve`. T-0211 is what the other shape cost: an fd left inheritable from
 //! open time is inherited by every unrelated `fork` while the lock is held, and
 //! each such child keeps the `flock` alive for its own lifetime.
+//!
+//! # The concurrency contract
+//!
+//! ⭐ **[`TODO/image.md`](../../../TODO/image.md) T-0210, and it is written here
+//! rather than in the entry because a contract nobody reads while changing the
+//! code is not one.** Two concurrency defects landed in this crate before it
+//! existed ([T-0211](../../../TODO/image.md), and `TODO/probe.md` T-0113 in the
+//! probe), and the second was found by luck. Every invariant below is driven by
+//! `experiments/210-store-concurrency.sh` against real concurrent processes,
+//! because a race only a mock can produce is a race the mock's author imagined.
+//!
+//! **I1. One writer at a time, over the index.** Every read-modify-write of
+//! `store.json` happens under [`Store::lock`], an exclusive `flock` on
+//! `$store/lock`, waited for a bounded number of times.
+//!
+//! **I2. A reader needs no lock, and never sees a half-written index.** The
+//! index is replaced by [`std::fs::rename`], which is atomic within a
+//! filesystem, so a reader sees the previous document or the next one. ⚠ This is
+//! why `staging/` is inside the store: a rename across filesystems is `EXDEV`.
+//!
+//! **I3. A blob is immutable once it is named.** `blobs/` is content-addressed,
+//! so two writers racing to produce one name necessarily produce identical
+//! bytes and the second rename is a no-op. Bytes that fail verification never
+//! get a name. A reader therefore needs no lock for a blob either: it sees the
+//! file complete, or not at all.
+//!
+//! **I4. Nothing deletes a blob a holder needs.** `rmi` and `prune` take the
+//! index lock and check [`Store::in_use`] **inside it**, and [`Store::hold`]
+//! takes that same lock while it acquires the image lock. ⛔ Checking `in_use`
+//! outside the lock is a check whose answer is stale before it is used: a
+//! `hold` taken in between kept its image lock and lost its blobs.
+//!
+//! **I5. A killed process leaves exactly one kind of litter, and it is swept.**
+//! Blobs are only ever named by rename after verification and the index only
+//! ever replaced by rename, so the only thing a `SIGKILL` can leave is a
+//! `*.partial` under `staging/`. [`Store::open`] sweeps them, and it decides
+//! what is orphaned by **trying to `flock` each one**: a live writer holds its
+//! own staging file for as long as it is writing, so a file this process can
+//! lock is a file nobody is writing. ⚠ Never by pid: a pid is reused, and the
+//! check that clears a stale pid file is itself the race being closed.
+//!
+//! **I6. A staging name is unique per CALL, not per process.** ⛔ `TODO/probe.md`
+//! T-0113 is this exact defect one crate over: a scratch name carrying only the
+//! pid collides between two threads of one process, and `cargo test` and any
+//! future concurrent layer fetch ([T-0207](../../../TODO/image.md)) are both
+//! threads of one process.
+//!
+//! **I7. Locks are taken in one order: the index, then an image.** Both `prune`
+//! and `hold` take them that way, so neither can wait on the other.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -55,6 +104,10 @@ const STORE_LOCK: &str = "lock";
 /// may not wait unbounded.
 const LOCK_ATTEMPTS: u32 = 100;
 const LOCK_SLEEP: std::time::Duration = std::time::Duration::from_millis(50);
+
+/// ⛔ Invariant I6. What makes a staging name unique per CALL rather than per
+/// process, which is the difference `TODO/probe.md` T-0113 cost one crate over.
+static STAGE_SEQUENCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Record {
@@ -217,6 +270,10 @@ impl Store {
                 index.podbox_store
             )));
         }
+        // ⛔ Invariant I5. Every command opens the store, so this is where an
+        // abandoned staging file is reclaimed. `docs/conventions/code.md` calls
+        // it the sweep that heals the drift the happy path let slip.
+        store.sweep_staging();
         Ok(store)
     }
 
@@ -258,13 +315,16 @@ impl Store {
     pub fn write_index(&self, index: &Index) -> Result<()> {
         let bytes = serde_json::to_vec_pretty(index)
             .map_err(|e| Error::Store(format!("serialising the index: {e}")))?;
-        let tmp = self
-            .root
-            .join(STAGING)
-            .join(format!("{INDEX_FILE}.{}", std::process::id()));
+        // ⛔ Invariants I5 and I6: unique per call, named `.partial` so the one
+        // sweep rule covers it, and held while it is written so the sweep
+        // cannot take it out from under this write.
+        let tmp = self.root.join(STAGING).join(format!(
+            "{INDEX_FILE}.{}.{}.partial",
+            std::process::id(),
+            STAGE_SEQUENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
         {
-            let mut f =
-                std::fs::File::create(&tmp).map_err(|e| Error::io(tmp.display().to_string(), e))?;
+            let mut f = StagedFile::create(&tmp)?;
             f.write_all(&bytes)
                 .and_then(|_| f.write_all(b"\n"))
                 .and_then(|_| f.sync_all())
@@ -277,19 +337,66 @@ impl Store {
     /// A staging file inside the store, for a blob whose digest is not yet
     /// proved. ⚠ Inside the store because the commit is a `rename(2)`, and a
     /// rename across filesystems fails with `EXDEV`.
-    pub fn stage(&self, hint: &str) -> Result<(PathBuf, std::fs::File)> {
+    ///
+    /// ⛔ **Invariant I6: unique per CALL.** The name carried only the pid until
+    /// 2026-09-09, and `TODO/probe.md` T-0113 is that same defect one crate
+    /// over: two threads of one process take one name and overwrite each other.
+    /// `cargo test` runs tests in threads, and [T-0210](../../../TODO/image.md)'s
+    /// own bounded-concurrency sibling would make it reachable in production.
+    ///
+    /// ⛔ **Invariant I5: the writer holds it.** The returned handle carries an
+    /// exclusive `flock` for as long as it lives, which is what lets
+    /// [`Store::sweep_staging`] tell an abandoned file from one being written
+    /// without asking about a pid.
+    pub fn stage(&self, hint: &str) -> Result<(PathBuf, StagedFile)> {
         let safe: String = hint
             .chars()
             .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
             .take(24)
             .collect();
-        let path = self
-            .root
-            .join(STAGING)
-            .join(format!("{safe}.{}.partial", std::process::id()));
-        let f =
-            std::fs::File::create(&path).map_err(|e| Error::io(path.display().to_string(), e))?;
+        let path = self.root.join(STAGING).join(format!(
+            "{safe}.{}.{}.partial",
+            std::process::id(),
+            STAGE_SEQUENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        let f = StagedFile::create(&path)?;
         Ok((path, f))
+    }
+
+    /// ⛔ **Invariant I5.** Remove every abandoned staging file, deciding what
+    /// is abandoned by trying to lock it.
+    ///
+    /// ⚠ Returns what it removed rather than printing: the caller decides
+    /// whether a sweep is worth a line, and `Store::open` runs on every command.
+    /// ⛔ Only inside this store's own `staging/`, resolved through
+    /// [`crate::contain`], because a sweep is an unlink and every unlink this
+    /// crate performs is gated the same way.
+    pub fn sweep_staging(&self) -> Vec<PathBuf> {
+        let dir = self.root.join(STAGING);
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            return Vec::new();
+        };
+        let mut swept = Vec::new();
+        for e in entries.flatten() {
+            let path = e.path();
+            if path.extension().and_then(|x| x.to_str()) != Some("partial") {
+                continue;
+            }
+            let Ok(resolved) = contain::within(&self.root, &path) else {
+                continue;
+            };
+            // ⭐ The whole test: a live writer holds this file, so a lock this
+            // process can take means nobody is writing it.
+            match Lock::try_acquire(&resolved, sys::LOCK_EX) {
+                Ok(Some(_held)) => {
+                    if std::fs::remove_file(&resolved).is_ok() {
+                        swept.push(resolved);
+                    }
+                }
+                _ => continue,
+            }
+        }
+        swept
     }
 
     /// Name a staged file by its proved digest. ⛔ The caller has already
@@ -365,6 +472,15 @@ impl Store {
     /// with [`Lock::hand_to_payload`], which undoes both.
     pub fn hold(&self, record: &Record) -> Result<Lock> {
         let path = self.image_lock_path(record)?;
+        // ⛔ INVARIANT I4 AND I7. The index lock is taken first and dropped at
+        // the end of this function, so a `prune` cannot be between its own
+        // `in_use` check and its unlink while this hold is being taken. Without
+        // it the check is stale before it is used: measured as a reading of the
+        // code on 2026-09-09, `prune` asked `in_use`, a `run` took its hold, and
+        // `prune` then deleted the blobs the run was about to execute out of
+        // AND the lock file it was holding. Both take index-then-image, so
+        // neither can wait on the other.
+        let _index = self.lock()?;
         let lock = Lock::acquire(&path, sys::LOCK_SH)?;
         if !sys::close_in_children(lock.fd) {
             return Err(Error::Store(format!(
@@ -614,42 +730,55 @@ impl Store {
         if doomed.is_empty() {
             return Err(Error::NoSuchImage(want.to_string()));
         }
-        for r in &doomed {
-            if self.in_use(r)? {
-                return Err(Error::Store(format!(
-                    "{} is in use by a running container and was not removed. \
-                     A GC that deletes an extraction out from under a payload \
-                     makes its failure read as a missing file rather than as a \
-                     concurrent deletion (TODO/image.md T-0204)",
-                    r.name()
-                )));
-            }
-        }
-        self.delete(&doomed)
+        // ⛔ Invariant I4: the `in_use` check is inside `delete`, under the
+        // index lock, and never here. This function used to make it and it was
+        // stale by the time `delete` acted on it.
+        self.delete(&doomed, Held::Refuse)
     }
 
     /// `podbox image prune`. Without `all`, only untagged records; with it,
     /// every record no container holds.
     pub fn prune(&self, all: bool) -> Result<Removed> {
         let mut doomed = Vec::new();
-        let mut skipped = Vec::new();
         for r in self.list()? {
             if !all && r.tag.is_some() {
                 continue;
             }
-            if self.in_use(&r)? {
-                skipped.push(r.name());
-                continue;
-            }
             doomed.push(r);
         }
-        let mut removed = self.delete(&doomed)?;
-        removed.skipped = skipped;
-        Ok(removed)
+        // ⛔ Invariant I4: what is held is decided under the lock, by `delete`,
+        // and `Held::Skip` is what makes a held image a named skip here where
+        // `rmi` refuses outright.
+        self.delete(&doomed, Held::Skip)
     }
 
-    fn delete(&self, doomed: &[Record]) -> Result<Removed> {
+    fn delete(&self, doomed: &[Record], on_held: Held) -> Result<Removed> {
         let _guard = self.lock()?;
+        // ⛔ INVARIANT I4. Inside the lock, so a `hold` cannot be taken between
+        // this answer and the unlinks below: `Store::hold` takes the same lock.
+        let mut skipped = Vec::new();
+        let mut kept = Vec::new();
+        for r in doomed {
+            if self.in_use(r)? {
+                match on_held {
+                    Held::Refuse => {
+                        return Err(Error::Store(format!(
+                            "{} is in use by a running container and was not removed. \
+                             A GC that deletes an extraction out from under a payload \
+                             makes its failure read as a missing file rather than as a \
+                             concurrent deletion (TODO/image.md T-0204)",
+                            r.name()
+                        )))
+                    }
+                    Held::Skip => {
+                        skipped.push(r.name());
+                        continue;
+                    }
+                }
+            }
+            kept.push(r.clone());
+        }
+        let doomed: &[Record] = &kept;
         let mut index = self.read_index()?;
         let doomed_keys: Vec<(String, Option<String>, String)> = doomed
             .iter()
@@ -700,9 +829,20 @@ impl Store {
             untagged: doomed.iter().map(Record::name).collect(),
             deleted: freed,
             freed_bytes,
-            skipped: Vec::new(),
+            skipped,
         })
     }
+}
+
+/// What [`Store::delete`] does about an image a holder is using.
+///
+/// ⛔ Two behaviours and one check, because the check has to happen under the
+/// index lock (invariant I4) and only the caller knows whether being held is a
+/// refusal (`rmi`, which names one image) or a skip (`prune`, which sweeps).
+#[derive(Debug, Clone, Copy)]
+enum Held {
+    Refuse,
+    Skip,
 }
 
 #[derive(Debug)]
@@ -713,6 +853,60 @@ pub struct Removed {
     /// ⛔ Named, never silent. T-0204: `prune` and `rmi` skip anything locked
     /// **and say which**.
     pub skipped: Vec<String>,
+}
+
+/// A staging file, held exclusively for as long as this value lives.
+///
+/// ⛔ **Invariant I5's mechanism.** [`Store::sweep_staging`] decides what is
+/// abandoned by trying to lock each `*.partial`, so a file being written has to
+/// be locked or the sweep would delete it out from under its writer. The lock
+/// is on the same open file description as the writes, and it goes when this
+/// value does, however the process ends.
+pub struct StagedFile {
+    file: std::fs::File,
+    /// ⚠ Held for its `Drop`, and never read. The lock is the point.
+    _lock: Lock,
+}
+
+impl StagedFile {
+    fn create(path: &Path) -> Result<StagedFile> {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| Error::io(parent.display().to_string(), e))?;
+        }
+        // ⛔ The lock FIRST. Creating the file and locking it afterwards leaves
+        // a window in which a sweep sees an unlocked `*.partial` and removes it.
+        let lock = match Lock::try_acquire(path, sys::LOCK_EX)? {
+            Some(l) => l,
+            None => {
+                return Err(Error::Store(format!(
+                    "{} is already being written by another podbox. Invariant I6 \
+                     makes this name unique per call, so two writers on one name is \
+                     a defect rather than contention",
+                    path.display()
+                )))
+            }
+        };
+        let file = std::fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(path)
+            .map_err(|e| Error::io(path.display().to_string(), e))?;
+        Ok(StagedFile { file, _lock: lock })
+    }
+
+    pub fn sync_all(&self) -> std::io::Result<()> {
+        self.file.sync_all()
+    }
+}
+
+impl Write for StagedFile {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.file.write(buf)
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.file.flush()
+    }
 }
 
 /// An advisory lock held for as long as this value lives.
@@ -886,6 +1080,54 @@ mod tests {
         let d = std::env::temp_dir().join(format!("podbox-store-{}-{name}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         Store::open(d).unwrap()
+    }
+
+    /// ⛔ INVARIANT I6. Two `stage` calls in ONE process must not take one
+    /// name. `TODO/probe.md` T-0113 is this defect one crate over, and it was
+    /// found by luck there; this is the assertion that would have found it.
+    #[test]
+    fn two_staging_calls_in_one_process_take_two_names() {
+        let s = scratch("stage-unique");
+        let (a, _fa) = s.stage("layer").unwrap();
+        let (b, _fb) = s.stage("layer").unwrap();
+        assert_ne!(a, b, "one process staged two blobs over one name");
+        assert!(a.is_file() && b.is_file());
+        let _ = std::fs::remove_dir_all(s.root());
+    }
+
+    /// ⛔ INVARIANT I5. An abandoned staging file is swept and one being
+    /// written is not, and the difference is a lock rather than a pid.
+    #[test]
+    fn the_sweep_takes_an_abandoned_partial_and_leaves_a_held_one() {
+        let s = scratch("sweep");
+        // Abandoned: staged, then the handle dropped without a commit, which is
+        // what a SIGKILL leaves behind.
+        let (dead, handle) = s.stage("abandoned").unwrap();
+        drop(handle);
+        // Live: still held, exactly as a writer mid-blob holds it.
+        let (live, _held) = s.stage("live").unwrap();
+
+        let swept = s.sweep_staging();
+        assert!(swept.contains(&dead), "the abandoned file was not swept");
+        assert!(!dead.exists(), "the abandoned file is still there");
+        assert!(live.exists(), "the sweep took a file being written");
+        assert!(!swept.contains(&live));
+        let _ = std::fs::remove_dir_all(s.root());
+    }
+
+    /// ⚠ And opening a store is what runs it, because every command does that
+    /// and nothing else would.
+    #[test]
+    fn opening_a_store_sweeps_what_a_killed_process_left() {
+        let d = std::env::temp_dir().join(format!("podbox-store-{}-openswp", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        let s = Store::open(&d).unwrap();
+        let (dead, handle) = s.stage("abandoned").unwrap();
+        drop(handle);
+        assert!(dead.is_file());
+        let _again = Store::open(&d).unwrap();
+        assert!(!dead.exists(), "a second open did not sweep");
+        let _ = std::fs::remove_dir_all(&d);
     }
 
     fn record(repo: &str, tag: Option<&str>, seed: u8) -> Record {

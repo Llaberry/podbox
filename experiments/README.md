@@ -78,6 +78,7 @@ decisions podbox has to make. Each writes its transcript to
 ./experiments/150-image-acquisition.sh          # M1's acceptance: podbox's digest against docker's
 ./experiments/160-store-gc.sh                   # a GC under a holder, and the containment check
 ./experiments/170-probe-cache.sh                # the probe cache, and the key the specification got wrong
+./experiments/210-store-concurrency.sh          # the store's contract, against 8 real concurrent processes
 ./experiments/220-extract-path-safety.sh        # M2: a hostile layer is refused and a distro rootfs is not
 ./experiments/260-multiarch.sh                  # six architectures check the workspace, and the one that does not
 ./experiments/270-multiarch-image.sh            # two platforms of one tag, and the ELF machine inside each tree
@@ -88,8 +89,8 @@ decisions podbox has to make. Each writes its transcript to
 ./experiments/320-cli-contract.sh               # the parity table as data, and the docker and podman names
 ```
 
-⚠ **The numbers jump from `170-` to `220-`, and again from `230-` to `260-`.**
-`180-` to `210-` are reserved by entries M1 authored, and `230-` to `250-` by
+⚠ **The numbers jump from `170-` to `210-`, and again from `230-` to `260-`.**
+`180-` to `200-` are reserved by entries M1 authored, and `230-` to `250-` by
 M4, M5 and M6's acceptances; a number here is never reused even before its
 script exists. [`../TODO/gate.md`](../TODO/gate.md) T-1205 records the four
 `Prove` clauses that named a taken number, and check 18 of the gate now refuses
@@ -97,7 +98,9 @@ a fifth.
 
 ⛔ `80-`, `90-`, `100-`, `125-`, `130-`, `150-`, `170-`, `270-`, `280-` and
 `300-` need a running docker daemon, and `80-` needs `musl-gcc` for its fourth
-arm. `110-` needs `cargo-bloat` for its breakdown and exits 2 without it. `140-`
+arm. `210-` needs outbound HTTPS and nothing else, because it pulls with eight
+processes at once and the registry is not what it is measuring.
+`110-` needs `cargo-bloat` for its breakdown and exits 2 without it. `140-`
 needs to be able to `mount` a tmpfs and exits 2 where it cannot. `150-` needs
 outbound HTTPS to a registry. `260-`'s aarch64 arm needs `binfmt_misc` and
 `qemu-user`; `290-` needs `qemu-system-x86_64`, `busybox-static` and `cpio`.

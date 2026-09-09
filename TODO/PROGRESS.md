@@ -152,7 +152,7 @@ $ ./experiments/320-cli-contract.sh
 
 ## Counts
 
-105 entries: 44 open, 2 partial, 2 blocked, 57 done.
+105 entries: 43 open, 1 partial, 2 blocked, 59 done.
 
 ⭐ **Six entries were authored this session and five of them are already
 `done`**, which is the opposite of the last session's shape and is worth saying

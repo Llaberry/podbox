@@ -82,7 +82,7 @@ the blocker named and what would clear it.
 | [T-0207](image.md) | P2 | image | open | Fetch layers with bounded concurrency, and measure what it buys |
 | [T-0208](image.md) | P2 | image | open | `--platform`, and a store that can hold two variants of one tag |
 | [T-0209](image.md) | P2 | image | open | Registry authentication, without a credential ever entering this tree |
-| [T-0210](image.md) | P1 | image | open | The store's concurrency contract, written down and driven |
+| [T-0210](image.md) | P1 | image | done | The store's concurrency contract, written down and driven |
 | [T-0211](image.md) | P1 | image | done | An image lock outlives its holder whenever anything forks |
 | [T-0212](image.md) | P0 | image | done | The platform is decided at run time, and the store holds more than one |
 | [T-0213](image.md) | P0 | image | done | A registry with no certificate, or one nothing trusts, and the refusal kept |
@@ -109,7 +109,7 @@ the blocker named and what would clear it.
 | [T-0503](enter.md) | P1 | enter | partial | Probe `/dev/ptmx`, and refuse `-t` by name where it is absent |
 | [T-0504](enter.md) | P1 | enter | done | Refuse a rootfs path that is a symlink |
 | [T-0505](enter.md) | P1 | enter | done | `exec` is a fresh chroot, and `inspect` says so |
-| [T-0506](enter.md) | P0 | enter | partial | A foreign-architecture container, and never a rung measured by the emulator |
+| [T-0506](enter.md) | P0 | enter | done | A foreign-architecture container, and never a rung measured by the emulator |
 | [T-0601](supervise.md) | P0 | supervise | open | One pidfd per direct child, `waitid` for status |
 | [T-0602](supervise.md) | P0 | supervise | open | Never decide "running" by sleeping and looking |
 | [T-0603](supervise.md) | P1 | supervise | open | `PR_SET_PDEATHSIG` fires on the creating thread's exit |
@@ -168,7 +168,7 @@ the blocker named and what would clear it.
 
 ## Counts
 
-105 items: 44 open, 2 partial, 2 blocked, 57 done.
+105 items: 43 open, 1 partial, 2 blocked, 59 done.
 
 Counted from the rows above by `scripts/todo-count.py` and asserted
 independently by `scripts/check-todo.py`, which is the gate. A number here
@@ -176,11 +176,11 @@ that disagrees with the rows cannot reach a commit.
 
 | Priority | Open | Partial | Blocked | Done | Total |
 | --- | --- | --- | --- | --- | --- |
-| P0 | 17 | 1 | 1 | 30 | 49 |
-| P1 | 14 | 1 | 1 | 22 | 38 |
+| P0 | 17 | 0 | 1 | 31 | 49 |
+| P1 | 13 | 1 | 1 | 23 | 38 |
 | P2 | 10 | 0 | 0 | 4 | 14 |
 | P3 | 3 | 0 | 0 | 1 | 4 |
-| **All** | **44** | **2** | **2** | **57** | **105** |
+| **All** | **43** | **1** | **2** | **59** | **105** |
 
 ## How the current ordering is derived
 

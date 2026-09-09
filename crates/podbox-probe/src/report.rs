@@ -60,6 +60,14 @@ pub fn banner(f: &Findings, sel: &Selection) -> String {
             sel.rung.must_never_claim()
         ));
     }
+    // ⛔ TODO/enter.md T-0506 point 5. Where an emulator produced these rows,
+    // the banner says so HERE, beside the rung, rather than further down: the
+    // rung is the line a caller acts on, and a rung measured by qemu is a
+    // statement about qemu.
+    if let Some(note) = crate::interp::detect().note() {
+        out.push_str(&note);
+        out.push('\n');
+    }
     out
 }
 
@@ -220,6 +228,29 @@ pub fn document(f: &Findings, sel: &Selection) -> String {
     o.bool("strict_ok", sel.meets(Selection::STRICT_FLOOR));
     o.bool("controls_answered", sel.controls_answered);
     o.str("self_exe", &f.self_exe);
+
+    // ⛔ TODO/enter.md T-0506 point 5: WHICH INSTRUMENT ANSWERED, beside the
+    // rung rather than at the end, because a harness that reads `rung` and not
+    // this has read qemu's answer as the machine's.
+    // ⚠ `emulated: false` is the absence of evidence and says so in `checked`;
+    // it is not a claim that this is a bare machine.
+    let interp = crate::interp::detect();
+    o.obj("measured_by", |m| {
+        m.bool("emulated", interp.is_emulated());
+        m.str("interpreter", &interp.key());
+        match &interp {
+            crate::interp::Interpreter::Emulated { evidence, .. } => {
+                m.str("evidence", evidence);
+            }
+            crate::interp::Interpreter::NoEvidence { checked } => {
+                m.arr("checked", |a| {
+                    for c in checked {
+                        a.str(c);
+                    }
+                });
+            }
+        }
+    });
 
     o.arr("control_notes", |a| {
         for n in &sel.control_notes {

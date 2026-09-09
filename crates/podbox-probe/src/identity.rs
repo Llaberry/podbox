@@ -155,12 +155,18 @@ pub struct ConfinementKey {
     pub setgroups: Option<String>,
     pub seccomp: Option<String>,
     pub seccomp_filters: Option<String>,
+    /// ⛔ WHICH INSTRUMENT ANSWERED. TODO/enter.md T-0506 point 5: a probe run
+    /// under `qemu-user` measures the emulator, so an answer taken there must
+    /// never be served to a process that was not. `none` where podbox found no
+    /// interpreter, which is the absence of evidence rather than a claim of
+    /// nativeness; `crates/podbox-probe/src/interp.rs` says what it checked.
+    pub interpreter: Option<String>,
 }
 
 impl ConfinementKey {
     /// The four components of T-0111's `Approach`, as `(name, value)`, in a
     /// fixed order so two renderings of one key are byte-identical.
-    pub fn components(&self) -> [(&'static str, Option<&str>); 7] {
+    pub fn components(&self) -> [(&'static str, Option<&str>); 8] {
         [
             ("boot_id", self.boot_id.as_deref()),
             ("mnt_ns", self.mnt_ns.as_deref()),
@@ -169,6 +175,7 @@ impl ConfinementKey {
             ("setgroups", self.setgroups.as_deref()),
             ("seccomp", self.seccomp.as_deref()),
             ("seccomp_filters", self.seccomp_filters.as_deref()),
+            ("interpreter", self.interpreter.as_deref()),
         ]
     }
 
@@ -214,6 +221,11 @@ pub fn confinement_key(id: &Identity) -> ConfinementKey {
         setgroups: id.setgroups.clone(),
         seccomp: id.seccomp.clone(),
         seccomp_filters: id.seccomp_filters.clone(),
+        // ⛔ Always `Some`. T-0506 point 5: the key must name the instrument, and
+        // an unset component would let an emulated answer match a native one by
+        // both being unreadable. `interp::detect` has no failure state, only two
+        // answers, and one of them is "no evidence" spelled `none`.
+        interpreter: Some(crate::interp::detect().key()),
     }
 }
 
@@ -263,8 +275,8 @@ mod tests {
             ..Default::default()
         };
         assert!(!hole.is_complete());
-        assert_eq!(hole.missing().len(), 6);
-        assert_eq!(hole.differences(&hole).len(), 6);
+        assert_eq!(hole.missing().len(), 7);
+        assert_eq!(hole.differences(&hole).len(), 7);
     }
 
     #[test]
@@ -280,6 +292,7 @@ mod tests {
             setgroups: Some("allow".into()),
             seccomp: Some("0".into()),
             seccomp_filters: Some("0".into()),
+            interpreter: Some("none".into()),
         };
         let confined = ConfinementKey {
             mnt_ns: Some("mnt:[4026532567]".into()),
