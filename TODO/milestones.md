@@ -370,7 +370,7 @@ Source:      `TOOL.md` section 5 M5, section 9
 Category:    milestones
 Priority:    P1
 Effort:      L
-Status:      open
+Status:      partial
 
 Problem:     The layer that makes package managers work. Without it the runtime
              runs `echo` and nothing a user wants.
@@ -392,6 +392,73 @@ Decision:    A C toolchain rather than a trivial package. It exercises the
              and a two-file project catches a toolchain that installed and
              cannot link.
 Prove:       `./experiments/240-distro-sweep.sh` exits 0
+
+
+**Partial, 2026-09-09. Eight of the ten rows build and run a C program; one is
+the machine's and one is podbox's, and the sweep says which is which by running
+the same subject under docker.**
+
+`experiments/240-distro-sweep.sh`. ⛔ The mechanics are T-1203's, not a second
+runner: `scripts/common/distro-matrix.sh` holds the pinning, the `no-pull` row,
+the exit-2-when-nothing-ran rule and the reference qualification, and
+`125-across-distributions.sh` sources the same file. This entry supplies the
+subject and the row list.
+
+⛔ **NO DOCKER HUB.** `ghcr.io`, `public.ecr.aws` and the distributions' own
+registries, all ten pinned by manifest digest on 2026-09-09.
+
+```
+ROW            LIBC     PM            INSTALL   BUILD   RAN
+alpine         musl     apk           0         0       42
+debian         glibc    apt-get       0         0       42
+ubuntu         glibc    apt-get       0         0       42
+archlinux      glibc    pacman        0         0       42
+almalinux      glibc    dnf           0         0       42
+rocky          glibc    dnf           0         0       42
+rocky-minimal  glibc    microdnf      0         0       42
+fedora         glibc    dnf           0         0       42
+opensuse-leap  glibc    zypper        104       127     no-compiler
+voidlinux-musl musl     xbps-install  2         127     no-compiler
+```
+
+⭐ **A ROW THAT FAILS IS RUN AGAIN UNDER DOCKER, and that control is what makes
+the two failures different answers rather than one number.**
+
+- `voidlinux-musl` fails **identically under docker** on the same image, with
+  the same `SSL_connect returned 1` from `xbps`. It is the machine, not either
+  runtime, and the row reads `host`.
+- `opensuse-leap` **succeeds under docker**, so it is podbox's.
+  [T-0412](complete.md) is authored with the whole diagnosis: `libzypp` hands
+  libcurl a `CURLOPT_CAPATH` of `/etc/ssl/certs`, a hash-indexed directory,
+  and every CAfile podbox writes is invisible to it. `curl --cacert` on the
+  bundle podbox installed returns 200 on the same host where the default
+  returns error 60.
+
+⭐ **What the sweep found, which is the reason for a matrix rather than a smoke
+test.** Each of these passed on some rows and failed on others, and a one-image
+test would have found none of them:
+
+| finding | seen on | not on |
+| --- | --- | --- |
+| an image config with no `PATH`, so gcc could not find `cc1` | rocky, rocky-minimal | almalinux, the same gcc |
+| `./` as a tar member, refusing the whole layer | every debian-family image | alpine, arch |
+| `/etc/ssl/certs` a symlink, so the CA fixup could not write | opensuse | everything else |
+| `/lib` a symlink, so the libc probe read `unknown` | void | everything else |
+| a CAfile at a path the TLS stack does not read | void, opensuse | everything else |
+
+⚠ **Why it is `partial` and not `done`.** Nine of the ten fixups are in and the
+acceptance runs, but the entry's own bar is ten rows and one of them is podbox's
+to fix. It stays open, names the blocker and names what would clear it, which is
+[RULES.md](RULES.md) section 5.
+
+Prove, run 2026-09-09:
+
+```
+$ ./experiments/240-distro-sweep.sh
+  rows 10, ran 10, no_pull 0, harness_failed 0
+  built_and_ran 8, host_not_runtime 1
+  exit 1, because opensuse-leap is podbox's
+```
 
 ---
 
@@ -447,7 +514,7 @@ Source:      `TOOL.md` section 9
 Category:    milestones
 Priority:    P1
 Effort:      M
-Status:      open
+Status:      partial
 
 Problem:     Every honesty rule in section 4.1 and section 6.8 is unenforced until something
              asserts that the refusal happens. A rule that is only prose is a
@@ -468,3 +535,43 @@ Decision:    Negative tests live in `experiments/` with the positive ones and
              that regresses, and splitting them makes one of the two easier to
              skip.
 Prove:       `./experiments/250-negative-tests.sh` exits 0
+
+**Partial, 2026-09-09.** `experiments/250-negative-tests.sh` drives eleven
+refusals through the shipped binary and exits **2**, because three of them
+cannot be measured on this machine and one of those needs M6.
+
+⛔ **Every clause asserts TWO things and the second is the one that rots**: the
+exit code, read from the process that produced it, and that the message NAMES
+the reason. "unknown option" where the parity table has a reason is a regression
+even though the code is unchanged.
+
+What ran and held:
+
+```
+  run --network=none                 rc=125  named: "no network namespace to select"
+  run -v host:/mapped:ro             rc=125  named: "a copy pretending to be a mount"
+  run --strict                       rc=125  4 reasons listed, each on its own line
+  the same run without --strict      rc=0
+  an unlisted flag                   rc=125  named: "no row in the parity table"
+  a None flag names its status       rc=125  named: "status None"
+  a None VERB names its reason       rc=125  named the row's own note
+  pull http://…                      rc=1    named "HTTPS only", and NOT 124
+  30-attribution-census.sh           rc=2    the third state, never 1
+```
+
+⚠ **Three clauses did not run here, and each says so rather than passing
+quietly**:
+
+1. a Go payload under `interpose` declined rather than silently unvirtualized:
+   ⛔ M6 has no interposer, and this clause is [T-0709](interpose.md)'s `Prove`;
+2. `-t` refused by name: this machine's `/dev/ptmx` IS usable, so the arm that
+   ran is the positive one and the refusal could not be driven;
+3. the `wait`-refuses-a-dead-container clause skipped once, on a container whose
+   launcher pid read 0. ⚠ That is the observation [T-0608](supervise.md)
+   records, and it is why the clause reports what it found rather than skipping
+   silently.
+
+⛔ The `pull http://` clause runs under a `timeout` and asserts the code is not
+124, because the failure that refusal exists to prevent is a **hang** rather
+than an error: a clause with no bound would pass by hanging.
+

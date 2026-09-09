@@ -379,3 +379,59 @@ single pass would have shipped that defect, and a retry would have published it.
 ⚠ **The script never retries and never continues past a failure**, so the number
 it reports is how many iterations happened BEFORE the first one, which is the
 only number this entry is about.
+
+---
+
+### T-0608 A detached container that reads `exited` with no launcher, seen twice and not reproduced
+
+Source:      Observed on 2026-09-09 while writing `experiments/250-negative-tests.sh`
+Category:    supervise
+Priority:    P1
+Effort:      M
+Status:      open
+
+Problem:     ⛔ **`podbox run -d` returned a container id, and one second later
+             `inspect` read `exited`, pid `0`, launcher pid `0`, exit code `0`,
+             for a payload that was `sleep 20`.** `logs` was empty. Whatever
+             happened, the record says the container ran and ended cleanly, and
+             it did not: a `sleep 20` that exits 0 in under a second is not the
+             payload's answer, and reporting it as one is the class of lie
+             [T-0604](supervise.md) exists to refuse.
+Premise:     ⚠ **SEEN TWICE AND NOT REPRODUCED, and that is written down rather
+             than smoothed into a diagnosis.** Both sightings were in the same
+             shell, against `public.ecr.aws/docker/library/alpine:3.20`, in a
+             fresh store, while `experiments/240-distro-sweep.sh` had all four
+             CPUs. Immediately afterwards:
+
+             - six consecutive `run -d` of the same image in a fresh store read
+               `running` with a launcher pid: **0 bad of 6**;
+             - the same image and `ghcr.io/pkgforge-dev/archlinux:latest`, one
+               each: both `running`;
+             - `experiments/230-lifecycle-loop.sh 3` passed **3 of 3**, and its
+               own T-0604 clause reports `a launcher pid was recorded: yes`.
+
+             ⛔ No cause is claimed. Two candidates are worth ruling out first
+             and neither has been: the readiness pipe's bound being reached under
+             load and reported as an exit rather than as "podbox does not know",
+             and `reconcile` running between `create` and `start` and writing a
+             terminal state over a container that had not started yet. ⚠ The
+             second would explain the `0` exit code, because `reconcile`'s
+             `dead` path leaves no code and this record had one.
+Approach:    Reproduce it before changing anything.
+             1. a loop like `230-lifecycle-loop.sh`'s, but with the machine
+                LOADED, because both sightings were under a full four-CPU build.
+                ⚠ Load is the one condition the passing runs did not share;
+             2. record, for every iteration, the state, the pid, the launcher
+                pid and the exit code, and stop on the first that is terminal
+                within a second;
+             3. only then read `start` and `reconcile` against what the
+                reproduction shows.
+             ⛔ Do not "fix" the two candidates above on the strength of the
+             observation. M4's own race was found by enumerating the doors after
+             two written-down causes were both wrong
+             ([T-0602](supervise.md)), and the entry keeps them for that reason.
+Decision:    An entry rather than a note in `PROGRESS.md`, because an
+             intermittent that nobody is assigned to reproduce is one that is
+             rediscovered instead of fixed. ⚠ P1 and not P0: it was not seen in
+             any acceptance run, and the acceptance is what a release gates on.
+Prove:       `./experiments/230-lifecycle-loop.sh 40` under a concurrent `cargo build --release` reproduces it, and the same command after the fix does not

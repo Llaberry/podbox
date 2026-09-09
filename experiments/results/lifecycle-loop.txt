@@ -1,13 +1,13 @@
 == conditions
-date              2026-09-09T08:36:23Z
+date              2026-09-09T13:40:26Z
 host kernel       6.18.44-fc-v24
 podbox            podbox 0.1.0
 image             ghcr.io/pkgforge-dev/archlinux:latest
-iterations asked  20
+iterations asked  3
 
 == the loop: create, start, ps, exec, stop, rm
   ⛔ no sleep anywhere; every wait is on a condition with a bound
-  consecutive passes: 20 of 20
+  consecutive passes: 3 of 3
 
 == T-0604: a launcher that is killed leaves `dead`, not a made-up code
   run -d rc=0, a launcher pid was recorded: yes

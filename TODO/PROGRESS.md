@@ -4,22 +4,22 @@
 order. Rewritten every session. It carries no history: the history is the git
 log and the entries.
 
-**State: M3 and M4 are both CLOSED. `podbox run`, `exec`, the verb and flag
-parity table as data, the `docker` and `podman` names on PATH, and the whole
-lifecycle (`create`, `start`, `ps`, `logs`, `stop`, `kill`, `wait`, `rm`, `cp`,
-`run -d`, `--name`) are in, and the lifecycle passes twenty consecutive times
-with no sleep anywhere in it.** ⭐ CI is green again after nine red runs, the
-store has a written concurrency contract, and a probe under an emulator now says
-so instead of reporting qemu's answer as the machine's. M5, environment
-completion, is next.
+**State: M5 is BUILT and its acceptance is 8 of 10. `crates/podbox-complete`
+exists, `podbox run` and `podbox exec` both take it, and eight of the ten M5
+distributions install a C toolchain through their own package manager and build
+and run a two-file program with it.** ⭐ The three P0 CLI entries M3 left open
+are closed and docker's exit codes were MEASURED rather than read: four of eight
+cases were wrong. ⭐ The powerpc gate is cleared, so eight architectures check
+the workspace where six did, and the powerpc64le binary runs under an emulator.
 Session of 2026-09-09, on `main`.
 
-⭐ **The one thing worth reading before anything else is how M4 closed.** Its
-acceptance FAILED three times, at 10 of 20, 9 of 20 and 1 of 3, and the cause was
-a real race in `stop` rather than in the loop: `stop` connects to the launcher
-twice, and a container that stopped fast let the launcher tear its socket down in
-between. [T-0602](supervise.md) carries it, along with the two candidate causes
-that were written down first and were BOTH wrong.
+⭐ **The one thing worth reading before anything else is that the banner was
+lying.** It printed `mode=` the rung the PROBE selects, and `podbox_enter`
+performs a plain `chroot` on every machine. On this host, which probes as
+`namespace`, every `podbox run` said `mode=namespace (namespaces: as configured;
+mounts: full)` for a payload that had neither. [T-0804](cli.md) is where that was
+found, and it is exactly the rule that entry exists to enforce: no output may
+imply namespaces, cgroups or devices exist when they do not.
 
 ## The measured baseline
 
@@ -34,17 +34,30 @@ is a control of the bogus-argument discriminator, and the consequence is
 
 | what | value | taken by |
 | --- | --- | --- |
-| ⭐ release binary, M3 complete, `x86_64-unknown-linux-musl` | 2,360,176 bytes | `experiments/110-bloat-delta.sh enter`, T-0910 |
-| third-party crates in that binary | 97 | the same script |
+| ⭐ release binary, M5 complete, `x86_64-unknown-linux-musl` | 2,601,840 bytes | `experiments/110-bloat-delta.sh enter`, T-0910 |
+| third-party crates in that binary | 98 | the same script |
+| what M5's completion layer cost | **+241,664 bytes** on M3's 2,360,176 | the same script |
+| ⭐ **M5 rows that install a toolchain and build a program** | **8 of 10**; 1 the machine's, 1 podbox's and diagnosed | `experiments/240-distro-sweep.sh`, T-1106 |
+| the row docker also fails on, so it is the machine's | `voidlinux-musl`, `SSL_connect returned 1` from xbps | the same, its docker control |
+| the row docker succeeds on, so it is podbox's | `opensuse-leap`; libzypp reads a hash-indexed CApath | the same, and [T-0412](complete.md) |
+| ⭐ `/dev/null` inside a container on THIS host | a real character device 1:3 | the same. ⚠ `mknod` is TRIED before a shim is written |
+| ⭐ architectures that check the workspace | **8**, and **0** blocked | `experiments/260-multiarch.sh`, T-0912 |
+| ⭐ `podbox probe --json` under `qemu-ppc64le-static` | parses, and reads `ELF machine 0x15` out of its own header | the same, clause 7 |
+| ⭐ exit-code cases where podbox and docker agree | **15 of 15**, after four were wrong | `experiments/330-exit-codes.sh`, T-0802 |
+| docker's code for a flag its PARSER refuses | **125**; for anything a verb refuses after that, **1** | the same |
+| a command found and not invocable | **126**, where podbox said 127 | the same |
+| refusals driven from outside the binary | 10, each asserting the code AND the reason | `experiments/250-negative-tests.sh`, T-1109 |
+| doors a symlink could make the completion layer write through | 6 planted, **0** escapes | `experiments/85-completion-symlink-escape.sh`, T-0405 |
+| ⭐ tcp/80 egress from this host | **works**, 200 in 0.104 s. ⛔ So T-0411's premise does not hold here | `curl`, recorded in [T-0411](complete.md) |
 | `PT_INTERP` in it | none. still static-pie | `readelf -l`, the same script |
 | ⭐ architectures the workspace compiles for | **6**, and `powerpc64le` blocked and named | `experiments/260-multiarch.sh`, T-0911 |
 | what six architectures cost the binary | **+128 bytes** on 2,282,224. ⚠ one build, below the instrument's resolution | the same |
 | ⭐ `podbox run --platform linux/arm64 <img> uname -m`, on this amd64 host | **`aarch64`** | `experiments/300-run.sh` clause 5 |
-| ⭐ the rung `podbox run` selects inside the reconstruction | **`chroot`**, where this host is `namespace` | `experiments/300-run.sh` clause 7 |
+| ⭐ the rung `podbox run` ENTERS with, on any machine | **`chroot`**, and the banner says so and names what the machine would permit | `podbox_enter::ENTERED_RUNG`, T-0804 |
 | ⭐ **consecutive lifecycle passes** | **20 of 20**, after three runs that reached 10, 9 and 1 | `experiments/230-lifecycle-loop.sh` |
 | a container whose LAUNCHER was `SIGKILL`ed | `dead`, exit code `-`, and `wait` exits 125 rather than printing one | the same, clause 2 |
 | threads on the launcher's spawn path | **1** | the same, clause 3 |
-| ⭐ rows in the verb and flag parity table | **131**, over 53 verbs, four statuses and no fifth | `podbox system info --format '{{json .Parity}}'` |
+| ⭐ rows in the verb and flag parity table | **139**, over 53 verbs, four statuses and no fifth | `podbox system info --format '{{json .Parity}}'` |
 | ⭐ a probe under `qemu-aarch64-static`, asked what measured it | **`emulated: true`**, and the interpreter named in the cache key | `experiments/260-multiarch.sh` clause 6 |
 | the same answer offered to a native podbox sharing the store | refused: `the instrument changed` | the same |
 | 8 concurrent pulls of 3 references into one store | 8 exits of 0, 3 records, 12 blobs, 0 bad, 0 missing, 0 partials | `experiments/210-store-concurrency.sh` |
@@ -61,7 +74,7 @@ is a control of the bogus-argument discriminator, and the consequence is
 | ⭐ `docker image inspect`'s `RepoDigests[0]` for the same tag | **the same value** | the same script |
 | blobs a fresh `alpine:latest` pull stores | 4, all hashing to their own names | the same script |
 | a second pull of the same tag | 0 layers fetched, every one `Already exists` | the same script |
-| `podbox pull http://…` | exit **2**, "podbox speaks HTTPS only", under a 30 s timeout | the same script |
+| `podbox pull http://…` | exit **1**, "podbox speaks HTTPS only", under a 30 s timeout. ⚠ 1 and not 2 since T-0802 measured docker | the same script |
 | a pull into a 1 MiB tmpfs | refused, 0 blobs written, message names all four things | `experiments/140-space-precheck.sh` |
 | a pull with 6 free inodes and 256 MiB free | refused, and the message names inodes | the same script |
 | registries the challenge-driven auth answers | 4: Docker Hub, `public.ecr.aws`, `ghcr.io`, `quay.io` | driven by hand, and `140-`/`160-` now default to the second |
@@ -126,7 +139,7 @@ that third state into a failure and reports one status for every clause.
 $ ./scripts/dev.sh check
   fmt, clippy -D warnings, build, tests, the gate and the markers, all green
 $ ./scripts/check-todo.py
-check-todo: 106 rows, 106 entries, 37 open, 6 partial, 2 blocked, 61 done
+check-todo: 108 rows, 108 entries, 22 open, 3 partial, 2 blocked, 81 done
 $ ./scripts/plant.sh
   plants   23 caught, 0 missed
   controls 3 quiet, 0 fired
@@ -135,15 +148,23 @@ $ cargo test --workspace
 $ readelf -l target/x86_64-unknown-linux-musl/release/podbox | grep -c INTERP
 0
 $ ./experiments/110-bloat-delta.sh enter
-  total_bytes 2360176   headroom 5639824   third-party crates 97
+  total_bytes 2601840   headroom 5398160   third-party crates 98
+$ ./experiments/85-completion-symlink-escape.sh
+  6 doors, 0 escapes; five confined and the one that stays inside followed
+$ ./experiments/240-distro-sweep.sh
+  rows 10, ran 10, built_and_ran 8, host_not_runtime 1. ⛔ exits 1: opensuse
+$ ./experiments/250-negative-tests.sh
+  10 refusals driven from outside; exits 2, three could not be measured here
+$ ./experiments/260-multiarch.sh
+  8 architectures check the workspace, 0 blocked; ppc64le RUNS under qemu
+$ ./experiments/330-exit-codes.sh
+  15 cases, podbox and docker agree on every one
 $ ./experiments/130-probe-parity.sh
   got chroot / got namespace / 15 matched, 1 recorded divergence, 0 differed
 $ ./experiments/150-image-acquisition.sh
   podbox and docker report the same digest, against ghcr.io
 $ ./experiments/220-extract-path-safety.sh
   A traverse / B dotdot / C absolute / D hardlink refused; E legit survived
-$ ./experiments/260-multiarch.sh
-  6 architectures check the workspace; 1 blocked and named; aarch64 runs
 $ ./experiments/270-multiarch-image.sh
   two platforms of one tag, and the ELF machine inside each tree
 $ ./experiments/280-insecure-registry.sh
@@ -159,19 +180,20 @@ $ ./experiments/300-run.sh
 $ ./experiments/310-session-startup.sh
   a cold compile is 29 s and 87 crates; dev.sh returns in 1 s
 $ ./experiments/320-cli-contract.sh
-  131 parity rows, 53 verbs; docker and podman both run the payload and say so
+  139 parity rows, 53 verbs; docker and podman both run the payload and say so
 ```
 
 ## Counts
 
-107 entries: 23 open, 1 partial, 2 blocked, 81 done.
+108 entries: 22 open, 3 partial, 2 blocked, 81 done.
 
-⭐ **Fourteen entries closed and one is `partial`.** [T-0503](enter.md) is the
-one, and it is waiting on a machine nobody here can reach rather than on work.
+⭐ **Fifteen entries closed and three are `partial`.** [T-0503](enter.md) waits
+on a machine nobody here can reach; [T-1106](milestones.md) is 8 of 10 rows and
+names the one that is podbox's; [T-1109](milestones.md) drove ten refusals and
+says which three could not be driven here.
 
-⚠ **Two entries were authored and not implemented**: [T-1206](gate.md) was
-authored and implemented in the same change because it is a defect fix, and
-[T-0912](deps.md) was authored from a measurement this tree already had.
+⚠ **Three entries were authored and not implemented**, which is the rule:
+[T-0412](complete.md), [T-0608](supervise.md) and nothing else.
 
 Derived by `scripts/todo-count.py` and asserted by `scripts/check-todo.py`.
 [INDEX.md](INDEX.md)'s Counts block carries the per-priority breakdown, and the
@@ -179,114 +201,130 @@ gate refuses a commit where the two disagree.
 
 ## What this session did
 
-### CI had been red for nine commits, and the reason was a merge
+### The banner was lying, and T-0804 is where that was found
 
-⛔ **`.cargo/config.toml` points `CC_<target>` at `scripts/zig-cc.sh` and the
-workflow carried a SECOND declaration of that requirement** as a
-`bootstrap-env.sh` component list. Consolidating M1, M2 and M3 onto `main`
-brought `rustls` and its `ring` with it and turned a list that had been complete
-into one short by one word. Both red jobs died in the same place,
-`zig-cc.sh: zig is not on PATH`, and a local `./scripts/dev.sh check` stayed
-green throughout because this container has zig.
+⛔ **`mode=` printed the rung the PROBE selects, and `podbox_enter` performs a
+plain `chroot` on every machine.** On this host, which probes `namespace`, every
+run announced `namespaces: as configured; mounts: full` for a payload with
+neither. The banner is built from `podbox_enter::ENTERED_RUNG` now -- one
+constant, so the banner, the container record and `--strict` cannot disagree --
+and it prints the machine's own answer beside it rather than dropping it.
 
-⭐ **[T-1206](gate.md) holds the invariant rather than the value.** Check 19
-derives the required components in two hops, from `.cargo/config.toml` to the
-wrapper it names to the component that wrapper says installs it, and hard-codes
-neither. Cases 19a and 19b plant each arm.
+### docker's exit codes, measured, and four of eight were wrong
 
-### M3 closed: `exec`, the parity table as data, and the two names
+⭐ **The discriminator is not obvious and it is the finding: docker exits 125
+for anything its FLAG PARSER refuses and 1 for anything a verb refuses
+afterwards.** `run --badflag`, `--pull=bogus` and `--memory=notasize` are 125;
+`images --format '{{.Nope}}'`, `rmi no-such-image` and `run` with no image are
+1. The costly one was 126: every `execve` failure was folded into "not found",
+so a non-executable command said 127 where docker says 126, and a caller
+branching on 127 retries with another path.
 
-⭐ **[T-0505](enter.md)**, `exec` as a fresh chroot. The degradation is stated in
-three places that cannot disagree, because all three read one pair of constants.
-⛔ Its own `Prove` could not have run in the order the work order puts it in: it
-was written around `run -d`, `--name` and `rm -f`, which are M4's, and M4 is what
-needs this entry. The rewrite is in the entry beside the original.
+⛔ **The codes had been written out in THREE files and two copies had already
+diverged.** `podbox-cli::main` carried the old usage code while
+`podbox-image::error` carried the corrected one, so two verbs of one binary
+disagreed about what a flag error is. They live in `podbox_probe::exit`, are
+served as data by `podbox system info --format '{{json .ExitCodes}}'`, and six
+clauses across four experiments read them from there instead of carrying a `2`.
 
-⭐ **[T-0801](cli.md), 131 rows over 53 verbs, and THE TABLE DECIDES.** Every
-argument beginning with `-` goes through `parity::admit` before any match arm, so
-a flag with no row cannot be quietly accepted and an arm for a flag with no row
-is unreachable. `podbox run --name c1` used to be "unknown option"; where the
-table says `None` it is now the row's own reason.
+### M5, and what a ten-row matrix found that one image would not
 
-⭐ **[T-0803](cli.md)**, `docker` and `podman` through `argv[0]`, with the banner
-naming which. The operator's ruling is implemented against a **reachable
-daemon**: the socket is connected to and asked `/_ping` under a two-second
-timeout, so a stale socket file reads as absent, which is the state the machines
-podbox is for are in.
+Each of these passed on some rows and failed on others:
 
-### The instrument that answered, and the store's contract
+- ⛔ `quay.io/rockylinux/rockylinux:9` declares no `PATH`, docker supplies one
+  and podbox did not. The payload's shell then set a `PATH` **without exporting
+  it**, so gcc ran with nothing to search for its own installation directory,
+  emitted relative search paths and could not execute `cc1` -- while `cc1` sat
+  in `/usr/libexec` with its execute bit set. `almalinux`, the same gcc, worked.
+- ⛔ Debian's base images carry `./` as a tar member and podbox refused the
+  whole layer of every one of them. The archive's own root is not an entry.
+- ⛔ The completion layer resolved directory components with symlinks REFUSED,
+  which is right for extraction and wrong afterwards. `/etc/ssl/certs ->
+  /var/lib/ca-certificates/pem` is openSUSE's own link and `/lib -> usr/lib` is
+  void's; the first made the CA fixup fail and the second made the libc probe
+  read `unknown`. `RESOLVE_IN_ROOT` for the directories, `O_NOFOLLOW` and
+  unlink-then-create for the last component.
+- ⛔ `RESOLVE_IN_ROOT` treats the descriptor it is given as `/`, so stepping one
+  component at a time moves the root with every step and an absolute link
+  answers `ENOENT`. Its walk opens from the rootfs descriptor every time.
+- ⚠ A CAfile at a path the image's TLS stack does not read is a bundle nothing
+  reads: void's OpenSSL wants `$OPENSSLDIR/cert.pem`, which the image ships no
+  copy of.
 
-⭐ **[T-0506](enter.md) point 5.** What can be detected was MEASURED rather than
-assumed: under `qemu-aarch64-static`, `/proc/cpuinfo` reports an ARMv8 processor
-and `/proc/self/exe` names the guest binary, so both are the emulator's;
-`/proc/sys/fs/binfmt_misc` is the host's, and that is what podbox reads. ⛔ The
-claim is conditional and says so: the other state is `NoEvidence` and carries
-what was checked.
+### `mknod` is tried before a shim is written
 
-⭐ **[T-0210](image.md)**, seven invariants in the store's own header. ⛔ Writing
-I4 down found a defect nothing had run into: `rmi` and `prune` asked `in_use`
-OUTSIDE the index lock, so a `run` taking its hold in between kept its image lock
-and lost its blobs.
+⭐ T-0401 assumed the wall; the code asks the kernel. On this host `mknodat`
+SUCCEEDS, so `/dev/null` is a real character device `1:3` and the row is not a
+degradation at all. ⛔ A shim reported on a machine that did not need one is a
+degradation podbox invented, which is the same class of wrong as hiding one.
 
-### M4, and the race its acceptance existed to find
+### This machine intercepts TLS, and that is why M5 could not be measured at all
 
-⭐ **The loop failed three times before it passed**: 10 of 20, 9 of 20 and 1 of
-3, always at `stop`. ⛔ The cause was a real race in `stop`, which connects to
-the launcher twice, once to signal and once to wait: a container that stopped
-fast let the launcher reap it, remove its control socket and exit in between, so
-the second connect answered `ENOENT` and the fastest possible success read as
-"the container is not running". A single pass would have shipped it and a retry
-would have published it.
+⚠ `apk add gcc` failed with `certificate verify failed` **under docker as well
+as under podbox**, so the cause is the machine. It announces its own root in
+`$SSL_CERT_FILE`, `$CURL_CA_BUNDLE` and `$REQUESTS_CA_BUNDLE`, which `curl`,
+`python`, `node` and `cargo` all read. T-0407 appends that announced bundle to
+the image's own trust store, keeping the image's roots, under a marker so the
+append is idempotent and auditable. ⛔ A bundle found only at a default path is
+**no announcement** and is never propagated; `--no-host-cas` refuses the
+announced case too; and the append is marked degraded, so `--strict` refuses a
+run that needed it.
 
-⚠ **The two causes written down before the door sweep were BOTH wrong**, and
-that is worth keeping: `contain::within` re-appends the tail after resolving the
-nearest existing ancestor, and `flock` is held on an open file description. What
-found it was enumerating every door to the control socket.
+### T-0912: the gate was a crate-level attribute
 
-⚠ **Three more defects the building of it found, each written where it belongs:**
-`std::fs::read("/dev/urandom")` has no EOF and allocated 13 GB before the OOM
-killer took it; a readiness pipe without `O_CLOEXEC` is inherited through the
-payload's `execve`, so `run -d` blocked for exactly as long as the container ran;
-and `si_status` is at byte 24 of a `siginfo_t` and not 20, which reported a
-SIGTERMed payload as exit 128 instead of 143.
+⭐ `syscalls` 0.8.1 carries `#![feature(asm_experimental_arch)]` for five
+architectures, so no `#[cfg]` inside podbox could route around it. The
+dependency is target-gated away on those five and `sys.rs` takes their numbers
+from `linux-raw-sys`. podbox's own trap for powerpc64 handles that
+architecture's error convention, which is not x86_64's -- a positive errno in
+`r3` with `CR0.SO` set -- and `260-multiarch.sh` clause 7 EXECUTES it under
+`qemu-ppc64le-static`, asserting on a value the binary can only produce by
+reading its own ELF header through it. ⛔ `mips` is refused at compile time
+rather than given a convention nobody has run.
 
 ### Defects found in the harness rather than in podbox
 
-- ⛔ `experiments/260-multiarch.sh` clause 4's reading depended on unstated
-  binfmt state and flipped between `namespace` and `unsupported`. The
-  registration is made once now, before clause 4, and its tracked line no longer
-  carries a pid.
-- ⛔ `timeout X podbox pull &` makes `$!` the pid of **`timeout`**, so killing it
-  leaves podbox running; `experiments/210-store-concurrency.sh` read a correct
-  refusal as a defect because of it.
-- ⛔ A backtick inside double quotes is command substitution:
-  `experiments/320-cli-contract.sh` ran `docker` and `podman` and printed
-  docker's help into its own report.
+- ⛔ `330-exit-codes.sh` ran `docker ""`, an EMPTY VERB, where it meant `docker`
+  with no arguments, and reported "podbox and docker disagree" where they agree.
+- ⛔ `240-distro-sweep.sh` counted passing rows by grepping the transcripts, and
+  a failing row's transcript also carries its docker control's success. Counted
+  in the loop now, which is safe because that loop is not piped.
+- ⛔ Two `podbox-image` tests raced: a bare `fork` in one copies the lock fd
+  another is holding in a second thread, so the second read its own lock as
+  still held. They serialise on one mutex, with the reason written down.
+- ⛔ `85-completion-symlink-escape.sh` carried a per-run `mktemp` path into its
+  tracked reading, so it differed from itself on every run.
 
 ## In progress
 
-Nothing. Every entry this session opened is closed, and the one `partial`
-([T-0503](enter.md)) names the machine it is waiting for.
+Nothing is half-written. Three entries are `partial` and each names what it is
+waiting for in its own file: [T-0503](enter.md) a machine, [T-1106](milestones.md)
+one distribution row, [T-1109](milestones.md) three clauses that need M6 or a
+machine without a pty.
 
 ## The work order
 
 ⭐ **This is the only work order.** Do not take one from the index or from a
 kickoff prompt.
 
-1. ⭐ **M5, environment completion.** [T-1106](milestones.md) and
-   [complete.md](complete.md). [T-0410](complete.md) is P0 and is the one that
-   decides whether any of the rest works: a supplied `/etc/passwd` under a
-   non-`files` `nsswitch` is a no-op, measured across eleven distributions.
-2. **[T-0411](complete.md)**, a payload whose package sources are `http://` on a
-   runtime where tcp/80 hangs. ⚠ It could not be measured before a payload could
-   be run, and now it can.
-3. **[T-0912](deps.md)**, the powerpc gate. Measured stale on 2026-09-09: the
-   inline assembly compiles on stable and the gate is the crate's, so podbox can
-   clear it with `linux-raw-sys` and its own trap.
-4. **M6, M7 in order.** [T-0709](interpose.md) is P0 and lands inside M6.
+1. ⭐ **[T-0412](complete.md), the fixup that has to run INSIDE the rootfs.** It
+   is the one thing between M5 and 10 of 10, the diagnosis is complete, and the
+   same mechanism closes [T-0406](complete.md)'s keyring half. Then re-run
+   `experiments/240-distro-sweep.sh` and close [T-1106](milestones.md).
+2. **M6, the interposer.** [T-1107](milestones.md) and
+   [interpose.md](interpose.md). [T-0709](interpose.md) is P0 and is a READER
+   rather than an object: it selects by `DT_NEEDED` and refuses on the version
+   predicate, and `experiments/80-interposer-abi.sh` has already measured every
+   fact it needs. Then [T-0701](interpose.md) to [T-0704](interpose.md).
+3. **[T-0608](supervise.md)**, the detached container seen twice and not
+   reproduced. ⚠ Reproduce before changing anything: M4's own race was found by
+   enumerating the doors after two written-down causes were both wrong.
+4. **[T-0805](cli.md)**, the four-part diagnostic, and the rest of
+   [cli.md](cli.md).
+5. **M7 packaging.**
 
-⚠ [T-0606](supervise.md) stays `blocked` and is not in the order: `supervise` has
-no read channel on the target and no way to be made race-safe if it had one.
+⚠ [T-0606](supervise.md) stays `blocked` and is not in the order: `supervise`
+has no read channel on the target and no way to be made race-safe if it had one.
 
 ## Open questions for the operator
 
@@ -318,7 +356,19 @@ genuinely needs somebody with access to a machine this project cannot reach.
    proxy`, which is an environment policy and not a GitHub permission. It needs
    somebody with ordinary repository access to delete them, or nothing at all:
    they are inert.
-4. ⚠ **Nothing else.** Everything below was a question and is now a measurement
+4. ⚠ **This machine intercepts TLS, and podbox now propagates its announced CA
+   bundle into every container.** The rule is written down and narrow -- only
+   where `$SSL_CERT_FILE`, `$CURL_CA_BUNDLE` or `$REQUESTS_CA_BUNDLE` names one,
+   appended rather than replacing, marked degraded, and off with
+   `--no-host-cas`. ⛔ It is still a trust change made inside somebody else's
+   image, and it is the one decision this session made that an operator might
+   want to rule on rather than inherit. [T-0407](complete.md) carries it.
+5. ⚠ **`podbox run -d` was seen twice reading `exited` one second after
+   starting a `sleep 20`, and could not be reproduced in eight later attempts.**
+   [T-0608](supervise.md) is the entry and it names two candidates it refuses to
+   act on before a reproduction. ⚠ Both sightings were on a machine with all
+   four CPUs busy, which is the one condition the passing runs did not share.
+6. ⚠ **Nothing else.** Everything below was a question and is now a measurement
    or a ruling, kept here only so a reader does not go looking for it.
 
 ### What was open and is not
@@ -332,6 +382,10 @@ genuinely needs somebody with access to a machine this project cannot reach.
   it agrees with the target: the `kcmp(2)` control answers **`ESRCH`** in the
   VM, which is `references/Azathothas__container-research/tree/verification/real/extkernel-newapi.txt:26`'s
   reading, and `controls_answered` is `true` there. [T-0102](probe.md).
+- ⭐ **Whether tcp/80 hangs on this host. MEASURED, and it does NOT**: 200 in
+  0.104 s. [T-0411](complete.md)'s premise is about the runtimes podbox targets
+  and not about this machine, so the hang that fixup prevents cannot be
+  reproduced here and the entry says so rather than claiming its `Prove`.
 - ⭐ **Whether podbox should refuse the `docker` name where a daemon is
   reachable. RULED by the operator on 2026-09-08** and carried by
   [T-0803](cli.md), which was already closed when this section last listed it as
