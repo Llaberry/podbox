@@ -131,7 +131,9 @@ else
 	timeout 300 "$BIN" run -d --name deadprobe "$IMAGE" /bin/sleep 3600 >/dev/null 2>&1
 	rc=$?
 	launcher="$(timeout 60 "$BIN" inspect --format '{{.LauncherPid}}' deadprobe 2>/dev/null)"
-	say "  run -d rc=$rc, launcher pid $launcher"
+	# ⚠ Whether there IS one, not which. A tracked reading that carries a pid
+	# differs on every run and can therefore never reproduce.
+	say "  run -d rc=$rc, a launcher pid was recorded: $([ -n "$launcher" ] && [ "$launcher" != 0 ] && echo yes || echo no)"
 	if [ "$rc" -ne 0 ] || [ -z "$launcher" ] || [ "$launcher" = "0" ]; then
 		say "  SKIP: no detached container to kill"
 		skipped=1
@@ -141,7 +143,9 @@ else
 		code="$(timeout 60 "$BIN" inspect --format '{{.ExitCode}}' deadprobe 2>/dev/null)"
 		noticed="$(timeout 60 "$BIN" inspect --format '{{.Noticed}}' deadprobe 2>/dev/null)"
 		say "  after killing the launcher: [$state]"
-		say "  exit code reported:         [$code]   noticed at: [${noticed:0:20}]"
+		# ⚠ The same rule for the timestamp: that one was RECORDED is the
+		# assertion, and its value is this run's.
+		say "  exit code reported:         [$code]   a time was noticed: $([ -n "$noticed" ] && [ "$noticed" != "-" ] && echo yes || echo no)"
 		case "$state" in
 		"deadprobe dead") ;;
 		*) say "  FAIL: a killed launcher did not leave the container dead"; fail=1 ;;

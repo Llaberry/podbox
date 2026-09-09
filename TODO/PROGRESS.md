@@ -4,20 +4,22 @@
 order. Rewritten every session. It carries no history: the history is the git
 log and the entries.
 
-**State: M3 is CLOSED and M4 is built and does not pass. `podbox run`, `exec`,
-the verb and flag parity table as data, and the `docker` and `podman` names on
-PATH are all in; the whole lifecycle exists (`create`, `start`, `ps`, `logs`,
-`stop`, `kill`, `wait`, `rm`, `cp`, `run -d`, `--name`) and its twenty-pass
-acceptance fails at `stop` after nine or ten iterations. That failure is the
-record, not a thing to retry.** ⭐ CI is green again after nine red runs, the
+**State: M3 and M4 are both CLOSED. `podbox run`, `exec`, the verb and flag
+parity table as data, the `docker` and `podman` names on PATH, and the whole
+lifecycle (`create`, `start`, `ps`, `logs`, `stop`, `kill`, `wait`, `rm`, `cp`,
+`run -d`, `--name`) are in, and the lifecycle passes twenty consecutive times
+with no sleep anywhere in it.** ⭐ CI is green again after nine red runs, the
 store has a written concurrency contract, and a probe under an emulator now says
-so instead of reporting qemu's answer as the machine's.
+so instead of reporting qemu's answer as the machine's. M5, environment
+completion, is next.
 Session of 2026-09-09, on `main`.
 
-⭐ **The one thing to pick up first is a race, and it is reproducible in about a
-minute**: `./experiments/230-lifecycle-loop.sh 3` fails at `stop` with `no
-launcher is listening`. [T-0602](supervise.md) carries three readings and two
-candidate causes, neither established.
+⭐ **The one thing worth reading before anything else is how M4 closed.** Its
+acceptance FAILED three times, at 10 of 20, 9 of 20 and 1 of 3, and the cause was
+a real race in `stop` rather than in the loop: `stop` connects to the launcher
+twice, and a container that stopped fast let the launcher tear its socket down in
+between. [T-0602](supervise.md) carries it, along with the two candidate causes
+that were written down first and were BOTH wrong.
 
 ## The measured baseline
 
@@ -39,7 +41,9 @@ is a control of the bogus-argument discriminator, and the consequence is
 | what six architectures cost the binary | **+128 bytes** on 2,282,224. ⚠ one build, below the instrument's resolution | the same |
 | ⭐ `podbox run --platform linux/arm64 <img> uname -m`, on this amd64 host | **`aarch64`** | `experiments/300-run.sh` clause 5 |
 | ⭐ the rung `podbox run` selects inside the reconstruction | **`chroot`**, where this host is `namespace` | `experiments/300-run.sh` clause 7 |
-| ⛔ **consecutive lifecycle passes before the first failure** | **9 of 20**, and 10 of 20 and 1 of 3 on two other runs | `experiments/230-lifecycle-loop.sh` |
+| ⭐ **consecutive lifecycle passes** | **20 of 20**, after three runs that reached 10, 9 and 1 | `experiments/230-lifecycle-loop.sh` |
+| a container whose LAUNCHER was `SIGKILL`ed | `dead`, exit code `-`, and `wait` exits 125 rather than printing one | the same, clause 2 |
+| threads on the launcher's spawn path | **1** | the same, clause 3 |
 | ⭐ rows in the verb and flag parity table | **131**, over 53 verbs, four statuses and no fifth | `podbox system info --format '{{json .Parity}}'` |
 | ⭐ a probe under `qemu-aarch64-static`, asked what measured it | **`emulated: true`**, and the interpreter named in the cache key | `experiments/260-multiarch.sh` clause 6 |
 | the same answer offered to a native podbox sharing the store | refused: `the instrument changed` | the same |
@@ -149,25 +153,21 @@ $ ./experiments/290-microvm.sh
 $ ./experiments/210-store-concurrency.sh
   8 writers over 3 references; prune against a hold; a SIGKILL and the sweep
 $ ./experiments/230-lifecycle-loop.sh 20
-  ⛔ EXITS 1. 9 of 20 consecutive passes, failing at `stop`. T-0602
+  20 of 20 consecutive passes, then the three clauses after it
 $ ./experiments/300-run.sh
   8 clauses; clause 7 is the chroot rung inside the reconstruction, clause 8 exec
 $ ./experiments/310-session-startup.sh
   a cold compile is 29 s and 87 crates; dev.sh returns in 1 s
 $ ./experiments/320-cli-contract.sh
-  113 parity rows, 53 verbs; docker and podman both run the payload and say so
+  131 parity rows, 53 verbs; docker and podman both run the payload and say so
 ```
 
 ## Counts
 
-106 entries: 37 open, 6 partial, 2 blocked, 61 done.
+106 entries: 37 open, 1 partial, 2 blocked, 66 done.
 
-⭐ **Six entries closed and six are `partial`**, which is a shape worth naming:
-every `partial` here is a mechanism that is IN and an acceptance that has not
-passed, not a half-written feature. [T-0602](supervise.md),
-[T-0604](supervise.md), [T-0605](supervise.md), [T-0607](supervise.md) and
-[T-1105](milestones.md) are all waiting on one race, and
-[T-0503](enter.md) is waiting on a machine nobody here can reach.
+⭐ **Fourteen entries closed and one is `partial`.** [T-0503](enter.md) is the
+one, and it is waiting on a machine nobody here can reach rather than on work.
 
 ⚠ **Two entries were authored and not implemented**: [T-1206](gate.md) was
 authored and implemented in the same change because it is a defect fix, and
@@ -228,13 +228,22 @@ I4 down found a defect nothing had run into: `rmi` and `prune` asked `in_use`
 OUTSIDE the index lock, so a `run` taking its hold in between kept its image lock
 and lost its blobs.
 
-### M4 is built, and its acceptance fails
+### M4, and the race its acceptance existed to find
 
-⛔ **`./experiments/230-lifecycle-loop.sh 20` exits 1**: 10 of 20, 9 of 20 and
-1 of 3 over three runs, always at `stop`. That is the acceptance doing its job.
-[T-0602](supervise.md) carries the readings and the two candidates.
+⭐ **The loop failed three times before it passed**: 10 of 20, 9 of 20 and 1 of
+3, always at `stop`. ⛔ The cause was a real race in `stop`, which connects to
+the launcher twice, once to signal and once to wait: a container that stopped
+fast let the launcher reap it, remove its control socket and exit in between, so
+the second connect answered `ENOENT` and the fastest possible success read as
+"the container is not running". A single pass would have shipped it and a retry
+would have published it.
 
-⚠ **Three defects the building of it found, each written where it belongs:**
+⚠ **The two causes written down before the door sweep were BOTH wrong**, and
+that is worth keeping: `contain::within` re-appends the tail after resolving the
+nearest existing ancestor, and `flock` is held on an open file description. What
+found it was enumerating every door to the control socket.
+
+⚠ **Three more defects the building of it found, each written where it belongs:**
 `std::fs::read("/dev/urandom")` has no EOF and allocated 13 GB before the OOM
 killer took it; a readiness pipe without `O_CLOEXEC` is inherited through the
 payload's `execve`, so `run -d` blocked for exactly as long as the container ran;
@@ -256,31 +265,25 @@ SIGTERMed payload as exit 128 instead of 143.
 
 ## In progress
 
-⛔ **M4's race, and it is the next thing to work.** Every verb exists and the
-twenty-pass acceptance does not pass. Nothing about it is retried and nothing
-green is published: [T-1105](milestones.md), [T-0607](supervise.md) and
-[T-0602](supervise.md) are all `partial` with the readings in them.
+Nothing. Every entry this session opened is closed, and the one `partial`
+([T-0503](enter.md)) names the machine it is waiting for.
 
 ## The work order
 
 ⭐ **This is the only work order.** Do not take one from the index or from a
 kickoff prompt.
 
-1. ⛔ **Root-cause M4's race and close M4.** `./experiments/230-lifecycle-loop.sh 3`
-   reproduces it in about a minute. [T-0602](supervise.md) names two candidates
-   and establishes neither; ⚠ a third session-opening reading is that a hand-driven
-   loop of three against a WARM store passed three times, so what the script adds
-   is a cold store, an `rm` immediately before, and a `pull` at the start. Then
-   clauses 2, 3 and 4 of that script run for the first time and
-   [T-0604](supervise.md) and [T-0605](supervise.md) can close.
+1. ⭐ **M5, environment completion.** [T-1106](milestones.md) and
+   [complete.md](complete.md). [T-0410](complete.md) is P0 and is the one that
+   decides whether any of the rest works: a supplied `/etc/passwd` under a
+   non-`files` `nsswitch` is a no-op, measured across eleven distributions.
 2. **[T-0411](complete.md)**, a payload whose package sources are `http://` on a
    runtime where tcp/80 hangs. ⚠ It could not be measured before a payload could
    be run, and now it can.
 3. **[T-0912](deps.md)**, the powerpc gate. Measured stale on 2026-09-09: the
    inline assembly compiles on stable and the gate is the crate's, so podbox can
    clear it with `linux-raw-sys` and its own trap.
-4. **M5, M6, M7 in order.** [T-0709](interpose.md) and [T-0410](complete.md) are
-   both P0 and land inside M6 and M5.
+4. **M6, M7 in order.** [T-0709](interpose.md) is P0 and lands inside M6.
 
 ⚠ [T-0606](supervise.md) stays `blocked` and is not in the order: `supervise` has
 no read channel on the target and no way to be made race-safe if it had one.

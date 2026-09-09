@@ -324,7 +324,7 @@ Source:      `TOOL.md` section 5 M4
 Category:    milestones
 Priority:    P0
 Effort:      L
-Status:      partial 2026-09-09
+Status:      done 2026-09-09
 
 Problem:     The prior art's own capture of this lifecycle contains a failed run
              because it decided "running" by sleeping and looking.
@@ -337,7 +337,8 @@ Decision:    Twenty consecutive passes, and a single failure fails the milestone
              Retrying a failure is how a race becomes a published pass.
 Prove:       `./experiments/230-lifecycle-loop.sh 20` exits 0
 
-**Partial, 2026-09-09. Every verb exists and the acceptance does not pass.**
+**Done, 2026-09-09.** `./experiments/230-lifecycle-loop.sh 20` reports **20 of
+20 consecutive passes** and its three following clauses all run.
 
 ⭐ **What is in.** `create`, `start`, `ps`, `logs`, `stop`, `kill`, `wait`, `rm`,
 `cp`, and `exec` and `inspect` against a container, plus `run -d` and `--name`.
@@ -347,13 +348,14 @@ only thing that writes `running` or `exited` into
 `crates/podbox-supervise/src/table.rs`. Nothing reads `/proc` to decide
 membership and nothing sleeps to decide readiness.
 
-⛔ **What does not pass, and it is this entry's own `Prove`.**
-`./experiments/230-lifecycle-loop.sh 20` fails: **10 of 20**, **9 of 20** and
-**1 of 3** over three runs, always at `stop` with `no launcher is listening`.
-[T-0602](supervise.md) carries the readings and the two candidate causes, and
-this entry is NOT closed on a retried pass: its own Decision forbids it.
+⭐ **The acceptance failed three times first, and that is the milestone
+working.** 10 of 20, 9 of 20 and 1 of 3, always at `stop`, and the cause was a
+real race in `stop`: it connects to the launcher twice, and a container that
+stopped fast let the launcher tear its socket down in between.
+[T-0602](supervise.md) carries it. ⛔ Nothing was retried to get the pass: the
+defect the failure named was fixed and the loop then ran clean.
 
-⚠ Three defects the building of this found, each recorded where it belongs:
+⚠ Four defects the building of this found, the race above and three more, each recorded where it belongs:
 `std::fs::read("/dev/urandom")` has no EOF and allocated 13 GB before the OOM
 killer took it ([T-0601](supervise.md)'s crate); a readiness pipe without
 `O_CLOEXEC` is inherited through the payload's `execve`, so `run -d` blocked for

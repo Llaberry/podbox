@@ -479,25 +479,58 @@ fn handle(stream: UnixStream, child: &podbox_enter::Child, waiters: &mut Vec<Uni
 mod tests {
     /// ⛔ T-0603, asserted rather than commented. `PR_SET_PDEATHSIG` fires on
     /// the creating THREAD's exit, so the path that clones, chroots and execs
-    /// has to be the process. This reads how many tasks this process has while
-    /// the spawn path is reachable.
+    /// has to be the process.
     ///
-    /// ⚠ It asserts a CEILING rather than exactly one: `cargo test` itself runs
-    /// tests in threads, so the number here is the harness's and the assertion
-    /// is that podbox does not add its own. The shipped binary is checked by
-    /// `experiments/230-lifecycle-loop.sh`, which reads the same file of a real
-    /// `podbox run -d`.
+    /// ⚠ **This asserts on the SOURCE, and the first version of it asserted on
+    /// a thread count and was flaky.** Counting `/proc/self/task` before and
+    /// after does not work under `cargo test`, which runs tests in threads of
+    /// one process and changes that count for reasons that have nothing to do
+    /// with podbox: it failed once in about five runs, which is a test whose
+    /// name claimed more than it checked. The constraint is that these two
+    /// crates spawn no thread at all, and that is what is read here. The
+    /// runtime half is clause 3 of `experiments/230-lifecycle-loop.sh`, which
+    /// reads `/proc/<launcher>/task` of a real detached launcher.
     #[test]
-    fn the_spawn_path_never_spawns_a_thread_of_its_own() {
-        let before = tasks();
-        let _ = super::table::TABLE_VERSION;
-        let after = tasks();
-        assert_eq!(before, after, "the spawn path grew a thread");
-    }
-
-    fn tasks() -> usize {
-        std::fs::read_dir("/proc/self/task")
-            .map(|d| d.count())
-            .unwrap_or(0)
+    fn nothing_on_the_spawn_path_can_spawn_a_thread() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("crates/");
+        // ⛔ THE NEEDLES ARE ASSEMBLED AT RUN TIME AND NEVER WRITTEN OUT HERE.
+        // This test reads its own file, so a literal `thread` + `::spawn` in
+        // the assertion below is a match against itself: it failed exactly that
+        // way on 2026-09-09, and it is the same trap `scripts/plant.sh` carries
+        // three times over.
+        let needles = [
+            format!("thread{}spawn", "::"),
+            format!("thread{}Builder", "::"),
+        ];
+        let mut looked = 0;
+        for crate_name in ["podbox-supervise", "podbox-enter"] {
+            let dir = root.join(crate_name).join("src");
+            for f in std::fs::read_dir(&dir).expect("the crate's src/") {
+                let path = f.expect("an entry").path();
+                if path.extension().and_then(|e| e.to_str()) != Some("rs") {
+                    continue;
+                }
+                let text = std::fs::read_to_string(&path).expect("a source file");
+                looked += 1;
+                for (n, line) in text.lines().enumerate() {
+                    // ⚠ The doc comment above says the words; a line that is a
+                    // comment is not code.
+                    if line.trim_start().starts_with("//") {
+                        continue;
+                    }
+                    for needle in &needles {
+                        assert!(
+                            !line.contains(needle),
+                            "{}:{} spawns a thread on the path that clones and execs",
+                            path.display(),
+                            n + 1
+                        );
+                    }
+                }
+            }
+        }
+        assert!(looked >= 4, "only {looked} sources were read");
     }
 }

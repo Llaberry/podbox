@@ -57,7 +57,7 @@ against the shipped binary.
 
 | | |
 | --- | --- |
-| rows | **113** |
+| rows | **131** |
 | of which verbs | **53** |
 | statuses used | Native, Degraded, Stub, None, and no fifth |
 | rows with no reason | **0** |

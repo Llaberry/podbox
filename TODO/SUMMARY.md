@@ -10,6 +10,64 @@ other.
 
 ---
 
+## Session of 2026-09-09, on `main` (second)
+
+**M3 and M4 both closed, CI went from nine red runs to green, and the milestone
+that failed three times is the one worth reading about.**
+
+| what | before | after |
+| --- | --- | --- |
+| CI on `main` | **9 consecutive red runs** | green |
+| `podbox exec` | did not exist | a fresh chroot, and three channels say so |
+| the verb and flag parity table | prose in a specification | **131 rows as data**, and the parsers ask it |
+| `docker` and `podman` on PATH | not answered to | answered to, with the banner naming which |
+| a probe under `qemu-user` | reported qemu's rung as the machine's | `emulated: true`, and the cache is keyed on the interpreter |
+| the store's concurrency contract | unwritten | **7 invariants**, driven by 8 real processes |
+| the container lifecycle | did not exist | **20 of 20 consecutive passes**, no sleep anywhere |
+| entries | 104: 47 open, 3 partial, 2 blocked, 52 done | **106: 37 open, 1 partial, 2 blocked, 66 done** |
+| tests | 212 | **251**, 0 failed |
+| plant cases | 21 caught | **23 caught, 0 missed** |
+| experiments | 25 | **27** |
+
+### The defects this session found in its own tree
+
+| found by | what |
+| --- | --- |
+| reading nine CI logs | `.cargo/config.toml` and the workflow both declared the toolchain, and the merge that brought `rustls` made the second one short by a word |
+| ⭐ the door sweep, after three failing acceptance runs | `stop` connects to its launcher TWICE, and a container that stopped fast tore the socket down in between, so the fastest success read as "not running" |
+| writing invariant I4 down | `rmi` and `prune` asked `in_use` OUTSIDE the index lock, so a `run` taking its hold in between kept its lock and lost its blobs |
+| the OOM killer | `std::fs::read("/dev/urandom")` has no EOF; `podbox create` allocated 13 GB |
+| a 300-second `run -d` | a readiness pipe without `O_CLOEXEC` is inherited through the payload's `execve` |
+| a SIGTERMed payload reporting 128 | `si_status` is at byte 24 of a `siginfo_t`, not 20, which is `si_uid` |
+| the test that asserts a refusal says why | eleven parity rows whose whole reason was "the lifecycle is M4" |
+| `experiments/results/multiarch.txt` differing | clause 4's reading depended on unstated binfmt state and flipped between two rungs |
+| a report full of docker's help | a backtick inside double quotes is command substitution, in two `say` lines |
+| a clause reporting a correct refusal as a defect | `timeout X cmd &` makes `$!` the pid of `timeout` |
+| `320-cli-contract.sh` going red the day M4 landed | two clauses named verbs and a flag BY HAND that the parity table already carries; they read them out of the table now |
+| running the suite five times | T-0603's own test counted threads under a threaded harness, and then matched its own assertion line |
+
+### What the four review passes found
+
+1. ⭐ **The door sweep. It closed M4.** Enumerating every door to the control
+   socket found the double connect in `stop`, and disproved both causes that had
+   been written down from memory.
+2. **The guard mutation.** `./scripts/plant.sh`: 23 caught, 0 missed, 3 controls
+   quiet. Check 19's two new cases each went red with their own message, and
+   writing them found that a literal build-tool name in the plant harness makes
+   check 19 report the toolchain-free `todo` job as needing a toolchain. ⭐ The
+   same lens caught T-0603's own test: it counted threads before and after and
+   failed about one run in five, which is a test whose name claimed more than it
+   checked, and its replacement then matched its own assertion line.
+3. **The claim audit.** Every number in `PROGRESS.md` re-derived after the last
+   commit, and two tracked readings were carrying per-run values (a binfmt
+   registration's pid, a launcher's pid and a timestamp) that could never
+   reproduce.
+4. **What the driven pass showed that the suite could not.** The suite was green
+   through every one of the three failing lifecycle runs, the 13 GB allocation
+   and the 300-second `run -d`. None of them is reachable from a unit test.
+
+---
+
 ## Session of 2026-09-09, on `main`
 
 **M3 landed, podbox stopped being one architecture, and two questions that had

@@ -168,14 +168,48 @@ pub fn stop(store: &Store, want: &str, timeout_ms: u64) -> Result<(Container, bo
         return Ok((c, false));
     }
     launcher::signal(store, &c.id, 15)?;
-    if launcher::wait(store, &c.id, timeout_ms)?.is_some() {
-        return Ok((c, false));
+    // ⛔ **A LAUNCHER THAT IS ALREADY GONE IS A CONTAINER THAT ALREADY STOPPED**,
+    // not a failure. Found by the door sweep of 2026-09-09 and it is the race
+    // `experiments/230-lifecycle-loop.sh` kept failing on: `stop` connects
+    // TWICE, once to signal and once to wait, and a payload that dies quickly
+    // lets the launcher remove its control socket in between. The second
+    // connect then answers ENOENT, and reporting that as "the container is not
+    // running" turned the fastest possible success into an error. ⚠ Which is
+    // why `wait_or_gone` distinguishes "the launcher answered" from "there is
+    // no launcher to answer" from "the bound was reached", and only the last
+    // means podbox does not know.
+    match wait_or_gone(store, &c.id, timeout_ms) {
+        Ended::Code(_) | Ended::LauncherGone => return Ok((c, false)),
+        Ended::Bound => {}
     }
     // ⚠ The bound was reached, which is a fact rather than a failure, and the
     // caller is told that SIGKILL is what ended it.
     launcher::signal(store, &c.id, 9).ok();
-    let _ = launcher::wait(store, &c.id, timeout_ms);
+    let _ = wait_or_gone(store, &c.id, timeout_ms);
     Ok((c, true))
+}
+
+/// Why a wait on a launcher ended.
+///
+/// ⛔ Three states, because collapsing the first two is what made a container
+/// that stopped instantly read as one that was never running.
+enum Ended {
+    /// The launcher answered with the payload's exit code.
+    Code(i32),
+    /// There is no launcher: it has already finished and torn its socket down.
+    LauncherGone,
+    /// The bound was reached and podbox does not know.
+    Bound,
+}
+
+fn wait_or_gone(store: &Store, id: &str, timeout_ms: u64) -> Ended {
+    match launcher::wait(store, id, timeout_ms) {
+        Ok(Some(c)) => Ended::Code(c),
+        Ok(None) => Ended::Bound,
+        // ⚠ The only failure `launcher::wait` reports is "nothing is listening",
+        // which is the launcher having gone rather than an error to pass on.
+        Err(_) => Ended::LauncherGone,
+    }
 }
 
 /// Wait for a container to end. `None` is the bound, never a guess.
@@ -183,10 +217,19 @@ pub fn wait(store: &Store, want: &str, timeout_ms: u64) -> Result<(Container, Op
     let table = table::reconcile(store)?;
     let c = table::find(&table, want)?;
     match c.state {
-        State::Running => {
-            let code = launcher::wait(store, &c.id, timeout_ms)?;
-            Ok((c, code))
-        }
+        State::Running => match wait_or_gone(store, &c.id, timeout_ms) {
+            Ended::Code(n) => Ok((c, Some(n))),
+            // ⚠ The launcher finished between the reconcile above and this
+            // connect. Its last act is to write the exit code into the table,
+            // so the answer is there: re-read rather than report the race.
+            Ended::LauncherGone => {
+                let again = table::reconcile(store)?;
+                let c = table::find(&again, want)?;
+                let code = c.exit_code;
+                Ok((c, code))
+            }
+            Ended::Bound => Ok((c, None)),
+        },
         // ⛔ `Dead` has no exit code and never invents one.
         State::Dead => Ok((c, None)),
         _ => {

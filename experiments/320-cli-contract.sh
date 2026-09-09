@@ -96,9 +96,13 @@ say "== 2. the table DECIDES, rather than describing what a parser does"
 # ⛔ A flag with status None is refused up front WITH ITS REASON. This is the
 # posture dockless takes at run.py:129-160 and the reason the table is consulted
 # rather than written down twice.
-err="$(timeout 300 "$BIN" run --name c1 "$IMAGE" /bin/true 2>&1 >/dev/null)"
+# ⭐ TAKEN FROM THE TABLE, for the same reason clause 3 is: this named
+# `run --name` and went red the day M4 made it Native.
+noneflag="$(jq -r '[.[] | select(.verb == "run" and .flag != null and .status == "None") | .flag] | .[0]' \
+	"$WORK/parity.json" | cut -d, -f1)"
+err="$(timeout 300 "$BIN" run "$noneflag" "$IMAGE" /bin/true 2>&1 >/dev/null)"
 rc=$?
-say "  run --name        rc=$rc"
+say "  run $noneflag        rc=$rc"
 say "    $(printf '%s' "$err" | head -1 | cut -c1-96)"
 [ "$rc" -eq 2 ] || { say "  FAIL: a None flag was not invalid input"; fail=1; }
 printf '%s' "$err" | grep -q 'status None' || {
@@ -128,7 +132,10 @@ say ""
 say "== 3. every verb the table calls None says so with docker's 125"
 # ⛔ Not "unknown command". A caller that reads the table and then runs the verb
 # has to get the SAME reason back, from the same place.
-for verb in ps create start stop logs cp; do
+# ⭐ TAKEN FROM THE TABLE, not written here. Measured on 2026-09-09: this clause
+# named six verbs by hand and went red the day M4 implemented them, which is a
+# second declaration of the same thing the table already carries.
+for verb in $(jq -r '[.[] | select(.flag == null and .status == "None") | .verb] | .[0:6] | .[]' "$WORK/parity.json"); do
 	err="$(timeout 60 "$BIN" "$verb" 2>&1 >/dev/null)"
 	rc=$?
 	want="$(jq -r --arg v "$verb" '.[] | select(.verb == $v and .flag == null) | .note' \

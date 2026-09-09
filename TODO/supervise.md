@@ -64,7 +64,7 @@ Source:      `TOOL.md` section 6.6; `paper_final.md` section 10.6
 Category:    supervise
 Priority:    P0
 Effort:      M
-Status:      partial 2026-09-09
+Status:      done 2026-09-09
 
 Problem:     A fixed sleep is a scheduling assumption. The prior art's own
              capture of this lifecycle contains a failed run for exactly that
@@ -86,7 +86,9 @@ Decision:    A readiness fd over polling `ps`. Polling reintroduces the interval
              the entry exists to remove.
 Prove:       `for i in $(seq 20); do podbox run -d --name loop$i alpine:latest sleep 1 && podbox ps -q | grep -q . && podbox stop loop$i && podbox rm loop$i || exit 1; done`
 
-**Partial, 2026-09-09. The mechanism is in and the acceptance does not pass.**
+**Done, 2026-09-09**, and it took three failing runs and a door sweep to get
+there. `./experiments/230-lifecycle-loop.sh 20` reports **20 of 20 consecutive
+passes**.
 
 ⭐ **What is in.** Readiness is an `O_CLOEXEC` pipe that the payload's `execve`
 closes, so `start` returns when the exec has SUCCEEDED rather than when a timer
@@ -95,8 +97,8 @@ socket; `stop` and `wait` block on the launcher through that socket with a read
 timeout. ⛔ There is no `sleep` anywhere in the path, and
 `experiments/230-lifecycle-loop.sh` has none either.
 
-⛔ **What does not pass, and it is this entry's own `Prove`.** The twenty-pass
-loop fails, three runs out of three:
+⛔ **What the acceptance found before it passed, and this is the entry's whole
+point.** The twenty-pass loop failed three runs out of three:
 
 | run | consecutive passes | failed at |
 | --- | --- | --- |
@@ -111,17 +113,28 @@ launcher's own lock was still held and its control socket was not there.
 every time, so what the loop adds is a cold store, an `rm` of the previous
 container immediately before, and a `pull` at the start.
 
-⚠ **Two candidates, neither established.** `podbox_supervise::remove` calls
-`remove_dir_all` on the container's own directory, resolved through
-`crates/podbox-image/src/contain.rs`; if that resolution ever answers with an
-ancestor for a leaf that has gone, it would take the containers directory whole.
-And `table::reconcile` takes and drops an exclusive lock on every running
-container's lock file on every `ps`, `exec`, `stop` and `rm`, which is a write to
-a file a launcher is holding.
+⭐ **THE CAUSE, found by the door sweep and not by the loop: `stop` connects
+TWICE.** Once to send `SIGTERM`, once to wait for the exit. A payload that dies
+quickly lets the launcher reap it, remove its control socket and exit **in
+between the two connects**, so the second one answers `ENOENT` and `stop`
+reported the fastest possible success as "the container is not running". ⛔ The
+failure was more likely the faster the container stopped, which is why a
+hand-driven loop with a person's pauses in it passed every time.
 
-⛔ **Not retried and not published as a pass.** [T-0607](supervise.md)'s
-Decision: retrying one failure is how a race becomes a published pass, and the
-number that matters is how many iterations happened before the first failure.
+⭐ **The fix is that a launcher which is already gone is a container that already
+stopped, and `Ended` says which of three things happened**: the launcher
+answered with a code, there is no launcher left to answer, or the bound was
+reached. Only the last means podbox does not know, and collapsing the first two
+is what made this a failure. `podbox wait` had the same shape and takes the same
+fix, re-reading the table because the launcher's last act is to write the code
+into it.
+
+⚠ **Two candidates were written down before the sweep and BOTH were wrong**,
+which is worth keeping: `contain::within` re-appends the tail after resolving the
+nearest existing ancestor, so `remove_dir_all` can never widen to the containers
+directory; and `flock` is held on an open file description, so `reconcile`
+opening and closing its own fd cannot release a launcher's lock. Reading the code
+for what else reaches the socket is what found it.
 
 ---
 
@@ -161,11 +174,15 @@ a thread: the launcher forks with `clone_fork`, the payload's `chroot` and
 `setsid`s, so it outlives the shell that started it and holds no controlling
 terminal.
 
-⚠ **Asserted in two places rather than commented.** A unit test in
-`crates/podbox-supervise/src/launcher.rs` asserts this process grows no thread
-across the spawn path, and clause 3 of `experiments/230-lifecycle-loop.sh` reads
-`/proc/<launcher>/task` of a real detached launcher and requires exactly one.
-⛔ That clause has not run: the loop fails before reaching it.
+⚠ **Asserted in two places rather than commented, and the first version of the
+first one was wrong.** A unit test read `/proc/self/task` before and after the
+spawn path and failed about one run in five, because `cargo test` runs tests in
+THREADS of one process and that count moves for reasons that have nothing to do
+with podbox: a test whose name claimed more than it checked. It now reads the
+two crates' own sources and asserts neither spawns a thread at all, with the
+needles assembled at run time so the assertion does not match itself. ⭐ The
+runtime half is clause 3 of `experiments/230-lifecycle-loop.sh`, which reads
+**1** thread off a real detached launcher.
 
 ---
 
@@ -175,7 +192,7 @@ Source:      `TOOL.md` section 6.6
 Category:    supervise
 Priority:    P1
 Effort:      M
-Status:      partial 2026-09-09
+Status:      done 2026-09-09
 
 Problem:     Two launchers, or a launcher restart, must not disagree about what
              is running, and neither may read the answer out of a directory a
@@ -192,7 +209,10 @@ Decision:    Reconcile on start rather than trust the table. A launcher killed
              not watching".
 Prove:       `podbox run -d --name stateprobe alpine:latest sleep 30 && kill -9 "$(podbox inspect --format '{{.Pid}}' stateprobe)" && podbox ps -a --format '{{.Status}}' --filter name=stateprobe | grep -qi exited && podbox rm stateprobe`
 
-**Partial, 2026-09-09. Implemented, and its clause has not run.**
+**Done, 2026-09-09.** Clause 2 of `experiments/230-lifecycle-loop.sh` drives it:
+a detached container whose LAUNCHER is `SIGKILL`ed reads `dead`, `inspect
+--format '{{.ExitCode}}'` prints a dash, a time is recorded for when it was
+noticed, and `podbox wait` on it exits **125** rather than printing a number.
 
 ⭐ **The mechanism.** A launcher holds an exclusive `flock` on its container's
 own lock file for its whole life, so `table::reconcile` decides whether a
@@ -203,10 +223,10 @@ closed. Such a container becomes `dead`, with the time it was NOTICED and ⛔ **
 exit code at all**; `podbox wait` on it refuses rather than printing a number,
 and `inspect --format '{{.ExitCode}}'` prints a dash.
 
-⛔ **Clause 2 of `experiments/230-lifecycle-loop.sh` drives exactly this and has
-not run**, because the loop fails before reaching it ([T-0602](supervise.md)).
-Until it does, this is a mechanism that is written down and not one that has been
-measured.
+⚠ **The payload outlives its launcher and that is not hidden.** Killing the
+launcher does not kill the container's process, so the clause kills it too on the
+way out; podbox has no PID namespace and `inspect --format '{{.Contains}}'` says
+exactly that.
 
 ---
 
@@ -216,7 +236,7 @@ Source:      `TOOL.md` section 6.6, section 6.5
 Category:    supervise
 Priority:    P2
 Effort:      S
-Status:      partial 2026-09-09
+Status:      done 2026-09-09
 
 Problem:     A log sink opened after the chroot cannot reach the store, which is
              outside the new root. Opening it afterwards is the same mistake as
@@ -234,7 +254,9 @@ Decision:    A file in the store rather than a pipe pumped by the launcher. A
              `timeout`.
 Prove:       `podbox run --rm --name logprobe alpine:latest sh -c 'echo out; echo err >&2' >/dev/null 2>&1; podbox logs logprobe 2>&1 | grep -q out`
 
-**Partial, 2026-09-09. Implemented, and its clause has not run.**
+**Done, 2026-09-09.** Clause 4 of `experiments/230-lifecycle-loop.sh`:
+`podbox run -d ... sh -c 'echo out; echo err >&2'` then `podbox logs` reads back
+`out err`, so both streams reached one file opened before the chroot.
 
 The log sink is opened in the launcher BEFORE anything changes root, and its
 descriptors are handed to the payload as fds 1 and 2 through the same
@@ -246,7 +268,8 @@ is step 2 of `TOOL.md` section 6.5 made in a different place.
 ⚠ `--log-driver` is not implemented at all rather than accepted and ignored, and
 `attach` is a `None` row in the parity table for the same reason.
 
-⛔ Clause 4 of `experiments/230-lifecycle-loop.sh` drives it and has not run.
+⚠ The two streams are interleaved into one file rather than kept apart, which
+is what `json-file` does and is why `logs` has no `--tail` or stream selector.
 
 ---
 
@@ -329,7 +352,7 @@ Source:      `TOOL.md` section 5 M4, section 9
 Category:    supervise
 Priority:    P0
 Effort:      M
-Status:      partial 2026-09-09
+Status:      done 2026-09-09
 
 Problem:     One pass proves nothing about a race, and the race is the reason
              this milestone exists.
@@ -345,12 +368,13 @@ Decision:    Twenty rather than a timed soak. A count is reproducible on a
              `docs/methodology/authoring.md:143-148` rules out the duration form.
 Prove:       `./experiments/230-lifecycle-loop.sh 20` exits 0
 
-**Partial, 2026-09-09. The loop exists and it does not pass twenty times.**
+**Done, 2026-09-09.** `./experiments/230-lifecycle-loop.sh 20` reports **20 of
+20 consecutive passes**, and the three clauses after it run for the first time.
 
-⭐ **This is the entry working, not the entry failing.** One pass proves nothing
-about a race, and a loop that only ever ran once would have shipped this. Three
-runs: 10 of 20, 9 of 20 and 1 of 3, every one of them failing at `stop`.
-[T-0602](supervise.md) carries the readings and the two candidate causes.
+⭐ **This entry earned its existence before it passed.** Three runs failed at
+10 of 20, 9 of 20 and 1 of 3, always at `stop`, and the cause was a real race in
+`stop` itself rather than in the loop: [T-0602](supervise.md) carries it. A
+single pass would have shipped that defect, and a retry would have published it.
 
 ⚠ **The script never retries and never continues past a failure**, so the number
 it reports is how many iterations happened BEFORE the first one, which is the
