@@ -150,7 +150,7 @@ $ ./experiments/310-session-startup.sh
 
 ## Counts
 
-104 entries: 47 open, 3 partial, 2 blocked, 52 done.
+105 entries: 47 open, 3 partial, 2 blocked, 53 done.
 
 ⭐ **Six entries were authored this session and five of them are already
 `done`**, which is the opposite of the last session's shape and is worth saying

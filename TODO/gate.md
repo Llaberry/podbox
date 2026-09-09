@@ -318,7 +318,7 @@ Decision:    Enforce uniqueness rather than dropping the rule. The rule exists
              already written down, and `experiments/README.md` says so; a rule
              worth writing and not worth checking is the kind that stops being
              believed.
-Prove:       `./scripts/plant.sh` reports 20 caught, 0 missed, with the two new cases planting a duplicate experiment number
+Prove:       `./scripts/plant.sh` exits 0 with cases 18a and 18b caught, each planting a duplicate experiment number
 
 **Done, 2026-09-08.** Check 18 of `scripts/check-todo.py`, and cases 18a and
 18b of `scripts/plant.sh`, in this change. `./scripts/plant.sh` exits 0 with
@@ -345,3 +345,81 @@ would. The same trap, a third time, in the same file.
 it. This entry's own Premise table names the four old numbers beside their new
 ones, and a check that read that table would report the defect the table exists
 to describe.
+
+---
+
+### T-1206 CI installs the toolchain the build config names, and nine commits proved nobody was holding it
+
+Source:      Found on 2026-09-09 by reading the gate workflow's own logs after nine consecutive red runs on `main`
+Category:    gate
+Priority:    P0
+Effort:      M
+Status:      done 2026-09-09
+
+Problem:     `.cargo/config.toml` points `CC_<target>` at `scripts/zig-cc.sh`
+             for every architecture podbox builds for, and
+             `.github/workflows/gate.yml` carried a second, hand-written
+             declaration of the same requirement as a `bootstrap-env.sh`
+             component list. The two drifted, and nothing could see it.
+Premise:     ⭐ **Measured on 2026-09-09** by reading the workflow logs of every
+             run since the last green one:
+
+             | | |
+             | --- | --- |
+             | last green run on `main` | `a4ab727`, 2026-09-08, which was M0's tip |
+             | consecutive red runs after it | **9**, `702cc02` through `563df15` |
+             | jobs red in each | `build` and `lint`; `todo` green throughout |
+             | what both died on | `zig-cc.sh: zig is not on PATH`, inside `ring`'s build script, exit 101 |
+             | what a local `./scripts/dev.sh check` said | green, on every one of them |
+
+             ⛔ **The break was a merge, not a commit.** M1 landed `rustls` and
+             its `ring`, which compiles C behind a build script, and
+             [T-0201](image.md) pointed the C compiler at `scripts/zig-cc.sh`.
+             The workflow's list was written before any of that and was never
+             revisited, so consolidating M1, M2 and M3 onto `main` turned a list
+             that had been complete into one that was short by one word.
+             ⚠ **The local gate could not have caught it**: this container has
+             zig installed, so every check a session runs passes. The only
+             machine that disagrees is the runner, and the only signal is a log
+             nobody was reading.
+Approach:    Add `zig` to the two jobs, then hold the invariant rather than the
+             value. Check 19 of `scripts/check-todo.py` derives the required
+             component set in two hops and hard-codes it in neither:
+             `.cargo/config.toml` names the wrapper program, and the wrapper
+             names the `bootstrap-env.sh` component that installs it. Every job
+             in `.github/workflows/` that runs cargo must carry that set.
+             ⚠ **One level of indirection, because a word match is not enough**:
+             `./experiments/110-bloat-delta.sh` and `./scripts/build-interpose.sh`
+             run cargo without the word appearing in the workflow, so a script
+             named in a job is read and its cargo calls count as the job's.
+             ⚠ Comment-only lines are dropped before the match. This workflow
+             explains itself at length, and prose about a cargo build is not one.
+             ⛔ The check and its plants land in the same change: `docs/AGENTS.md`
+             and [T-1202](gate.md).
+Decision:    Derive, do not list. A second list of components here would be the
+             same defect one file further along, and the entry that filed it
+             would be the one that reintroduced it. The two hops cost a file
+             read each and mean that a toolchain added to `.cargo/config.toml`
+             is required of CI the moment it is added, with nothing in the gate
+             to update.
+Prove:       `./scripts/plant.sh` exits 0 with cases 19a and 19b caught, and the gate workflow is green on `main`
+
+**Done, 2026-09-09.** Check 19 of `scripts/check-todo.py`, cases 19a and 19b of
+`scripts/plant.sh`, and `zig` in both cargo-running jobs of
+`.github/workflows/gate.yml`, in this change.
+
+⭐ **The check was run against the tree that carried the defect.** With `zig`
+removed from both lists it names `build` and `lint` by job, says which file
+declares the requirement and which wrapper names the component, and exits 1.
+That is the same finding the nine logs carry, reached without a runner.
+
+⚠ **Two cases, because the two arms find a job by different evidence.** 19a is a
+job that says `cargo` itself, which is the shape that actually broke; 19b is a
+job that only names a script which runs it, which is the shape a word match
+misses. An arm nothing exercises is an arm that has stopped working, which is
+[T-1202](gate.md)'s finding in a second place.
+
+⛔ **The planted component is read out of `.cargo/config.toml`'s wrapper at run
+time and never written into `scripts/plant.sh`.** Naming it there would be a
+third declaration of the value this check exists to keep in one place, which is
+the trap `CEILING_NUM` and `TAKEN_EXP` were each written to avoid.

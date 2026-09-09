@@ -2,8 +2,8 @@
 # plant.sh - break each of the gate's checks on purpose and assert it goes red.
 #
 # ⛔ AN ASSERTION NOBODY HAS SEEN FAIL IS NOT AN ASSERTION. `check-todo.py`
-# carries eighteen checks and this script carries twenty cases, because
-# check 17 has three assertions that fail apart and check 18 two. A check that
+# carries nineteen checks and this script carries twenty-three cases, because
+# check 17 has four assertions that fail apart, and checks 18 and 19 two. A check that
 # quietly matches nothing exits 0 exactly like one whose assertions all passed,
 # and the second is what everybody assumes they are looking at. This script is
 # what tells them apart.
@@ -45,7 +45,7 @@ command -v git >/dev/null 2>&1 || { echo "SKIP: no git" >&2; exit 2; }
 
 # ⛔ GUARD 3: ONE LIST. Everything any case may touch is named here once, and
 # both the backup and the restore iterate this and nothing else.
-FILES="TODO/INDEX.md TODO/PROGRESS.md TODO/probe.md TODO/reference-map.md README.md docs/conventions/prose.md experiments/110-bloat-delta.sh experiments/results/bloat-baseline.txt experiments/results/bloat-image.txt"
+FILES="TODO/INDEX.md TODO/PROGRESS.md TODO/probe.md TODO/reference-map.md README.md docs/conventions/prose.md experiments/110-bloat-delta.sh experiments/results/bloat-baseline.txt experiments/results/bloat-image.txt .github/workflows/gate.yml"
 
 # ⛔ CHECK 18'S SUBJECT IS A NUMBER THAT IS ALREADY TAKEN, so writing one here
 # literally would put a second name on it in this very file and make the clean
@@ -290,6 +290,41 @@ case_plant "18a a Prove at a taken number" "Give the new one a free number" \
 
 case_plant "18b a second script on disk" "Give the new one a free number" \
   sh -c 'printf "#!/bin/sh\n# a plant\n" > "experiments/${TAKEN_EXP}-plantdup.sh" && git add "experiments/${TAKEN_EXP}-plantdup.sh"'
+
+# ⚠ Check 19 has two cases because its two arms find the job by different
+# evidence and one can rot without the other: 19a is a job that says `cargo`
+# itself, 19b a job that only names a script which runs it. The real failure was
+# 19a's shape; 19b's is the one a word match would miss, and an arm nothing
+# exercises is an arm that has stopped working.
+# ⛔ COMPONENT-AGNOSTIC. The component is read out of `.cargo/config.toml`'s
+# wrapper at run time for the same reason the ceiling and the experiment number
+# are: naming it here would be a second declaration of the value this check
+# exists to keep in one place.
+CC_WRAPPER="$(awk -F'"' '/^CC_[A-Za-z0-9_]+ = \{/{print $2; exit}' .cargo/config.toml)"
+if [ -z "$CC_WRAPPER" ] || [ ! -r "$CC_WRAPPER" ]; then
+  echo "SKIP: .cargo/config.toml names no readable CC wrapper" >&2
+  exit 2
+fi
+CC_COMPONENT="$(sed -n 's/.*bootstrap-env\.sh \([a-z][a-z0-9-]*\).*/\1/p' "$CC_WRAPPER" | sed -n 1p)"
+if [ -z "$CC_COMPONENT" ]; then
+  echo "SKIP: $CC_WRAPPER names no bootstrap-env.sh component" >&2
+  exit 2
+fi
+export CC_COMPONENT
+
+# ⛔ THE SAME TRAP A FOURTH TIME, and it caught this file on 2026-09-09 before
+# the cases below were first run. Check 19 reads every script a workflow job
+# names, and this file is one of them, so the build tool's own name written here
+# in a case title or a `sed` pattern reads as this harness running it: the `todo`
+# job, which needs no toolchain at all, was reported as needing one. Neither
+# string below carries that name. 19b's expected substring does, and is safe
+# because the check's matcher wants a word after it and finds a bracket.
+case_plant "19a a build job without its toolchain" "does not carry" \
+  sh -c 'sed -i -E "s/(bootstrap-env\.sh .*) $CC_COMPONENT/\\1/" .github/workflows/gate.yml'
+
+case_plant "19b the same, reached by a script" "runs cargo (through" \
+  sh -c 'sed -i -E "/--release --target/d;
+                    s/(bootstrap-env\.sh .*) $CC_COMPONENT/\\1/" .github/workflows/gate.yml'
 
 echo
 # ⛔ SAY WHAT IS NOT COVERED. A harness that lists passing cases without naming

@@ -64,8 +64,15 @@ jobs:
       # only the components this job needs. A workflow that installs its own
       # way is a second setup that drifts from the one anybody debugging the
       # repository actually uses.
+      #
+      # ⛔ `zig` is not optional and its absence is not a skip. `.cargo/config.toml`
+      # names `scripts/zig-cc.sh` as `CC_<target>` for every target podbox
+      # builds for, and `rustls`'s `ring` compiles C behind a build script, so
+      # `cargo build` without zig dies in `ring`'s build script with
+      # "zig is not on PATH" and exit 101. Check 18 of `scripts/check-todo.py`
+      # holds every cargo-running job here to that component list.
       - name: bootstrap
-        run: ./scripts/common/bootstrap-env.sh rust bloat cc tools
+        run: ./scripts/common/bootstrap-env.sh rust bloat cc zig tools
 
       - name: build
         run: cargo build --release --target x86_64-unknown-linux-musl
@@ -111,8 +118,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ⛔ `zig` for the same reason the build job needs it: `cargo clippy` runs
+      # `ring`'s build script, which compiles C with `scripts/zig-cc.sh`. A
+      # lint job without it fails in a dependency rather than on a lint.
       - name: bootstrap
-        run: ./scripts/common/bootstrap-env.sh rust tools
+        run: ./scripts/common/bootstrap-env.sh rust cc zig tools
 
       - name: toolchain
         run: rustup component add rustfmt clippy

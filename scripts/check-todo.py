@@ -62,7 +62,16 @@
      experiments/ at the close of M1 found FOUR entries naming a taken number,
      one of them M2's own acceptance. Each would have been discovered by
      whoever implemented it, mid-flight, which is how TODO/image.md T-0203's
-     was found and what it cost. TODO/gate.md T-1205.
+     was found and what it cost. TODO/gate.md T-1205;
+ 19. every CI job that runs cargo installs the toolchain .cargo/config.toml
+     says a cargo build needs. The component list in .github/workflows/ is a
+     SECOND declaration of that, and it drifted: T-0201 pointed
+     `CC_<target>` at scripts/zig-cc.sh, and the workflow's list was never
+     given `zig`, so nine consecutive pushes to main died inside `ring`'s build
+     script with "zig is not on PATH" while every local run stayed green.
+     ⛔ The required set is DERIVED, never listed here: config.toml names the
+     wrapper, and the wrapper names the component that installs it. TODO/gate.md
+     T-1206.
 
 ⛔ Read the exit code from this process, unpiped.
 Exit: 0 everything agrees, 1 something disagrees, 2 could not run.
@@ -167,7 +176,7 @@ seen = {
     "rows": 0, "entries": 0, "fields": 0, "counts": 0, "corpus": 0,
     "todo_citations": 0, "todo_links": 0, "crossrefs": 0,
     "tree_citations": 0, "tree_links": 0, "bare_citations": 0,
-    "size_ceiling": 0, "experiment_numbers": 0,
+    "size_ceiling": 0, "experiment_numbers": 0, "ci_components": 0,
 }
 
 # ⛔ Check 17. The one file allowed to declare the release binary's ceiling, and
@@ -187,6 +196,29 @@ BLOAT_TOTAL = re.compile(r"^total_bytes (\d+)$", re.M)
 EXPERIMENT = re.compile(
     r"experiments/(\d+)-([A-Za-z0-9._+-]+)\.sh"
 )
+
+# ⛔ Check 19. The toolchain a cargo build needs is declared once, in
+# `.cargo/config.toml`, and CI carries a second declaration of it as a list of
+# bootstrap components. The two drifted for nine commits. Nothing below is a
+# list of components: config.toml names a wrapper, the wrapper names the
+# component that installs it, and this check holds CI to the union.
+CARGO_CONFIG = ".cargo/config.toml"
+WORKFLOWS = ".github/workflows/"
+# `CC_x86_64_unknown_linux_musl = { value = "scripts/zig-cc.sh", ... }`
+TOOLCHAIN_DECL = re.compile(
+    r"^\s*(?:CC|AR|LD|CXX)_[A-Za-z0-9_]+\s*=\s*\{[^}]*?"
+    r"value\s*=\s*\"([^\"]+)\"", re.M)
+# A wrapper says how to install itself, and that sentence is the declaration.
+COMPONENT_DECL = re.compile(r"bootstrap-env\.sh\s+([a-z][a-z0-9-]*)")
+# One job, at exactly two spaces under `jobs:`.
+JOB_HEAD = re.compile(r"^  ([A-Za-z0-9_-]+):\s*$")
+# A cargo invocation in a `run:` block. `cargo` as a word, not as a path
+# component, so `~/.cargo/bin` on a PATH line is not one.
+CARGO_CALL = re.compile(r"(?<![\w/.-])cargo\s+[a-z]")
+# A repository script named in a job, for one level of indirection: a step that
+# runs `./experiments/110-bloat-delta.sh ci` runs cargo without saying so.
+REPO_SCRIPT = re.compile(r"\./((?:scripts|experiments)/[A-Za-z0-9._/-]+\.sh)")
+BOOTSTRAP_CALL = re.compile(r"bootstrap-env\.sh([^\n#|&;]*)")
 
 
 def err(where, msg):
@@ -440,6 +472,112 @@ def check_experiment_numbers(files):
             f"Give the new one a free number. TODO/gate.md T-1205.")
 
 
+def cargo_toolchain_components():
+    """Component -> the wrapper that declared it, for check 19.
+
+    ⛔ DERIVED IN TWO HOPS AND HARD-CODED IN NEITHER. `.cargo/config.toml` names
+    a program for `CC_<target>`; that program says which
+    `bootstrap-env.sh` component installs it. A component added to the config
+    is therefore required of CI the moment it is added, with nothing here to
+    update. A wrapper that names no component contributes none, which is
+    correct: `scripts/zig-ar.sh` is `exec zig ar` and installs nothing on its
+    own.
+    """
+    comps = {}
+    try:
+        text = read(os.path.join(ROOT, CARGO_CONFIG))
+    except OSError:
+        return comps
+    for m in TOOLCHAIN_DECL.finditer(text):
+        wrapper = m.group(1)
+        try:
+            body = read(os.path.join(ROOT, wrapper))
+        except (OSError, UnicodeDecodeError):
+            continue
+        for c in COMPONENT_DECL.findall(body):
+            comps.setdefault(c, wrapper)
+    return comps
+
+
+def check_ci_components(files):
+    """Check 19: a CI job that runs cargo bootstraps what cargo needs.
+
+    ⛔ Text only. Nothing is executed and no YAML library is imported, so this
+    runs on a clone with no toolchain, which is this script's own constraint.
+
+    ⚠ ONE LEVEL OF INDIRECTION, and it is not decoration: the step that broke
+    first was `cargo build`, but `./experiments/110-bloat-delta.sh ci` and
+    `./scripts/build-interpose.sh` run cargo without the word appearing in the
+    workflow at all, so a job could satisfy a word match and still be the job
+    that fails. A script named in a job is read and its cargo calls count as
+    the job's.
+
+    ⚠ COMMENT-ONLY LINES ARE DROPPED FIRST. This workflow explains itself at
+    length, and a comment saying why a cargo build needs something is not a
+    cargo build. Reading one as a step would make the indirection arm above
+    unreachable, and unreachable is how a check stops being one.
+    """
+    required = cargo_toolchain_components()
+    for rel in sorted(f for f in files if f.startswith(WORKFLOWS)):
+        try:
+            text = read(os.path.join(ROOT, rel))
+        except (OSError, UnicodeDecodeError):
+            continue
+        jobs, name, buf, in_jobs = {}, None, [], False
+        for line in text.splitlines():
+            if line.rstrip() == "jobs:":
+                in_jobs = True
+                continue
+            if not in_jobs:
+                continue
+            m = JOB_HEAD.match(line)
+            if m:
+                if name:
+                    jobs[name] = "\n".join(buf)
+                name, buf = m.group(1), []
+                continue
+            if name:
+                buf.append(line)
+        if name:
+            jobs[name] = "\n".join(buf)
+
+        for job in sorted(jobs):
+            body = "\n".join(ln for ln in jobs[job].splitlines()
+                             if not ln.lstrip().startswith("#"))
+            runs_cargo = bool(CARGO_CALL.search(body))
+            via = None
+            for script in sorted(set(REPO_SCRIPT.findall(body))):
+                if script not in files:
+                    continue
+                try:
+                    body_of = "\n".join(
+                        ln for ln in read(os.path.join(ROOT, script)).splitlines()
+                        if not ln.lstrip().startswith("#"))
+                except (OSError, UnicodeDecodeError):
+                    continue
+                if CARGO_CALL.search(body_of):
+                    runs_cargo, via = True, script
+                    break
+            if not runs_cargo:
+                continue
+            have = set()
+            for m in BOOTSTRAP_CALL.finditer(body):
+                have.update(a for a in m.group(1).split() if not a.startswith("-"))
+            through = f" (through `{via}`)" if via and not CARGO_CALL.search(body) else ""
+            for comp in sorted(required):
+                seen["ci_components"] += 1
+                if comp in have:
+                    continue
+                err(f"{rel}",
+                    f"job `{job}` runs cargo{through} and its "
+                    f"`bootstrap-env.sh` list does not carry `{comp}`. "
+                    f"`{CARGO_CONFIG}` points a cargo build at "
+                    f"`{required[comp]}`, which says it is installed by "
+                    f"`bootstrap-env.sh {comp}`, so the job dies inside a "
+                    f"dependency's build script rather than on its own step. "
+                    f"TODO/gate.md T-1206.")
+
+
 def main():
     if not os.path.isdir(TODO):
         print("check-todo: TODO/ does not exist", file=sys.stderr)
@@ -658,6 +796,9 @@ def main():
 
     # -- 18. one experiment number, one name ---------------------------------
     check_experiment_numbers(files)
+
+    # -- 19. CI installs what a cargo build needs ----------------------------
+    check_ci_components(files)
 
     # -- 16. coverage --------------------------------------------------------
     # ⭐ A check that examined nothing reports success otherwise, which is the
