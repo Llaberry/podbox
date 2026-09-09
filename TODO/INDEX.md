@@ -72,6 +72,7 @@ the blocker named and what would clear it.
 | [T-0110](probe.md) | P1 | probe | done | `podbox probe` exit-code and channel contract |
 | [T-0111](probe.md) | P2 | probe | done | Cache the probe result, and key it on what actually decides it |
 | [T-0112](probe.md) | P1 | probe | done | A virtual machine answers the two questions this host's kernel cannot |
+| [T-0113](probe.md) | P1 | probe | done | Two probes in one process took each other's scratch name |
 | [T-0201](image.md) | P0 | image | done | Registry client, HTTPS only, with no plain-HTTP fallback |
 | [T-0202](image.md) | P0 | image | done | A content-addressed store, and digest parity with docker |
 | [T-0203](image.md) | P0 | image | done | Check `statvfs` for blocks and inodes, and name the destination |
@@ -147,6 +148,7 @@ the blocker named and what would clear it.
 | [T-1002](packaging.md) | P1 | packaging | open | Embed the interposer as bytes and place it inside the rootfs |
 | [T-1003](packaging.md) | P2 | packaging | open | The launch ladder, and a single file with an embedded rootfs |
 | [T-1004](packaging.md) | P3 | packaging | open | A reproducible build, and the artefact's own inputs recorded |
+| [T-1005](packaging.md) | P1 | packaging | done | A session reaches the code in one command, and the build runs behind the reading |
 | [T-1100](milestones.md) | P0 | milestones | **done** | M-1 the corpus, the work index and the skeleton |
 | [T-1101](milestones.md) | P0 | milestones | done | M0 the probe, and nothing else |
 | [T-1102](milestones.md) | P1 | milestones | done | M1 image acquisition |
@@ -165,7 +167,7 @@ the blocker named and what would clear it.
 
 ## Counts
 
-102 items: 47 open, 3 partial, 2 blocked, 50 done.
+104 items: 47 open, 3 partial, 2 blocked, 52 done.
 
 Counted from the rows above by `scripts/todo-count.py` and asserted
 independently by `scripts/check-todo.py`, which is the gate. A number here
@@ -174,10 +176,10 @@ that disagrees with the rows cannot reach a commit.
 | Priority | Open | Partial | Blocked | Done | Total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 18 | 2 | 1 | 27 | 48 |
-| P1 | 16 | 1 | 1 | 18 | 36 |
+| P1 | 16 | 1 | 1 | 20 | 38 |
 | P2 | 10 | 0 | 0 | 4 | 14 |
 | P3 | 3 | 0 | 0 | 1 | 4 |
-| **All** | **47** | **3** | **2** | **50** | **102** |
+| **All** | **47** | **3** | **2** | **52** | **104** |
 
 ## How the current ordering is derived
 

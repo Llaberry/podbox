@@ -111,3 +111,6 @@ $RECYCLE.BIN/
 *.lnk
 
 __pycache__/
+
+# scripts/dev.sh state: the background build log and its stamp.
+.dev/

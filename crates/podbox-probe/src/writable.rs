@@ -135,10 +135,33 @@ fn probe_one(path: &str, source: &str, tag: &str) -> WriteProbe {
     }
 }
 
+/// ⛔ Distinguishes concurrent probes **within one process**, which the pid
+/// cannot. Found on 2026-09-09 by `scripts/dev.sh check`.
+static CALL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 pub fn probe() -> Vec<WriteProbe> {
-    // The tag keeps two concurrent probes from colliding on one name, which
-    // would make each report the other's EEXIST as its own answer.
-    let tag = std::process::id().to_string();
+    // ⛔ The tag keeps two concurrent probes from colliding on one name, which
+    // would make each report the other's EEXIST as its own answer, and a
+    // candidate this machine CAN write to would be reported as a skip.
+    //
+    // ⚠ THE PID ALONE IS NOT ENOUGH AND THAT COST AN INTERMITTENT FAILURE.
+    // `cargo test` runs tests in parallel THREADS of one process, so two
+    // concurrent `probe()` calls shared a pid and therefore a filename: the
+    // second saw `EEXIST` and skipped `/tmp`, and
+    // `probe_cache::tests::the_writable_set_comes_out_of_the_document_the_probe_wrote`
+    // failed for a reason that had nothing to do with the store. It is not
+    // confined to tests: `podbox run` calls the probe while another thread may
+    // be measuring for the cache.
+    //
+    // ⭐ The counter is per PROCESS and the pid is per machine, so the pair is
+    // unique on both axes. A random number would need an entropy source in a
+    // function that is also called between fork and exec elsewhere in this
+    // crate; a counter needs nothing.
+    let tag = format!(
+        "{}-{}",
+        std::process::id(),
+        CALL.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    );
     candidates()
         .into_iter()
         .map(|(p, src)| probe_one(&p, &src, &tag))
@@ -148,6 +171,37 @@ pub fn probe() -> Vec<WriteProbe> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// ⛔ The regression that produced the counter, made deterministic.
+    ///
+    /// Two threads probe at once, which is exactly what `cargo test` does to
+    /// this crate. With the tag as the pid alone they share a filename, the
+    /// loser reads `EEXIST` and reports `/tmp` as a **skip**, and a caller sees
+    /// a machine it can write to described as one it cannot.
+    #[test]
+    fn two_concurrent_probes_do_not_take_each_other_s_scratch_name() {
+        let handles: Vec<_> = (0..8)
+            .map(|_| {
+                std::thread::spawn(|| {
+                    probe()
+                        .into_iter()
+                        .filter(|w| w.path == "/tmp")
+                        .map(|w| w.outcome.verdict)
+                        .collect::<Vec<_>>()
+                })
+            })
+            .collect();
+        for h in handles {
+            let verdicts = h.join().expect("a probe thread panicked");
+            for v in verdicts {
+                assert!(
+                    matches!(v, crate::verdict::Verdict::Ok),
+                    "a concurrent probe reported /tmp as {v:?}: the scratch \
+                     names collided"
+                );
+            }
+        }
+    }
 
     #[test]
     fn the_candidate_list_has_no_duplicates() {

@@ -164,3 +164,74 @@ Decision:    Report rather than promise. `TOOL.md` says a single-file artefact
              requirement; bit-for-bit reproducibility is a stronger claim and it
              is measured before it is made.
 Prove:       `./experiments/120-reproducible-build.sh` exits 0 or 1, never 2, and its output is committed to `experiments/results/`
+
+---
+
+### T-1005 A session reaches the code in one command, and the build runs behind the reading
+
+Source:      Asked for by the operator on 2026-09-09
+Category:    packaging
+Priority:    P1
+Effort:      S
+Status:      done 2026-09-09
+
+Problem:     ⛔ **Every session runs in a new machine and pays the same cold cost
+             twice over**: the tools the last one installed are gone, and
+             `target/` is empty, so the whole dependency graph is compiled again.
+             ⚠ A session that reads the orientation documents first and builds
+             second pays both serially, and nothing about the reading needs a
+             toolchain.
+Premise:     ⭐ **Measured on 2026-09-09**, `experiments/results/session-startup.txt`:
+
+             | | |
+             | --- | --- |
+             | a compile against an empty target directory | **29 s**, 87 crates, 150 MB |
+             | the same build warm | 0 s |
+             | `bootstrap-env.sh --check` with everything present | 0 s |
+             | `TODO/PROGRESS.md` plus `docs/AGENTS.md` | **5,944 words** |
+             | `scripts/dev.sh` before it returns | **1 s** |
+
+             ⚠ **The install path is not measured and is not estimated.** This
+             container already has every component, and measuring what apt and
+             the pinned zig download cost a genuinely fresh machine would mean
+             removing them. The result file says `not measured here` rather than
+             carrying a number nobody took.
+Approach:    `scripts/dev.sh`, and `docs/AGENTS.md`'s opening line is now it.
+             1. **`dev.sh`** detaches with `setsid`, runs the bootstrap and then
+                the build, and returns in about a second **printing what to read
+                while it works**. ⛔ Bootstrap first: the build needs `zig` for
+                `ring`'s C and would otherwise fail in a way that reads as a code
+                error.
+             2. **`dev.sh status`** answers `running`, `ready`, `failed` with the
+                log's tail, or ⭐ **`stale`**, which is the answer that would
+                otherwise mislead: a `ready` predating the last edit is worse
+                than no answer.
+             3. **`dev.sh build`** for a source change, and it deliberately does
+                **not** bootstrap. By the time a session is editing, the
+                environment is up, and an apt check per edit is the cost this
+                removes.
+             4. **`dev.sh check`** before a commit: fmt, clippy, build, tests,
+                the gate and the marker check, cheapest first, each read from the
+                process that produced it.
+Decision:    A shell script over a `Makefile`. ⚠ `make` would have to model the
+             dependency graph cargo already models, and the two would drift; the
+             one thing `make` buys that cargo does not is running the bootstrap
+             and the build behind a session's reading, and that is what this is.
+             ⛔ **A second `dev.sh` attaches to the first rather than starting a
+             competing cargo.** Two builds on one target directory block on the
+             same lock, and the second looks like a hang, which is exactly the
+             failure `docs/AGENTS.md` says costs a session.
+             ⚠ The state lives in `.dev/` under the repository rather than in
+             `/tmp`, so a session that loses `/tmp` between turns does not lose
+             the log that says why the build failed.
+Prove:       `./scripts/dev.sh` returns in under 5 s; `./scripts/dev.sh wait` then reports `ready`; touching a source file makes `./scripts/dev.sh status` report `stale` and exit 1
+
+**Done 2026-09-09.** Every clause of the `Prove` was driven.
+`experiments/310-session-startup.sh` takes the numbers and clause 5 is `dev.sh`
+returning in 1 s.
+
+⚠ **The staleness check hashes an explicit input set** rather than walking the
+tree: `crates/**/*.rs` with their sizes and mtimes, plus `Cargo.toml`,
+`Cargo.lock`, `rust-toolchain.toml` and `.cargo/config.toml`. ⛔ Deliberately
+not `find .`, because `target/` is 2.3 GB and `references/` is 154 MB and
+neither is an input to the build.

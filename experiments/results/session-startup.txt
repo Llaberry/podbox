@@ -1,0 +1,33 @@
+== conditions
+date              2026-09-09T03:19:54Z
+host kernel       6.18.44-fc-v24
+cpus              4
+rustc             rustc 1.98.1 (48a229cea 2026-09-01)
+cargo registry    present, so no crate is downloaded below
+
+== 1. the compile, against an EMPTY target directory
+  exit              0
+  wall clock        29s
+  target size       150M
+  crates compiled   87
+
+== 2. the same build, warm
+  wall clock        0s
+
+== 3. what the environment costs when it is already there
+  bootstrap --check 0s
+  ⚠ the INSTALL path is not measured here: this container already has
+    every component, and re-measuring would mean removing them. What a
+    genuinely fresh machine pays for apt and the zig download is
+    not measured rather than estimated.
+
+== 4. what a session can read while that happens
+  TODO/PROGRESS.md       3902 words
+  docs/AGENTS.md         2042 words
+  together              5944 words
+  ⭐ That is the reading docs/AGENTS.md opens with, and it needs no
+    toolchain. scripts/dev.sh starts the 29s of clause 1 behind it.
+
+== 5. dev.sh returns immediately rather than blocking
+  dev.sh start      1s to return
+  then wait says    ready

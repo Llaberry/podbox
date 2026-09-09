@@ -20,7 +20,19 @@ is not reading the rule.
 
 ## Start here, every session
 
-⭐ **Read [`../TODO/PROGRESS.md`](../TODO/PROGRESS.md) first.** It is the only
+⭐ **One command first, and it returns immediately:**
+
+```sh
+./scripts/dev.sh          # environment and build, in the BACKGROUND
+```
+
+⛔ **Do not wait for it.** It brings the machine up and compiles the binary
+behind the reading below, which needs no toolchain. Measured on 2026-09-09 in
+`experiments/results/session-startup.txt`: a cold compile is **29 s and 87
+crates**, and the reading is **5,944 words**. A session that reads first and
+builds second pays both; a session that runs this first pays only the reading.
+
+⭐ **Then read [`../TODO/PROGRESS.md`](../TODO/PROGRESS.md).** It is the only
 file that carries what changed since last time and what to do next, in the
 shape [`methodology/sessions.md`](methodology/sessions.md) names. Nothing else
 carries a work order.
@@ -29,7 +41,12 @@ Then run the gate, so that anything it finds later is yours:
 
 ```sh
 ./scripts/check-todo.py
+./scripts/dev.sh status   # ready, stale, or failed with the log
 ```
+
+⚠ `./scripts/dev.sh build` after a source change, and `./scripts/dev.sh check`
+before a commit: fmt, clippy, build, tests, the gate and the marker check, each
+read from the process that produced it.
 
 Then read what **this task** routes you to, below. Not everything, and not less.
 
@@ -126,7 +143,7 @@ expect the number to differ.
 | [`../crates/`](../crates/) | the workspace of `TOOL.md` section 4.3 |
 | [`../references/`](../references/) | the corpus: pinned trees with their trackers. Read once, under `methodology/references.md` |
 | [`../experiments/`](../experiments/) | the reconstruction of the target runtime, and this project's own measurements. `results/` is the evidence and is tracked |
-| [`../scripts/`](../scripts/) | the gate, the count writer, the plant harness, the corpus fetcher, the environment bootstrap, and `zig-cc.sh`, which is the C cross-compiler `.cargo/config.toml` names |
+| [`../scripts/`](../scripts/) | `dev.sh` first: the background build a session opens with. Then the gate, the count writer, the plant harness, the corpus fetcher, the environment bootstrap, and `zig-cc.sh`, which is the C cross-compiler `.cargo/config.toml` names |
 | [`.`](.) | ⛔ the methodology. **Binding, not advisory.** Copied verbatim from [`Azathothas/TEMPLATE`](https://github.com/Azathothas/TEMPLATE), except this file |
 
 ---

@@ -829,3 +829,58 @@ says "none: the control could not answer (ENOSYS...)".
 `open(/dev/ptmx)` answers `ENOENT` and the row is a statement about this
 initramfs rather than about the kernel, which is exactly the mistake
 [T-0503](enter.md) records about the reconstruction's `/dev`.
+
+---
+
+### T-0113 Two probes in one process took each other's scratch name
+
+Source:      Found on 2026-09-09 by `scripts/dev.sh check`, on its first run
+Category:    probe
+Priority:    P1
+Effort:      S
+Status:      done 2026-09-09
+
+Problem:     ⛔ **The write allowlist reported a path this machine CAN write to
+             as a `skip`.** [T-0104](#t-0104-the-write-allowlist-by-writing)
+             measures the allowlist by writing, and every scratch file is
+             `O_EXCL` so a probe never overwrites what it finds
+             ([T-0101](#t-0101-the-probe-set)). The name it writes carried the
+             **pid** to keep two concurrent probes apart. ⚠ `cargo test` runs
+             tests in parallel **threads of one process**, so two concurrent
+             `probe()` calls shared a pid and therefore a filename: the loser
+             read `EEXIST` and reported `/tmp` as a skip.
+Premise:     ⭐ **Measured on 2026-09-09**, and it surfaced as
+             `probe_cache::tests::the_writable_set_comes_out_of_the_document_the_probe_wrote`
+             failing for a reason that had nothing to do with the store. It did
+             not reproduce in eight consecutive full-workspace runs afterwards,
+             which is the reading to quote rather than "flake": the race needs
+             two probe calls to overlap, and whether they do depends on how
+             cargo schedules the suites.
+             ⛔ **It is not confined to tests.** `podbox run` calls
+             `podbox_probe::run()` for its banner while another thread may be
+             measuring for `$store/probe.json`, and the failure mode there is a
+             container told it cannot write to `/tmp`.
+Approach:    The tag becomes `<pid>-<counter>`, with a process-wide
+             `AtomicU64`. ⭐ The pid is unique per machine and the counter is
+             unique per process, so the pair is unique on both axes.
+             ⚠ A random suffix was rejected: it needs an entropy source, and
+             this crate calls neighbouring code between `fork` and `execve`
+             where nothing may allocate or block. A counter needs neither.
+Decision:    Fix the name, not the test. Serialising the suite would hide a race
+             that is real outside it, which is the same ruling
+             [T-0211](image.md) took and for the same reason.
+             ⛔ The test forks eight **threads**, not processes, because threads
+             are what shares the pid and processes would pass with the defect in
+             place.
+Prove:       `cargo test -p podbox-probe two_concurrent_probes_do_not_take_each_other_s_scratch_name` passes, and it fails with the tag reduced to `std::process::id()`
+
+**Done 2026-09-09.** Both halves of the `Prove` were driven: green with the
+counter, and red with the tag reduced to the pid, reporting
+`a concurrent probe reported /tmp as Skip: the scratch names collided`.
+
+⭐ **`scripts/dev.sh check` found this on its first run**, which is
+[T-1004](packaging.md)-adjacent evidence for that script existing:
+`cargo test --workspace` had been run many times in this session and had not
+surfaced it, and the one thing `check` does differently is run clippy over every
+target first, which changes what is compiled and therefore how the suites are
+scheduled.
