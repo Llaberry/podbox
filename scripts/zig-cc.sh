@@ -73,9 +73,30 @@ command -v zig >/dev/null 2>&1 || {
 
 # Rust writes `<arch>-<vendor>-<os>-<abi>`; zig wants `<arch>-<os>-<abi>`.
 # Anything already in zig's three-field shape passes through unchanged.
+#
+# ⚠ THE ARCH FIELD IS NOT ALWAYS THE SAME WORD. Measured on 2026-09-09 while
+# making podbox build for every architecture Linux ships: rust says
+# `riscv64gc` and `i686` where zig says `riscv64` and `x86`, and an untranslated
+# field fails as `UnknownArchitecture`, which reads like a broken toolchain.
+# Only the names that actually differ are listed; anything else passes through.
+to_zig_arch() {
+	case "$1" in
+	riscv64gc) printf 'riscv64' ;;
+	riscv32gc | riscv32imac) printf 'riscv32' ;;
+	i586 | i686) printf 'x86' ;;
+	armv7 | armv7a) printf 'arm' ;;
+	*) printf '%s' "$1" ;;
+	esac
+}
+
 to_zig_triple() {
 	case "$1" in
-	*-*-*-*) printf '%s-%s-%s' "${1%%-*}" "$(echo "$1" | cut -d- -f3)" "${1##*-}" ;;
+	*-*-*-*)
+		printf '%s-%s-%s' \
+			"$(to_zig_arch "${1%%-*}")" \
+			"$(echo "$1" | cut -d- -f3)" \
+			"${1##*-}"
+		;;
 	*) printf '%s' "$1" ;;
 	esac
 }

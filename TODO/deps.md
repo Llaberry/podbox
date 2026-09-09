@@ -567,3 +567,121 @@ profile with `strip` turned off**, into its own target directory, because
 artefact's; its absolute sizes are not, and the file says so. Where
 `cargo-bloat` is not installed the script exits 2 and records that the
 breakdown was not taken, because a skip is not a pass.
+
+---
+
+### T-0911 The syscall table and the kernel structs come from a crate, per architecture
+
+Source:      Found by the operator on 2026-09-09, reading `crates/podbox-probe/src/sys.rs`
+Category:    deps
+Priority:    P0
+Effort:      M
+Status:      done 2026-09-09
+
+Problem:     ⛔ **podbox was a single-architecture runtime because of a table
+             somebody typed.** `crates/podbox-probe/src/sys.rs` declared 46
+             x86_64 syscall numbers and a `#[repr(C)] struct stat` by hand, and
+             opened with a `compile_error!` for every other architecture. The
+             `compile_error!` was the right call given the table, a wrong
+             number is a verdict reported for a syscall nobody named, but the
+             table was the wrong thing to have. docker and podman run every
+             architecture Linux ships; podbox refused to compile for seven of
+             them.
+Premise:     ⭐ **Measured on 2026-09-09, and the premise it overturns is
+             [T-0901](#t-0901-sweep-syscalls)'s.** T-0901 ruled `libc` and
+             `rustix` out at a delta below the instrument's resolution, on the
+             grounds that the probe set is hand-declared and needs no crate.
+             What that ruling priced was the bytes. What it did not price was
+             the cost of hand-declaring, which is one architecture.
+
+             ⚠ The requirement T-0901 was protecting is real and survives:
+             [probe.md](probe.md) T-0101 needs **the kernel's** errno, not a
+             libc wrapper's, because glibc's `setuid(3)` runs an id-change dance
+             and returns the library's answer. `syscalls::raw` is not a libc
+             wrapper: it issues the instruction and returns the raw value, so
+             nothing passes through `errno`'s thread-local. The rule is kept and
+             the table is gone.
+
+             | | |
+             | --- | --- |
+             | architectures that compiled the workspace, before | **1** |
+             | after | **6**, and one named blocker |
+             | shipping binary, x86_64, before | 2,282,224 bytes |
+             | after | **2,282,352 bytes**, +128 |
+
+             ⭐ **The size question answered itself.** The operator ruled that
+             features outrank bytes here, and the trade did not have to be made:
+             both crates are `const` tables and inlined assembly, so `+128 bytes`
+             buys six architectures. ⚠ `+128` is one build on one host and is
+             below anything this instrument resolves; it is quoted as the
+             reading it is and not as a law.
+Approach:    `syscalls` for the numbers and the trap, `linux-raw-sys` for the
+             kernel structs. Both `default-features = false`, both `no_std`,
+             neither pulling a libc.
+             ⛔ **What replaced the transcription risk rather than removing it.**
+             A name a kernel does not define is a **compile error**, never a
+             wrong number: `Sysno` has no such variant. Three cfg lists remain
+             and each is a claim about the kernel that the compiler checks:
+             1. the `asm-generic/unistd.h` architectures, which have no `open`,
+                `stat`, `mkdir`, `unlink`, `chown`, `lchown`, `readlink`,
+                `mknod` or `dup2`;
+             2. the three names one syscall has, `newfstatat`, `fstatat` and
+                `fstatat64`, **paired with the struct each writes**, because on
+                a 32-bit architecture `fstatat64` writes `struct stat64` and
+                taking it with `struct stat`'s buffer is a kernel write of the
+                wrong shape into a right-sized hole;
+             3. nothing else.
+             Every path-taking **utility** routes through the `*at` form on every
+             architecture, which is what `open(path)` means anyway and removes
+             nine per-architecture cases. ⛔ The three calls where the entry
+             point **is** the measurement, `chown`, `lchown`, `mknod`, keep
+             their identity in `sys::Entry`, and on an architecture that has
+             only `fchownat` the row prints `fchownat`. A probe that calls one
+             syscall and names another is the dishonesty the probe set exists to
+             refuse.
+Decision:    Take the crates. ⚠ **`syscalls` 0.8.1 gates powerpc, s390x and mips
+             behind `asm_experimental_arch`, and that gate is stale**: clause 3
+             of `experiments/260-multiarch.sh` compiles powerpc64 inline
+             assembly on stable rustc 1.98.1 and it succeeds. So
+             `powerpc64le-unknown-linux-musl` does not build, for a reason that
+             is not a rustc limit and is not podbox's code.
+             ⛔ It is **not closed as somebody else's problem**
+             (`docs/AGENTS.md` absolute 5). It stays named in clause 2 of that
+             script, which goes **red** the day it starts building, and either of
+             two things clears it: a `syscalls` release dropping the gate, or
+             podbox taking the numbers from `linux-raw-sys`, which carries
+             `__NR_*` for every architecture with no gate at all, and carrying
+             its own six-line trap for those two. The second is entirely within
+             this tree and is why the first is not a dependency on anyone.
+             ⚠ `docs/AGENTS.md` absolute 2 says a defect in vendored code is
+             fixed here. This crate is a registry dependency and not vendored,
+             so the fix that applies is the second option, and it is recorded
+             rather than taken because six architectures ship today without it.
+Prove:       `./experiments/260-multiarch.sh` exits 0, and `cargo check --workspace --target aarch64-unknown-linux-musl` exits 0
+
+**Done 2026-09-09.** `experiments/260-multiarch.sh` exits 0 and
+`experiments/results/multiarch.txt` is its reading.
+
+⭐ **podbox does not merely compile for aarch64, it runs there**, and clause 4
+drives `podbox probe` under `qemu-aarch64` and reads back a rung, an identity
+block and free-space rows. ⛔ **And clause 4 is a warning rather than a win.**
+A probe run under `qemu-user` measures **QEMU**: it answers `EINVAL` to
+`clone(CLONE_NEWNS)`, `ENOSYS` to `fsmount`, and reports `Seccomp: 0` whatever
+the host is under. The rung it prints is the emulator's and podbox may not
+report it as the machine's. That is the same mistake as the reconstruction's
+`/dev` answering out of the mount table the question doubts, and it matters more
+here: a foreign-architecture container runs its payload under exactly this
+emulator, so [enter.md](enter.md) T-0506 owns saying so at runtime.
+
+⭐ **What clause 4 does prove** is the part that could have been silently wrong:
+the numbers, the struct layouts and the trap are right for aarch64. A `statfs`
+layout off by one field gives garbage block counts, and the rows are sane.
+
+⚠ **One trap cost the session real time and is written into clause 5 so it
+cannot cost another.** A `binfmt_misc` magic emitted as **raw bytes** is
+truncated by the kernel's parser at the first NUL, leaving a 7-byte magic that
+matches **every** 64-bit ELF. Every native binary on the machine is then routed
+to the aarch64 interpreter and dies with `ELOOP`, including the shell needed to
+undo it. The registration string is written with backslash escapes the **kernel**
+parses, and clause 5 reads the magic back and refuses to run a payload unless it
+is the full 40 hex characters.

@@ -667,8 +667,8 @@ Approach:    ⛔ **CORRECTED ON 2026-09-09 BY BUILDING IT: the approach written
              no close-on-**fork**: a `fork` duplicates every descriptor
              unconditionally, and `flock(2)` is held on the open file
              description the duplicates share, so it lives until the last of
-             them closes. The child that reproduces this defect — `clone_accepted`
-             in `crates/podbox-probe/src/child.rs:119`, one per `clone` probe —
+             them closes. The child that reproduces this defect, `clone_accepted`
+             in `crates/podbox-probe/src/child.rs:119`, one per `clone` probe,
              **never execs at all**, so no `FD_CLOEXEC` setting can reach it.
              The first build of this entry was red with the entry's own fix
              applied.
@@ -707,6 +707,6 @@ Decision:    Fix the inheritance, not the test. Marking the test `#[serial]` or
              the child sheds after `clone` returns to it, and a parent that
              asserts before the child is scheduled reads the fd as still open.
              That is the same shape of failure this entry exists for, so each
-             test waits on a **fact** — a byte through a pipe from the forked
-             child, a line of stdout from the spawned one — and not on a delay.
+             test waits on a **fact**, a byte through a pipe from the forked
+             child, a line of stdout from the spawned one, and not on a delay.
 Prove:       `cargo test -p podbox-image a_fork_while_the_lock_is_held_does_not_extend_it` and `cargo test -p podbox-image a_spawned_process_does_not_inherit_the_lock` both pass; the first fails with the `sys::close_in_children` registration removed from `Store::hold` and the second with `O_CLOEXEC` removed from `Lock::open`, and neither mutation fails both

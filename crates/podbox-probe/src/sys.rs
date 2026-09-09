@@ -16,15 +16,33 @@
 //! `-4095..=-1` is `-errno`. Nothing passes through `errno`'s thread-local,
 //! so there is no window in which another call overwrites it.
 
-#[cfg(not(target_arch = "x86_64"))]
-compile_error!(
-    "podbox-probe declares Linux syscall numbers for x86_64 only. Building it \
-     for another architecture would use the wrong numbers silently, which is \
-     the worst failure available to a probe: it would report a verdict for a \
-     syscall nobody named. Add the architecture's table before enabling it."
-);
-
-use core::arch::asm;
+//! ---------------------------------------------------------------------------
+//!
+//! ⭐ **Every syscall number and every kernel struct layout below comes from a
+//! crate, per architecture, and none of them is written here.**
+//! [`TODO/deps.md`](../../../TODO/deps.md) T-0911 is the ruling and the
+//! measurement. Until 2026-09-09 this module declared x86_64's numbers by hand
+//! and refused to compile anywhere else, which made podbox a single-
+//! architecture runtime for no reason but the table.
+//!
+//! - [`syscalls`] carries the kernel's own table for fourteen architectures and
+//!   the `syscall` instruction for each. `Sysno::openat as i64` is that table,
+//!   so an architecture podbox has never been built on gets its numbers from
+//!   the kernel's source rather than from a session's transcription.
+//! - [`linux_raw_sys`] carries `struct stat` and `struct statfs64` generated
+//!   from the kernel headers. ⚠ Their **shape differs by architecture**,
+//!   `stat` is 144 bytes on x86_64 and 128 on aarch64, which is precisely the
+//!   class of thing a hand-written `#[repr(C)]` gets wrong silently, by handing
+//!   the kernel a buffer shorter than what it writes.
+//!
+//! ⛔ **The transcription risk did not go away, it moved to one place and is
+//! asserted.** A name that does not exist for an architecture is a compile
+//! error, never a wrong number: `Sysno` has no variant for a syscall the kernel
+//! does not define there. The `#[cfg]` list below names the architectures whose
+//! kernels use `asm-generic/unistd.h`, which omits `open`, `stat`, `mkdir`,
+//! `unlink`, `chown`, `lchown`, `readlink`, `mknod` and `dup2` in favour of the
+//! `*at` forms, get that list wrong in either direction and the build fails
+//! rather than measuring something nobody named.
 
 /// A kernel error number. Never a boolean: `TODO/probe.md` T-0101 rules that
 /// `EINVAL` from `setuid` or `chown` means an unmapped id and points at a
@@ -89,76 +107,219 @@ pub const EWOULDBLOCK: Errno = Errno(11);
 pub type Sysres = Result<i64, Errno>;
 
 // ---------------------------------------------------------------- syscall nrs
-pub const SYS_READ: i64 = 0;
-pub const SYS_WRITE: i64 = 1;
-pub const SYS_OPEN: i64 = 2;
-pub const SYS_CLOSE: i64 = 3;
-pub const SYS_STAT: i64 = 4;
-pub const SYS_DUP2: i64 = 33;
-pub const SYS_GETPID: i64 = 39;
-pub const SYS_CLONE: i64 = 56;
-pub const SYS_EXECVE: i64 = 59;
-pub const SYS_WAIT4: i64 = 61;
-pub const SYS_KILL: i64 = 62;
-pub const SYS_MKDIR: i64 = 83;
-pub const SYS_UNLINK: i64 = 87;
-pub const SYS_CHOWN: i64 = 92;
-pub const SYS_LCHOWN: i64 = 94;
-pub const SYS_PTRACE: i64 = 101;
-pub const SYS_GETUID: i64 = 102;
-pub const SYS_GETGID: i64 = 104;
-pub const SYS_SETUID: i64 = 105;
-pub const SYS_SETGID: i64 = 106;
-pub const SYS_SETSID: i64 = 112;
-pub const SYS_GETGROUPS: i64 = 115;
-pub const SYS_SETGROUPS: i64 = 116;
-pub const SYS_MKNOD: i64 = 133;
-pub const SYS_STATFS: i64 = 137;
-pub const SYS_FLOCK: i64 = 73;
-pub const SYS_FCNTL: i64 = 72;
-pub const SYS_READLINK: i64 = 89;
-pub const SYS_PIVOT_ROOT: i64 = 155;
-pub const SYS_PRCTL: i64 = 157;
-pub const SYS_CHROOT: i64 = 161;
-pub const SYS_MOUNT: i64 = 165;
-pub const SYS_UMOUNT2: i64 = 166;
-pub const SYS_SETHOSTNAME: i64 = 170;
-pub const SYS_EXIT_GROUP: i64 = 231;
-pub const SYS_UNSHARE: i64 = 272;
-pub const SYS_OPENAT: i64 = 257;
-pub const SYS_PIPE2: i64 = 293;
-pub const SYS_PROCESS_VM_READV: i64 = 310;
-pub const SYS_KCMP: i64 = 312;
-pub const SYS_SECCOMP: i64 = 317;
-pub const SYS_GETRANDOM: i64 = 318;
-pub const SYS_MEMFD_CREATE: i64 = 319;
-pub const SYS_OPEN_TREE: i64 = 428;
-pub const SYS_MOVE_MOUNT: i64 = 429;
-pub const SYS_FSOPEN: i64 = 430;
-pub const SYS_FSCONFIG: i64 = 431;
-pub const SYS_FSMOUNT: i64 = 432;
-pub const SYS_PIDFD_GETFD: i64 = 438;
-pub const SYS_LANDLOCK_CREATE_RULESET: i64 = 444;
+//
+// ⛔ Not one number is written here. `Sysno::<name> as i64` is the kernel's own
+// table for the architecture being built, carried by the `syscalls` crate.
+
+use syscalls::Sysno;
+
+pub const SYS_READ: i64 = Sysno::read as i64;
+pub const SYS_WRITE: i64 = Sysno::write as i64;
+pub const SYS_CLOSE: i64 = Sysno::close as i64;
+pub const SYS_GETPID: i64 = Sysno::getpid as i64;
+pub const SYS_CLONE: i64 = Sysno::clone as i64;
+pub const SYS_EXECVE: i64 = Sysno::execve as i64;
+pub const SYS_WAIT4: i64 = Sysno::wait4 as i64;
+pub const SYS_KILL: i64 = Sysno::kill as i64;
+pub const SYS_PTRACE: i64 = Sysno::ptrace as i64;
+pub const SYS_GETUID: i64 = Sysno::getuid as i64;
+pub const SYS_GETGID: i64 = Sysno::getgid as i64;
+pub const SYS_SETUID: i64 = Sysno::setuid as i64;
+pub const SYS_SETGID: i64 = Sysno::setgid as i64;
+pub const SYS_SETSID: i64 = Sysno::setsid as i64;
+pub const SYS_GETGROUPS: i64 = Sysno::getgroups as i64;
+pub const SYS_SETGROUPS: i64 = Sysno::setgroups as i64;
+pub const SYS_STATFS: i64 = Sysno::statfs as i64;
+pub const SYS_FLOCK: i64 = Sysno::flock as i64;
+pub const SYS_FCNTL: i64 = Sysno::fcntl as i64;
+pub const SYS_PIVOT_ROOT: i64 = Sysno::pivot_root as i64;
+pub const SYS_PRCTL: i64 = Sysno::prctl as i64;
+pub const SYS_CHROOT: i64 = Sysno::chroot as i64;
+pub const SYS_MOUNT: i64 = Sysno::mount as i64;
+pub const SYS_UMOUNT2: i64 = Sysno::umount2 as i64;
+pub const SYS_SETHOSTNAME: i64 = Sysno::sethostname as i64;
+pub const SYS_EXIT_GROUP: i64 = Sysno::exit_group as i64;
+pub const SYS_UNSHARE: i64 = Sysno::unshare as i64;
+pub const SYS_OPENAT: i64 = Sysno::openat as i64;
+pub const SYS_PIPE2: i64 = Sysno::pipe2 as i64;
+pub const SYS_PROCESS_VM_READV: i64 = Sysno::process_vm_readv as i64;
+pub const SYS_KCMP: i64 = Sysno::kcmp as i64;
+pub const SYS_SECCOMP: i64 = Sysno::seccomp as i64;
+pub const SYS_GETRANDOM: i64 = Sysno::getrandom as i64;
+pub const SYS_MEMFD_CREATE: i64 = Sysno::memfd_create as i64;
+pub const SYS_OPEN_TREE: i64 = Sysno::open_tree as i64;
+pub const SYS_MOVE_MOUNT: i64 = Sysno::move_mount as i64;
+pub const SYS_FSOPEN: i64 = Sysno::fsopen as i64;
+pub const SYS_FSCONFIG: i64 = Sysno::fsconfig as i64;
+pub const SYS_FSMOUNT: i64 = Sysno::fsmount as i64;
+pub const SYS_PIDFD_GETFD: i64 = Sysno::pidfd_getfd as i64;
+pub const SYS_LANDLOCK_CREATE_RULESET: i64 = Sysno::landlock_create_ruleset as i64;
+pub const SYS_DUP3: i64 = Sysno::dup3 as i64;
 
 // ⭐ The `*at` family, taken by `crates/podbox-extract` (TODO/extract.md
 // T-0304). Extraction resolves every entry against a directory FILE
 // DESCRIPTOR rather than against a path, because a path is re-resolved by the
 // kernel on every call and the tree is being written to between calls.
-pub const SYS_FCHMOD: i64 = 91;
-pub const SYS_GETDENTS64: i64 = 217;
-pub const SYS_MKDIRAT: i64 = 258;
-pub const SYS_FCHOWNAT: i64 = 260;
-pub const SYS_NEWFSTATAT: i64 = 262;
-pub const SYS_UNLINKAT: i64 = 263;
-pub const SYS_LINKAT: i64 = 265;
-pub const SYS_SYMLINKAT: i64 = 266;
-pub const SYS_READLINKAT: i64 = 267;
-pub const SYS_FCHMODAT: i64 = 268;
-pub const SYS_UTIMENSAT: i64 = 280;
+//
+// ⛔ Since 2026-09-09 they are also what every path-taking wrapper in this
+// module uses, on EVERY architecture and not only on the ones that have
+// nothing else. `open(path)` is `openat(AT_FDCWD, path)` by definition, so
+// routing through the `*at` form costs nothing and removes nine per-
+// architecture cases. The three call sites where the entry point IS the
+// measurement keep their own identity below.
+pub const SYS_FCHMOD: i64 = Sysno::fchmod as i64;
+pub const SYS_GETDENTS64: i64 = Sysno::getdents64 as i64;
+pub const SYS_MKDIRAT: i64 = Sysno::mkdirat as i64;
+pub const SYS_FCHOWNAT: i64 = Sysno::fchownat as i64;
+pub const SYS_UNLINKAT: i64 = Sysno::unlinkat as i64;
+pub const SYS_LINKAT: i64 = Sysno::linkat as i64;
+pub const SYS_SYMLINKAT: i64 = Sysno::symlinkat as i64;
+pub const SYS_READLINKAT: i64 = Sysno::readlinkat as i64;
+pub const SYS_FCHMODAT: i64 = Sysno::fchmodat as i64;
+pub const SYS_UTIMENSAT: i64 = Sysno::utimensat as i64;
+pub const SYS_MKNODAT: i64 = Sysno::mknodat as i64;
 /// ⚠ Linux 5.6. A kernel without it answers `ENOSYS`, which is why
 /// `podbox-extract` carries an `O_NOFOLLOW` walk beside it rather than
 /// requiring it.
-pub const SYS_OPENAT2: i64 = 437;
+pub const SYS_OPENAT2: i64 = Sysno::openat2 as i64;
+
+// ------------------------------------------------- stat, which has three names
+//
+// ⛔ **The same syscall is called three different things by the kernel, and on
+// two architectures it writes a different struct.** Measured against the
+// kernel's own tables on 2026-09-09:
+//
+//   newfstatat + struct stat     x86_64, riscv64, powerpc64, s390x
+//   fstatat    + struct stat     aarch64, loongarch64
+//   fstatat64  + struct stat64   arm, x86        (32-bit: `stat` is the narrow
+//                                                 form and would truncate)
+//
+// ⚠ The pairing is the point. Taking `fstatat64`'s number with `struct stat`'s
+// buffer is a kernel write of the wrong shape into the right-sized hole, which
+// is silent. The type and the number move together here so they cannot drift.
+
+#[cfg(any(
+    target_arch = "x86_64",
+    target_arch = "riscv32",
+    target_arch = "riscv64",
+    target_arch = "powerpc64",
+    target_arch = "s390x",
+    target_arch = "sparc64",
+    target_arch = "mips64",
+))]
+mod stat_call {
+    pub use linux_raw_sys::general::stat as KernelStat;
+    pub const SYS_FSTATAT: i64 = super::Sysno::newfstatat as i64;
+}
+
+#[cfg(any(
+    target_arch = "aarch64",
+    target_arch = "loongarch64",
+    target_arch = "csky"
+))]
+mod stat_call {
+    pub use linux_raw_sys::general::stat as KernelStat;
+    pub const SYS_FSTATAT: i64 = super::Sysno::fstatat as i64;
+}
+
+#[cfg(any(
+    target_arch = "arm",
+    target_arch = "x86",
+    target_arch = "powerpc",
+    target_arch = "mips",
+    target_arch = "sparc",
+))]
+mod stat_call {
+    pub use linux_raw_sys::general::stat64 as KernelStat;
+    pub const SYS_FSTATAT: i64 = super::Sysno::fstatat64 as i64;
+}
+
+pub use stat_call::{KernelStat, SYS_FSTATAT};
+
+// -------------------------------------------- the three that ARE the question
+//
+// ⭐ `TODO/probe.md` T-0101 measures the errno of a NAMED syscall, so for these
+// three the entry point is not an implementation detail: it is what the row
+// says was asked. On an architecture whose kernel has no `chown(2)` the honest
+// answer is not to quietly call `fchownat(2)` and print `chown`, it is to call
+// what exists and SAY which, which is what [`Entry`] carries into the report.
+
+/// A syscall this probe set measures by name, and the entry point this
+/// architecture actually has for it.
+#[derive(Clone, Copy)]
+pub struct Entry {
+    pub nr: i64,
+    /// The name the row prints. ⛔ Always the name of the syscall that was
+    /// really issued, never the one the probe set is called after.
+    pub name: &'static str,
+    /// True where this kernel has no dedicated entry point and the `*at` form
+    /// is the only way to ask. The report says so rather than hiding it.
+    pub via_at: bool,
+}
+
+/// ⚠ **The one list in podbox that is a claim about the kernel rather than a
+/// value read from it**: the architectures taking their table from
+/// `asm-generic/unistd.h`, which defines only the `*at` forms.
+///
+/// ⛔ It is written exactly twice, positive and negated, on adjacent lines, and
+/// the compiler checks it in both directions. Name an architecture here that
+/// does have `chown` and nothing is lost but a more specific row; fail to name
+/// one that does not and the build fails on `Sysno::chown`, which has no
+/// variant there. Neither mistake can produce a wrong number at runtime, and
+/// that is the property the old hand-written table did not have.
+#[cfg(any(
+    target_arch = "aarch64",
+    target_arch = "riscv32",
+    target_arch = "riscv64",
+    target_arch = "loongarch64",
+    target_arch = "csky",
+))]
+mod entry_points {
+    use super::{Entry, Sysno};
+    pub const CHOWN: Entry = Entry {
+        nr: Sysno::fchownat as i64,
+        name: "fchownat",
+        via_at: true,
+    };
+    pub const LCHOWN: Entry = Entry {
+        nr: Sysno::fchownat as i64,
+        name: "fchownat(AT_SYMLINK_NOFOLLOW)",
+        via_at: true,
+    };
+    pub const MKNOD: Entry = Entry {
+        nr: Sysno::mknodat as i64,
+        name: "mknodat",
+        via_at: true,
+    };
+}
+
+#[cfg(not(any(
+    target_arch = "aarch64",
+    target_arch = "riscv32",
+    target_arch = "riscv64",
+    target_arch = "loongarch64",
+    target_arch = "csky",
+)))]
+mod entry_points {
+    use super::{Entry, Sysno};
+    pub const CHOWN: Entry = Entry {
+        nr: Sysno::chown as i64,
+        name: "chown",
+        via_at: false,
+    };
+    pub const LCHOWN: Entry = Entry {
+        nr: Sysno::lchown as i64,
+        name: "lchown",
+        via_at: false,
+    };
+    pub const MKNOD: Entry = Entry {
+        nr: Sysno::mknod as i64,
+        name: "mknod",
+        via_at: false,
+    };
+}
+
+pub use entry_points::{CHOWN, LCHOWN, MKNOD};
 
 // ---------------------------------------------------------------- constants
 pub const CLONE_NEWNS: u64 = 0x0002_0000;
@@ -260,31 +421,34 @@ pub const MOVE_MOUNT_F_EMPTY_PATH: u64 = 0x0000_0004;
 
 // ---------------------------------------------------------------- the trap
 //
-// x86_64 Linux: nr in rax, arguments in rdi rsi rdx r10 r8 r9, return in rax.
-// The kernel clobbers rcx and r11. `asm!` adds `lateout` for those.
+// ⛔ The instruction and the register convention are per architecture, x86_64
+// puts the number in rax and the arguments in rdi rsi rdx r10 r8 r9, aarch64
+// puts them in x8 and x0..x5, and each has its own clobber set, and getting
+// one wrong is not a build failure, it is a syscall with the arguments in the
+// wrong places. `syscalls::raw` carries the correct sequence for every
+// architecture it supports, which is why podbox no longer writes one.
+//
+// ⚠ The raw return value is still read the same way: `split` below turns the
+// kernel's `-4095..=-1` window into an `Errno`. Nothing passes through libc's
+// `errno` thread-local, which is `TODO/probe.md` T-0101's requirement and is
+// the reason `syscalls::raw` is taken rather than its `Result`-returning API.
 
 /// # Safety
 /// The caller states that this syscall with these arguments is sound: any
 /// pointer argument is valid for the kernel's access, and the effect on this
 /// process is one the caller intends.
 pub unsafe fn syscall6(nr: i64, a0: u64, a1: u64, a2: u64, a3: u64, a4: u64, a5: u64) -> i64 {
-    let ret: i64;
     unsafe {
-        asm!(
-            "syscall",
-            inlateout("rax") nr => ret,
-            in("rdi") a0,
-            in("rsi") a1,
-            in("rdx") a2,
-            in("r10") a3,
-            in("r8") a4,
-            in("r9") a5,
-            lateout("rcx") _,
-            lateout("r11") _,
-            options(nostack)
-        );
+        syscalls::raw::syscall6(
+            nr as usize,
+            a0 as usize,
+            a1 as usize,
+            a2 as usize,
+            a3 as usize,
+            a4 as usize,
+            a5 as usize,
+        ) as i64
     }
-    ret
 }
 
 /// Split the raw return into a value and an errno.
@@ -311,8 +475,8 @@ pub unsafe fn sys(nr: i64, args: [u64; 6]) -> Sysres {
 // ⛔ `O_CLOEXEC` is close-on-EXEC and there is no close-on-FORK. A `fork`
 // duplicates every descriptor, and `flock(2)` is held on the OPEN FILE
 // DESCRIPTION the duplicates share, so the lock lives until the last of them is
-// closed. A child that never execs — and this tree makes one per `clone`
-// probe — therefore holds an image lock that `O_CLOEXEC` cannot take from it.
+// closed. A child that never execs, and this tree makes one per `clone`
+// probe, therefore holds an image lock that `O_CLOEXEC` cannot take from it.
 // [`TODO/image.md`](../../../TODO/image.md) T-0211.
 //
 // ⭐ The list is exact rather than a blanket close of everything above stderr:
@@ -416,8 +580,10 @@ pub fn fcntl(fd: i64, cmd: u64, arg: u64) -> Sysres {
     unsafe { sys(SYS_FCNTL, [fd as u64, cmd, arg, 0, 0, 0]) }
 }
 
+/// `open(2)` by name, `openat(2)` in fact, see [`stat`] for why every
+/// path-taking utility in this module routes through the `*at` form.
 pub fn open(path: &CBuf, flags: u64, mode: u64) -> Sysres {
-    unsafe { sys(SYS_OPEN, [path.ptr(), flags, mode, 0, 0, 0]) }
+    openat(AT_FDCWD as i64, path, flags, mode)
 }
 
 pub fn read(fd: i64, buf: &mut [u8]) -> Sysres {
@@ -446,11 +612,11 @@ pub fn write(fd: i64, buf: &[u8]) -> Sysres {
 }
 
 pub fn unlink(path: &CBuf) -> Sysres {
-    unsafe { sys(SYS_UNLINK, [path.ptr(), 0, 0, 0, 0, 0]) }
+    unlinkat(AT_FDCWD as i64, path, 0)
 }
 
 pub fn mkdir(path: &CBuf, mode: u64) -> Sysres {
-    unsafe { sys(SYS_MKDIR, [path.ptr(), mode, 0, 0, 0, 0]) }
+    mkdirat(AT_FDCWD as i64, path, mode)
 }
 
 // ------------------------------------------------------- the `*at` wrappers
@@ -549,21 +715,21 @@ pub fn fchownat(dirfd: i64, path: &CBuf, uid: u32, gid: u32, flags: u64) -> Sysr
 /// already at this name", and a symlink that answers for its target is the
 /// whole of `TODO/extract.md` T-0304's defect.
 pub fn fstatat(dirfd: i64, path: &CBuf, flags: u64) -> Result<Stat, Errno> {
-    let mut out = Stat::default();
+    let mut raw = unsafe { core::mem::zeroed::<KernelStat>() };
     unsafe {
         sys(
-            SYS_NEWFSTATAT,
+            SYS_FSTATAT,
             [
                 dirfd as u64,
                 path.ptr(),
-                &mut out as *mut Stat as u64,
+                &mut raw as *mut KernelStat as u64,
                 flags,
                 0,
                 0,
             ],
         )?
     };
-    Ok(out)
+    Ok(Stat::from_kernel(&raw))
 }
 
 /// `DT_*`, the file type `getdents64` reports without a `stat`.
@@ -667,8 +833,18 @@ pub fn pipe2(fds: &mut [i32; 2], flags: u64) -> Sysres {
     unsafe { sys(SYS_PIPE2, [fds.as_mut_ptr() as u64, flags, 0, 0, 0, 0]) }
 }
 
+/// `dup2(2)` by name, `dup3(2)` in fact.
+///
+/// ⚠ **They differ in one case and it is handled by the caller, not here.**
+/// `dup2(fd, fd)` is a no-op returning `fd`; `dup3(fd, fd, 0)` is `EINVAL`.
+/// The one caller in this tree, `child.rs`'s verdict channel, already guards
+/// `w != 1` before calling, because `dup2(1, 1)` followed by an unconditional
+/// `close` was a real defect there. The guard is therefore load-bearing twice,
+/// and the `debug_assert` says so where a future caller would otherwise
+/// discover it as an `EINVAL` on one architecture only.
 pub fn dup2(old: i64, new: i64) -> Sysres {
-    unsafe { sys(SYS_DUP2, [old as u64, new as u64, 0, 0, 0, 0]) }
+    debug_assert_ne!(old, new, "dup3 answers EINVAL where dup2 is a no-op");
+    unsafe { sys(SYS_DUP3, [old as u64, new as u64, 0, 0, 0, 0]) }
 }
 
 /// `clone(flags, stack=0, ...)`, which is a fork when no `CLONE_VM` is set.
@@ -713,23 +889,19 @@ pub fn kill(pid: i64, sig: i64) -> Sysres {
     unsafe { sys(SYS_KILL, [pid as u64, sig as u64, 0, 0, 0, 0]) }
 }
 
-/// `struct statfs` on x86_64: eleven `u64`-shaped fields then `f_spare[4]`.
-/// Only the four this project reads are named; the rest is a size.
-#[repr(C)]
+/// The four `statfs` fields this project reads, widened to one shape.
+///
+/// ⛔ **The kernel's own `struct statfs64` is the buffer**, taken per
+/// architecture from `linux_raw_sys`, and this is a normalised view built from
+/// it. The two are different things on purpose: the kernel's layout and field
+/// widths differ by architecture, and a hand-written `#[repr(C)]` that is one
+/// field short is a kernel write past the end of it.
 #[derive(Default, Clone, Copy)]
 pub struct Statfs {
-    pub f_type: i64,
     pub f_bsize: i64,
-    pub f_blocks: u64,
-    pub f_bfree: u64,
     pub f_bavail: u64,
     pub f_files: u64,
     pub f_ffree: u64,
-    pub f_fsid: [i32; 2],
-    pub f_namelen: i64,
-    pub f_frsize: i64,
-    pub f_flags: i64,
-    pub f_spare: [i64; 4],
 }
 
 /// `flock(2)`. Used by `TODO/image.md` T-0204 to hold a rootfs against a
@@ -756,12 +928,12 @@ pub fn readlink(path: &CBuf) -> Result<String, Errno> {
     let mut buf = [0u8; 256];
     let n = unsafe {
         sys(
-            SYS_READLINK,
+            SYS_READLINKAT,
             [
+                AT_FDCWD,
                 path.ptr(),
                 buf.as_mut_ptr() as u64,
                 buf.len() as u64,
-                0,
                 0,
                 0,
             ],
@@ -774,34 +946,67 @@ pub fn readlink(path: &CBuf) -> Result<String, Errno> {
 }
 
 pub fn statfs(path: &CBuf) -> Result<Statfs, Errno> {
-    let mut out = Statfs::default();
+    // ⚠ `statfs64` and not `statfs`: on a 32-bit architecture the narrow form
+    // truncates a filesystem larger than 4 GiB of blocks, and a free-space
+    // check that silently wraps is worse than none. The syscall takes the
+    // buffer's size so the kernel refuses a shape it does not know.
+    let mut raw = unsafe { core::mem::zeroed::<linux_raw_sys::general::statfs64>() };
     unsafe {
         sys(
             SYS_STATFS,
-            [path.ptr(), &mut out as *mut Statfs as u64, 0, 0, 0, 0],
+            [
+                path.ptr(),
+                &mut raw as *mut linux_raw_sys::general::statfs64 as u64,
+                0,
+                0,
+                0,
+                0,
+            ],
         )?
     };
-    Ok(out)
+    // ⚠ As `Stat::from_kernel`: redundant here, load-bearing elsewhere.
+    #[allow(clippy::unnecessary_cast)]
+    Ok(Statfs {
+        f_bsize: raw.f_bsize as i64,
+        f_bavail: raw.f_bavail as u64,
+        f_files: raw.f_files as u64,
+        f_ffree: raw.f_ffree as u64,
+    })
 }
 
-/// `struct stat` on x86_64, in the kernel's layout. Only the four fields this
-/// project reads are named; the rest is a size, so the buffer is right.
-#[repr(C)]
+/// The `stat` fields this project reads, widened to one shape.
+///
+/// ⛔ As [`Statfs`]: **the kernel's own `struct stat` is the buffer**, taken
+/// per architecture from `linux_raw_sys`, and this is a normalised view built
+/// from it. It is 144 bytes on x86_64 and 128 on aarch64, and a buffer short by
+/// one field is a kernel write past the end of it, which is exactly what a
+/// hand-written layout ported to a second architecture does.
 #[derive(Default, Clone, Copy)]
 pub struct Stat {
-    pub st_dev: u64,
-    pub st_ino: u64,
-    pub st_nlink: u64,
     pub st_mode: u32,
     pub st_uid: u32,
     pub st_gid: u32,
-    _pad0: u32,
     pub st_rdev: u64,
     pub st_size: i64,
-    pub st_blksize: i64,
-    pub st_blocks: i64,
-    _times: [i64; 6],
-    _unused: [i64; 3],
+}
+
+impl Stat {
+    /// ⚠ **Every cast below is redundant on x86_64 and load-bearing somewhere
+    /// else.** The kernel's field widths differ by architecture, `st_mode` and
+    /// `st_uid` are not the same type on every one of them, so clippy's
+    /// `unnecessary_cast` is correct for the architecture it was run on and
+    /// wrong for this crate. Removing them breaks the cross-build, which is the
+    /// only reason this allow is here.
+    #[allow(clippy::unnecessary_cast)]
+    fn from_kernel(raw: &KernelStat) -> Stat {
+        Stat {
+            st_mode: raw.st_mode as u32,
+            st_uid: raw.st_uid as u32,
+            st_gid: raw.st_gid as u32,
+            st_rdev: raw.st_rdev as u64,
+            st_size: raw.st_size as i64,
+        }
+    }
 }
 
 impl Stat {
@@ -834,15 +1039,16 @@ impl Stat {
     }
 }
 
+/// `stat(2)` by name, `newfstatat(2)` in fact.
+///
+/// ⚠ Identical by definition: `stat(path)` is `newfstatat(AT_FDCWD, path, 0)`.
+/// Routing through the `*at` form is what lets this compile on an architecture
+/// whose kernel has no `stat` entry point at all, and it changes nothing on one
+/// that does. ⛔ It is a **utility** call and not a probe: nothing in the report
+/// says the word `stat`, so the entry point is not the measurement. The three
+/// calls where it is are [`CHOWN`], [`LCHOWN`] and [`MKNOD`].
 pub fn stat(path: &CBuf) -> Result<Stat, Errno> {
-    let mut out = Stat::default();
-    unsafe {
-        sys(
-            SYS_STAT,
-            [path.ptr(), &mut out as *mut Stat as u64, 0, 0, 0, 0],
-        )?
-    };
-    Ok(out)
+    fstatat(AT_FDCWD as i64, path, 0)
 }
 
 pub fn getgroups() -> Result<Vec<i32>, Errno> {
@@ -907,12 +1113,32 @@ mod tests {
         assert!(CBuf::new("/tmp/ab").is_some());
     }
 
+    /// ⛔ A short buffer is a kernel write past the end of it, and the shape is
+    /// **not the same on two architectures**: 144 bytes on x86_64 and 128 on
+    /// aarch64. Until 2026-09-09 this asserted `144` against a hand-written
+    /// struct, which is correct on exactly one architecture and is the reason
+    /// the file refused to build anywhere else rather than be wrong.
+    ///
+    /// ⚠ Both numbers below were **measured, not read from a header**: the
+    /// x86_64 one on this host, the aarch64 one by cross-building the same
+    /// `size_of` and running it under `qemu-aarch64`. `experiments/260-multiarch.sh`
+    /// re-takes both.
+    ///
+    /// ⭐ An architecture with no number here is not skipped: it asserts the
+    /// buffer is at least as large as every field the kernel is told about,
+    /// which is the property that actually matters and which podbox now gets by
+    /// construction, because the buffer IS the kernel's own generated struct.
     #[test]
     fn the_stat_buffer_is_the_size_the_kernel_writes() {
-        // ⛔ A short buffer is a kernel write past the end of it. 144 bytes on
-        // x86_64, and the assertion is here rather than in a comment because a
-        // field added above without a matching removal below is silent.
-        assert_eq!(core::mem::size_of::<Stat>(), 144);
+        let n = core::mem::size_of::<KernelStat>();
+        #[cfg(target_arch = "x86_64")]
+        assert_eq!(n, 144, "x86_64 struct stat");
+        #[cfg(target_arch = "aarch64")]
+        assert_eq!(n, 128, "aarch64 struct stat");
+        assert!(
+            n >= core::mem::size_of::<Stat>(),
+            "the kernel's buffer is smaller than the view podbox reads from it"
+        );
     }
 
     #[test]

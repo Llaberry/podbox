@@ -69,6 +69,20 @@ rustls-pemfile = "2"
 #     ureq 2.12.1   -> webpki-roots 0.26.11 -> webpki-roots 1.0.9
 webpki-roots = "1"
 
+# ⭐ T-0911, `experiments/results/bloat-syscalls-multiarch.txt`. THE SYSCALL
+# TABLE AND THE KERNEL STRUCTS, PER ARCHITECTURE, so podbox is not a
+# single-architecture runtime because of a table somebody typed.
+# ⚠ This reverses part of T-0901, which ruled `libc` and `rustix` out at a
+# measured delta of zero on the grounds that the probe set is hand-declared.
+# What that ruling did not price is what hand-declaring COSTS: a
+# `compile_error!` for every architecture but one. The operator's ruling of
+# 2026-09-09 is that features outrank bytes here. ⛔ Neither crate is a libc
+# wrapper: `syscalls::raw` issues the instruction and returns the raw value, so
+# the errno is still the kernel's and nothing passes through a thread-local,
+# which is what TODO/probe.md T-0101 actually requires.
+syscalls = { version = "0.8", default-features = false }
+linux-raw-sys = { version = "0.12", default-features = false, features = ["general", "no_std"] }
+
 # T-0906, `experiments/results/bloat-http.txt`. Blocking, no async runtime.
 ureq = { version = "2", default-features = false, features = ["tls", "gzip"] }
 

@@ -104,6 +104,7 @@ the blocker named and what would clear it.
 | [T-0503](enter.md) | P1 | enter | partial | Probe `/dev/ptmx`, and refuse `-t` by name where it is absent |
 | [T-0504](enter.md) | P1 | enter | open | Refuse a rootfs path that is a symlink |
 | [T-0505](enter.md) | P1 | enter | open | `exec` is a fresh chroot, and `inspect` says so |
+| [T-0506](enter.md) | P0 | enter | open | A foreign-architecture container, and never a rung measured by the emulator |
 | [T-0601](supervise.md) | P0 | supervise | open | One pidfd per direct child, `waitid` for status |
 | [T-0602](supervise.md) | P0 | supervise | open | Never decide "running" by sleeping and looking |
 | [T-0603](supervise.md) | P1 | supervise | open | `PR_SET_PDEATHSIG` fires on the creating thread's exit |
@@ -137,6 +138,7 @@ the blocker named and what would clear it.
 | [T-0908](deps.md) | P1 | deps | done | Sweep: digests, JSON, argument parsing, ELF |
 | [T-0909](deps.md) | P1 | deps | blocked | Vendor the memfd and userland-exec rungs, and fix the fork's regression here |
 | [T-0910](deps.md) | P0 | deps | done | The `cargo bloat` baseline, committed, and checked at the gate |
+| [T-0911](deps.md) | P0 | deps | done | The syscall table and the kernel structs come from a crate, per architecture |
 | [T-1001](packaging.md) | P0 | packaging | **done** | A single static binary with no `PT_INTERP` |
 | [T-1002](packaging.md) | P1 | packaging | open | Embed the interposer as bytes and place it inside the rootfs |
 | [T-1003](packaging.md) | P2 | packaging | open | The launch ladder, and a single file with an embedded rootfs |
@@ -159,7 +161,7 @@ the blocker named and what would clear it.
 
 ## Counts
 
-96 items: 51 open, 5 partial, 2 blocked, 38 done.
+98 items: 52 open, 5 partial, 2 blocked, 39 done.
 
 Counted from the rows above by `scripts/todo-count.py` and asserted
 independently by `scripts/check-todo.py`, which is the gate. A number here
@@ -167,11 +169,11 @@ that disagrees with the rows cannot reach a commit.
 
 | Priority | Open | Partial | Blocked | Done | Total |
 | --- | --- | --- | --- | --- | --- |
-| P0 | 21 | 3 | 1 | 19 | 44 |
+| P0 | 22 | 3 | 1 | 20 | 46 |
 | P1 | 18 | 2 | 1 | 14 | 35 |
 | P2 | 10 | 0 | 0 | 4 | 14 |
 | P3 | 2 | 0 | 0 | 1 | 3 |
-| **All** | **51** | **5** | **2** | **38** | **96** |
+| **All** | **52** | **5** | **2** | **39** | **98** |
 
 ## How the current ordering is derived
 

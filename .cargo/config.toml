@@ -27,6 +27,26 @@ rustflags = ["-C", "target-feature=+crt-static"]
 # with its own cross toolchain wins by exporting the variable itself.
 # scripts/zig-cc.sh says why zig rather than musl-tools; scripts/common/bootstrap-env.sh
 # installs it, pinned and checksummed.
+# ⭐ EVERY TARGET, not just the host's. TODO/deps.md T-0911 and
+# TODO/packaging.md: podbox is a multi-architecture runtime, so a C dependency
+# has to cross-compile for every architecture podbox claims, and `ring` is that
+# dependency. `scripts/zig-cc.sh` translates the rust triple to zig's for all of
+# them; these entries are what point cc-rs at it per target.
+#
+# ⚠ The variable name is the target with `-` replaced by `_`, which is cc-rs's
+# convention and not cargo's. A missing entry is not a warning: the build script
+# falls back to the host `cc` and fails with a message about the C compiler
+# rather than about the missing entry.
 [env]
 CC_x86_64_unknown_linux_musl = { value = "scripts/zig-cc.sh", relative = true }
 AR_x86_64_unknown_linux_musl = { value = "scripts/zig-ar.sh", relative = true }
+CC_aarch64_unknown_linux_musl = { value = "scripts/zig-cc.sh", relative = true }
+AR_aarch64_unknown_linux_musl = { value = "scripts/zig-ar.sh", relative = true }
+CC_riscv64gc_unknown_linux_musl = { value = "scripts/zig-cc.sh", relative = true }
+AR_riscv64gc_unknown_linux_musl = { value = "scripts/zig-ar.sh", relative = true }
+CC_loongarch64_unknown_linux_musl = { value = "scripts/zig-cc.sh", relative = true }
+AR_loongarch64_unknown_linux_musl = { value = "scripts/zig-ar.sh", relative = true }
+CC_armv7_unknown_linux_musleabihf = { value = "scripts/zig-cc.sh", relative = true }
+AR_armv7_unknown_linux_musleabihf = { value = "scripts/zig-ar.sh", relative = true }
+CC_i686_unknown_linux_musl = { value = "scripts/zig-cc.sh", relative = true }
+AR_i686_unknown_linux_musl = { value = "scripts/zig-ar.sh", relative = true }

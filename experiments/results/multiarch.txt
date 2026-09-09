@@ -1,0 +1,54 @@
+== conditions
+date              2026-09-09T02:25:22Z
+host kernel       6.18.44-fc-v24
+host arch         x86_64
+rustc             rustc 1.98.1 (48a229cea 2026-09-01)
+zig               0.16.0
+qemu-aarch64      qemu-aarch64 version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)
+
+== 1. every claimed architecture compiles the whole workspace
+  ok    x86_64-unknown-linux-musl          workspace checks
+  ok    aarch64-unknown-linux-musl         workspace checks
+  ok    riscv64gc-unknown-linux-musl       workspace checks
+  ok    loongarch64-unknown-linux-musl     workspace checks
+  ok    armv7-unknown-linux-musleabihf     workspace checks
+  ok    i686-unknown-linux-musl            workspace checks
+
+== 2. the architecture that does NOT build, and exactly why
+  blocked powerpc64le-unknown-linux-musl   error[E0554]: `#![feature]` may not be used on the stable re
+          the syscalls crate gates powerpc/s390x/mips behind
+          asm_experimental_arch. Clause 3 measures whether that
+          gate is still true of rustc.
+
+== 3. is the crate's nightly gate still true of this rustc?
+  ⚠ powerpc64 inline asm COMPILES on rustc 1.98.1 (48a229cea 2026-09-01)
+    so the crate gate is stale, not a rustc limit. What clears
+    clause 2 is a syscalls release dropping it, or podbox taking
+    the numbers from linux-raw-sys and carrying its own trap for
+    these two. T-0911 carries both and rules neither yet.
+
+== 4. podbox RUNS on aarch64, and what that sentence is worth
+  binary          ELF 64-bit LSB executable, ARM aarch64, version 1 (SYSV), 
+  bytes           1879464
+  version         podbox 0.1.0             rc=0
+  rung, aarch64   namespace   ⛔ QEMU'S ANSWER, NOT AN ARM MACHINE'S
+  rung, host      namespace   the same host, measured natively
+    probes: clone(NEWNS)=EINVAL mount=ok fsmount=skip(ENOSYS) move_mount=skip(ENOSYS)
+      Seccomp: 0
+      mount(tmpfs,/mnt) in clone(NEWNS)
+      mount(MS_SLAVE,/) in clone(NEWNS)
+      fsmount(tmpfs)
+  ⚠ Read those rows before quoting the rung. qemu-user does not
+    implement fsmount, refuses clone(CLONE_NEWNS) with EINVAL and
+    reports Seccomp 0 whatever the host is under. Every one of
+    those is a statement about the EMULATOR.
+  ⭐ What it does prove: the syscall numbers, the struct layouts
+    and the trap are right for aarch64. A wrong statfs layout
+    gives garbage block counts, and the writable rows are sane.
+
+== 5. binfmt_misc with F, which is how a foreign image will run
+  registered      podbox-probe-aarch64-5451, flags PF
+  in a bare chroot with NO qemu in it: podbox 0.1.0 (rc=0)
+  ⭐ That is the mechanism podbox run uses for a foreign
+    image, and it needs nothing copied into the rootfs.
+  unregistered    podbox-probe-aarch64-5451

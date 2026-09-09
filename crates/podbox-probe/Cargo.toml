@@ -7,3 +7,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+# ⭐ TODO/deps.md T-0911. The kernel's syscall table and struct layouts, per
+# architecture, so `crates/podbox-probe/src/sys.rs` declares neither.
+syscalls.workspace = true
+linux-raw-sys.workspace = true

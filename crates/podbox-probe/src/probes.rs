@@ -474,12 +474,18 @@ fn mknod_at(path: &str, dev: u64) -> Outcome {
         return already_there(path);
     }
     let p = c(path);
-    let r = unsafe {
-        sys::sys(
-            sys::SYS_MKNOD,
-            [p.ptr(), sys::S_IFCHR | 0o600, dev, 0, 0, 0],
-        )
+    // ⛔ `sys::MKNOD` and not a bare number: on an architecture whose kernel has
+    // no `mknod(2)` this is `mknodat(2)`, with the directory descriptor first,
+    // and the row says which was issued. `TODO/probe.md` T-0101 measures a
+    // NAMED syscall, so calling one and printing another would be the exact
+    // dishonesty this probe set exists to avoid.
+    let e = sys::MKNOD;
+    let args = if e.via_at {
+        [sys::AT_FDCWD, p.ptr(), sys::S_IFCHR | 0o600, dev, 0, 0]
+    } else {
+        [p.ptr(), sys::S_IFCHR | 0o600, dev, 0, 0, 0]
     };
+    let r = unsafe { sys::sys(e.nr, args) };
     if r.is_ok() {
         unscratch(path);
     }
@@ -504,30 +510,46 @@ fn p_setgroups() -> Outcome {
 
 const CHOWN_TARGET: &str = "/tmp/chown-probe-target";
 
-fn chown_probe(nr: i64, uid: u64, gid: u64) -> Outcome {
+/// ⛔ The entry point is part of the measurement, so it is passed in rather
+/// than assumed. Where the kernel has no `chown(2)`, every architecture taking
+/// its table from `asm-generic/unistd.h`, [`sys::CHOWN`] is `fchownat(2)` and
+/// the row prints that name. The **verdict** is about the operation (may this
+/// process give a file an id it does not map?), and the entry point is the
+/// evidence under it.
+fn chown_probe(e: sys::Entry, uid: u64, gid: u64) -> Outcome {
     if let Err(o) = make_scratch(CHOWN_TARGET) {
         return o;
     }
     let p = c(CHOWN_TARGET);
-    let r = unsafe { sys::sys(nr, [p.ptr(), uid, gid, 0, 0, 0]) };
+    let at_flags = if e.name.contains("AT_SYMLINK_NOFOLLOW") {
+        sys::AT_SYMLINK_NOFOLLOW
+    } else {
+        0
+    };
+    let args = if e.via_at {
+        [sys::AT_FDCWD, p.ptr(), uid, gid, at_flags, 0]
+    } else {
+        [p.ptr(), uid, gid, 0, 0, 0]
+    };
+    let r = unsafe { sys::sys(e.nr, args) };
     unscratch(CHOWN_TARGET);
     Outcome::from(r)
 }
 
 fn p_chown_0_0() -> Outcome {
-    chown_probe(sys::SYS_CHOWN, 0, 0)
+    chown_probe(sys::CHOWN, 0, 0)
 }
 
 fn p_chown_0_42() -> Outcome {
-    chown_probe(sys::SYS_CHOWN, 0, 42)
+    chown_probe(sys::CHOWN, 0, 42)
 }
 
 fn p_lchown_0_42() -> Outcome {
-    chown_probe(sys::SYS_LCHOWN, 0, 42)
+    chown_probe(sys::LCHOWN, 0, 42)
 }
 
 fn p_chown_1000_0() -> Outcome {
-    chown_probe(sys::SYS_CHOWN, 1000, 0)
+    chown_probe(sys::CHOWN, 1000, 0)
 }
 
 fn p_chroot() -> Outcome {

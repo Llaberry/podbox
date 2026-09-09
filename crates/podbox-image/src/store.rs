@@ -341,7 +341,7 @@ impl Store {
     /// [`TODO/image.md`](../../../TODO/image.md) T-0211 is what having neither
     /// cost. `O_CLOEXEC` keeps the lock out of an unrelated **exec**, and
     /// registering the fd with [`sys::close_in_children`] keeps it out of an
-    /// unrelated **fork** — which `O_CLOEXEC` cannot do, because there is no
+    /// unrelated **fork**, which `O_CLOEXEC` cannot do, because there is no
     /// close-on-fork and `flock` is held on the open file description a fork
     /// duplicates. The one caller that wants a payload to inherit it says so
     /// with [`Lock::hand_to_payload`], which undoes both.
@@ -676,15 +676,15 @@ impl Lock {
     /// what stops a concurrent `rmi` or `prune` deleting a rootfs a running
     /// container is executing out of, and podbox is not the process that holds
     /// the container open. This undoes both of [`Store::hold`]'s defences for
-    /// this one descriptor — it stops being shed by `clone_fork` and its
-    /// `FD_CLOEXEC` is cleared — so the very next `fork` and `execve` carry it
+    /// this one descriptor, it stops being shed by `clone_fork` and its
+    /// `FD_CLOEXEC` is cleared, so the very next `fork` and `execve` carry it
     /// into the payload.
     ///
     /// ⛔ Called immediately before the fork that leads to that `execve`, never
     /// at open time. T-0211 is what the second shape costs: a lock that is
     /// inheritable for its whole life is inherited by every unrelated `fork` in
-    /// that window — in this tree, by the fifty short-lived children one
-    /// `podbox probe` makes — and each one holds the `flock` open for its own
+    /// that window, in this tree, by the fifty short-lived children one
+    /// `podbox probe` makes, and each one holds the `flock` open for its own
     /// lifetime. The image then reads as in use after its holder released it,
     /// and `rmi` refuses an image nothing is using.
     ///
@@ -887,7 +887,7 @@ mod tests {
 
         // ⛔ A pipe, not a sleep. `clone_fork` sheds the registered fds in the
         // child before it returns there, so the child is only known to have
-        // shed once it has run at all — and a parent that asserts before the
+        // shed once it has run at all, and a parent that asserts before the
         // child is scheduled reads the fd as still open and fails for a reason
         // that has nothing to do with the defect. That is the same shape of
         // intermittent failure T-0211 itself arrived as, so this test is made
@@ -944,7 +944,7 @@ mod tests {
         // ⛔ The child announces itself on stdout and the parent reads that
         // before asserting. `O_CLOEXEC` takes the fd away at the **exec**, so a
         // parent that asserts while the child is still between `fork` and
-        // `execve` measures the fork window instead — which is the other test's
+        // `execve` measures the fork window instead, which is the other test's
         // subject, and would make this one fail for the wrong reason.
         let mut child = std::process::Command::new("/bin/sh")
             .arg("-c")

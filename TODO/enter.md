@@ -187,3 +187,63 @@ Decision:    A fresh chroot rather than refusing `exec`. `exec` is load-bearing
              filesystem-only sharing is enough for the overwhelming majority of
              uses provided it is stated.
 Prove:       `podbox run -d --name execprobe alpine:latest sleep 30 && podbox exec execprobe sh -c 'echo marker' | grep -qx marker && podbox inspect --format '{{.Exec.Shares}}' execprobe | grep -qx filesystem && podbox rm -f execprobe`
+
+---
+
+### T-0506 A foreign-architecture container, and never a rung measured by the emulator
+
+Source:      Found on 2026-09-09 by running `podbox probe` under `qemu-aarch64`, while closing [T-0911](deps.md)
+Category:    enter
+Priority:    P0
+Effort:      M
+Status:      open
+
+Problem:     ⛔ **A probe run under `qemu-user` measures the emulator, and
+             printing its rung as the machine's is the exact lie podbox exists
+             to refuse.** Measured on 2026-09-09,
+             `experiments/results/multiarch.txt` clause 4: `qemu-aarch64`
+             answers `EINVAL` to `clone(CLONE_NEWNS)`, `ENOSYS` to `fsmount` and
+             `move_mount`, and reports `Seccomp: 0` and `NoNewPrivs: 0` however
+             the host is confined. Every one of those is a statement about QEMU.
+             ⚠ It was harmless while podbox ran only where it was built. The
+             multiarch work makes it reachable by an ordinary user: `podbox run`
+             on a `linux/arm64` image on an amd64 host executes its payload,
+             and any `podbox probe` inside it, under precisely this emulator.
+Premise:     ⭐ **Measured, in this tree.** The aarch64 binary reports rung
+             `namespace` under qemu on a host that is also `namespace`, so the
+             two agree today and the agreement is a coincidence of this host
+             rather than evidence. The rows that disagree are printed in the
+             same result file, and they are the ones a caller would act on.
+             ⚠ It is the same shape as `experiments/20-enter-target.sh`'s `/dev`
+             answering out of the mount table the question doubts
+             ([T-0503](#t-0503-probe-devptmx-and-refuse--t-by-name-where-it-is-absent)),
+             and it has the same remedy: say which instrument answered.
+Approach:    Read the image's platform and the host's, and where they differ:
+             1. **Say so, once, on stderr**, naming both. ⛔ Never silently.
+             2. Read `/proc/sys/fs/binfmt_misc` for an interpreter registered
+                for the image's architecture, and whether its flags carry `F`.
+                ⭐ Measured 2026-09-09, clause 5: an `F` registration holds the
+                interpreter open, so a **bare chroot with no qemu inside it**
+                runs the foreign binary. Without `F` the interpreter must be
+                reachable by path inside the rootfs, which is the copy-in below.
+             3. Where an interpreter is registered without `F`, copy the static
+                interpreter into the rootfs, the operator's ruling of
+                2026-09-09, and ⛔ **disclose the write**: podbox put a file in
+                the payload's tree, which is a thing the payload can see, and
+                the honesty rules do not have an exception for convenience.
+             4. Where no interpreter is registered at all, **refuse** with exit
+                125, naming the host platform, the image platform, whether
+                `binfmt_misc` is mounted, and what would fix it. ⛔ Never exec
+                into a bare `Exec format error`.
+             5. ⛔ **Mark the probe answer as the emulator's** wherever podbox
+                runs under one, in the evidence block and in `--json`, and
+                refuse to write it into `$store/probe.json` under a key that
+                does not name the emulator. [T-0111](probe.md)'s cache key is
+                about confinement; this adds the interpreter.
+Decision:    Report and refuse before falling back. A runtime that guesses which
+             architecture a payload wanted has the same problem as one that
+             guesses a rung. ⚠ The copy-in is deliberate and disclosed rather
+             than refused, because refusing it would make podbox useless on
+             every machine whose binfmt registration predates `F`, which is most
+             of them.
+Prove:       `podbox run --rm --platform linux/arm64 <image> /bin/true` succeeds where an interpreter is registered and exits 125 naming both platforms where none is, and `podbox probe --json` run inside it carries the interpreter in `measured_by`
