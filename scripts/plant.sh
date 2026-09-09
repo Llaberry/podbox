@@ -2,7 +2,7 @@
 # plant.sh - break each of the gate's checks on purpose and assert it goes red.
 #
 # ⛔ AN ASSERTION NOBODY HAS SEEN FAIL IS NOT AN ASSERTION. `check-todo.py`
-# carries nineteen checks and this script carries twenty-three cases, because
+# carries twenty checks and this script carries twenty-four cases, because
 # check 17 has four assertions that fail apart, and checks 18 and 19 two. A check that
 # quietly matches nothing exits 0 exactly like one whose assertions all passed,
 # and the second is what everybody assumes they are looking at. This script is

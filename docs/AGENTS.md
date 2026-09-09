@@ -29,7 +29,9 @@ is not reading the rule.
 ⛔ **Do not wait for it.** It brings the machine up and compiles the binary
 behind the reading below, which needs no toolchain. Measured on 2026-09-09 in
 `experiments/results/session-startup.txt`: a cold compile is **29 s and 87
-crates**, and the reading is **5,944 words**. A session that reads first and
+crates**, and the reading is **6,524 words**. ⚠ That second number moves every
+session, because `PROGRESS.md` is rewritten every session;
+`experiments/310-session-startup.sh` clause 4 is what recomputes it. A session that reads first and
 builds second pays both; a session that runs this first pays only the reading.
 
 ⭐ **Then read [`../TODO/PROGRESS.md`](../TODO/PROGRESS.md).** It is the only
@@ -190,7 +192,7 @@ trailing `|| echo absent` fires beside the real value.
 ## The gate, and why it is trusted
 
 ```sh
-./scripts/check-todo.py    # the reader. Nineteen checks. Must exit 0 at every commit
+./scripts/check-todo.py    # the reader. Twenty checks. Must exit 0 at every commit
 ./scripts/todo-count.py    # the writer. Re-derives the counts; --set moves row and entry together
 ./scripts/plant.sh         # breaks each check on purpose and asserts it goes red
 ./scripts/common/check-markers.sh
