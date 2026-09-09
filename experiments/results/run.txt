@@ -1,0 +1,45 @@
+== conditions
+date              2026-09-09T03:12:16Z
+host kernel       6.18.44-fc-v24
+host arch         x86_64
+podbox            podbox 0.1.0
+image             ghcr.io/pkgforge-dev/archlinux:latest
+
+== 1. T-1104's own acceptance: a command runs and says so on stdout
+  stdout            [hi]
+  exit              0
+  stderr carries a mode= line: 1
+
+== 2. T-0802: the exit code is the payload's, unaltered
+  /bin/true                    0 (want 0)
+  /bin/false                   1 (want 1)
+  sh -c 'exit 42'              42 (want 42)
+  sh -c 'kill -9 $$'           137 (want 137 = 128+9)
+  /no/such/binary              127 (want 127)
+
+== 3. it is really a chroot into the image, not the host
+  /etc/os-release   Arch Linux
+  the host's is     Ubuntu
+
+== 4. -e, -w and --entrypoint
+  -e GREETING=hello  [hello]
+  -w /etc            [/etc]
+  --entrypoint       [ep]
+  a bare name        [onpath]
+
+== 5. T-0506: a foreign image is run through an interpreter, or REFUSED
+  arm64 image, uname -m inside it: [aarch64] rc=0
+  the host is                      x86_64
+  disclosed: Running it through the registered interpreter /usr/bin/qemu-aarch64-static
+  riscv64, nothing registered: rc=125
+    podbox cannot execute it: no enabled binfmt_misc registration selects ELF machine 0xf3 (
+
+== 6. --pull never on a platform the store does not hold
+  exit              125
+  says              podbox run: the store holds ghcr.io/pkgforge-dev/archlinux:latest for linux/amd64, linux/arm64, 
+
+== 7. T-1104's own acceptance: inside the reconstruction
+  stdout            [hi]
+  exit              0
+  rung inside       chroot   (this host selects namespace)
+  says it does NOT provide: does NOT provide: process, network, IPC or mount isolation

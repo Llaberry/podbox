@@ -119,6 +119,37 @@ pub struct Config {
     /// then reported as absent rather than as an epoch.
     #[serde(default)]
     pub created: Option<String>,
+    /// ⭐ What the image says to RUN. Absent until M3, because until M3 nothing
+    /// read it and this module's header rules that a field podbox does not read
+    /// is deliberately absent rather than carried as a passthrough.
+    #[serde(default)]
+    pub config: RunConfig,
+}
+
+/// The `config` object of an image configuration, restricted to what
+/// [`TODO/enter.md`](../../../TODO/enter.md) M3 actually reads.
+///
+/// ⚠ The field names are the specification's, which are capitalised, and the
+/// docker image config uses the same ones. `serde` renames rather than podbox
+/// lower-casing them, so a reader comparing this against the spec sees the
+/// spec's own words.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct RunConfig {
+    /// ⛔ `None` and `Some(vec![])` are different and podbox keeps them apart:
+    /// an image with an empty `Entrypoint` array has explicitly cleared it, and
+    /// treating that as "unset" would run the parent image's entrypoint.
+    #[serde(rename = "Entrypoint")]
+    pub entrypoint: Option<Vec<String>>,
+    #[serde(rename = "Cmd")]
+    pub cmd: Option<Vec<String>>,
+    #[serde(rename = "Env", default)]
+    pub env: Vec<String>,
+    #[serde(rename = "WorkingDir", default)]
+    pub working_dir: String,
+    /// ⚠ Read and **reported**, never applied: podbox cannot `setuid` to an id
+    /// this machine does not map, which is the wall the whole project is about.
+    #[serde(rename = "User", default)]
+    pub user: String,
 }
 
 /// What a manifest endpoint returned, before podbox knows which of the two it

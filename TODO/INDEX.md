@@ -66,8 +66,8 @@ the blocker named and what would clear it.
 | [T-0104](probe.md) | P0 | probe | done | Probe the write allowlist by writing, for blocks and inodes |
 | [T-0105](probe.md) | P1 | probe | done | Read the ID maps directly rather than inferring them |
 | [T-0106](probe.md) | P2 | probe | done | The `mknod` pair, because one of them tests nothing |
-| [T-0107](probe.md) | P0 | probe | partial | Mode selection, and one switch that turns every degradation into a refusal |
-| [T-0108](probe.md) | P0 | probe | partial | The mode banner |
+| [T-0107](probe.md) | P0 | probe | done | Mode selection, and one switch that turns every degradation into a refusal |
+| [T-0108](probe.md) | P0 | probe | done | The mode banner |
 | [T-0109](probe.md) | P0 | probe | done | A verdict is the operation's, and "could not run" never reads as "denied" |
 | [T-0110](probe.md) | P1 | probe | done | `podbox probe` exit-code and channel contract |
 | [T-0111](probe.md) | P2 | probe | done | Cache the probe result, and key it on what actually decides it |
@@ -75,7 +75,7 @@ the blocker named and what would clear it.
 | [T-0201](image.md) | P0 | image | done | Registry client, HTTPS only, with no plain-HTTP fallback |
 | [T-0202](image.md) | P0 | image | done | A content-addressed store, and digest parity with docker |
 | [T-0203](image.md) | P0 | image | done | Check `statvfs` for blocks and inodes, and name the destination |
-| [T-0204](image.md) | P1 | image | partial | `images`, `rmi`, `tag`, and a store GC that cannot delete a running container's rootfs |
+| [T-0204](image.md) | P1 | image | done | `images`, `rmi`, `tag`, and a store GC that cannot delete a running container's rootfs |
 | [T-0205](image.md) | P3 | image | open | Re-test podman with `vfs` and `ignore_chown_errors` before repeating "no path exists" |
 | [T-0206](image.md) | P3 | image | open | A registry fixture, so the acceptance stops depending on somebody else's quota |
 | [T-0207](image.md) | P2 | image | open | Fetch layers with bounded concurrency, and measure what it buys |
@@ -103,12 +103,12 @@ the blocker named and what would clear it.
 | [T-0409](complete.md) | P2 | complete | open | Ownership failures from `dpkg`, `rpm` and `xbps` are warnings |
 | [T-0410](complete.md) | P0 | complete | open | Supply `/etc/nsswitch.conf`, or the supplied `/etc/passwd` is a no-op |
 | [T-0411](complete.md) | P1 | complete | open | A payload whose package sources are `http://`, on a runtime where tcp/80 hangs |
-| [T-0501](enter.md) | P0 | enter | open | Open every descriptor before the root changes |
-| [T-0502](enter.md) | P0 | enter | open | Resolve the program inside the new root, in the process that changed it |
+| [T-0501](enter.md) | P0 | enter | done | Open every descriptor before the root changes |
+| [T-0502](enter.md) | P0 | enter | done | Resolve the program inside the new root, in the process that changed it |
 | [T-0503](enter.md) | P1 | enter | partial | Probe `/dev/ptmx`, and refuse `-t` by name where it is absent |
-| [T-0504](enter.md) | P1 | enter | open | Refuse a rootfs path that is a symlink |
+| [T-0504](enter.md) | P1 | enter | done | Refuse a rootfs path that is a symlink |
 | [T-0505](enter.md) | P1 | enter | open | `exec` is a fresh chroot, and `inspect` says so |
-| [T-0506](enter.md) | P0 | enter | open | A foreign-architecture container, and never a rung measured by the emulator |
+| [T-0506](enter.md) | P0 | enter | partial | A foreign-architecture container, and never a rung measured by the emulator |
 | [T-0601](supervise.md) | P0 | supervise | open | One pidfd per direct child, `waitid` for status |
 | [T-0602](supervise.md) | P0 | supervise | open | Never decide "running" by sleeping and looking |
 | [T-0603](supervise.md) | P1 | supervise | open | `PR_SET_PDEATHSIG` fires on the creating thread's exit |
@@ -150,8 +150,8 @@ the blocker named and what would clear it.
 | [T-1100](milestones.md) | P0 | milestones | **done** | M-1 the corpus, the work index and the skeleton |
 | [T-1101](milestones.md) | P0 | milestones | done | M0 the probe, and nothing else |
 | [T-1102](milestones.md) | P1 | milestones | done | M1 image acquisition |
-| [T-1103](milestones.md) | P0 | milestones | partial | M2 extraction that survives the ownership wall |
-| [T-1104](milestones.md) | P0 | milestones | open | M3 `run` on the chroot rung |
+| [T-1103](milestones.md) | P0 | milestones | done | M2 extraction that survives the ownership wall |
+| [T-1104](milestones.md) | P0 | milestones | partial | M3 `run` on the chroot rung |
 | [T-1105](milestones.md) | P0 | milestones | open | M4 the lifecycle, twenty times |
 | [T-1106](milestones.md) | P1 | milestones | open | M5 environment completion, ten distributions |
 | [T-1107](milestones.md) | P1 | milestones | open | M6 the interposer |
@@ -165,7 +165,7 @@ the blocker named and what would clear it.
 
 ## Counts
 
-102 items: 52 open, 5 partial, 2 blocked, 43 done.
+102 items: 47 open, 3 partial, 2 blocked, 50 done.
 
 Counted from the rows above by `scripts/todo-count.py` and asserted
 independently by `scripts/check-todo.py`, which is the gate. A number here
@@ -173,11 +173,11 @@ that disagrees with the rows cannot reach a commit.
 
 | Priority | Open | Partial | Blocked | Done | Total |
 | --- | --- | --- | --- | --- | --- |
-| P0 | 22 | 3 | 1 | 22 | 48 |
-| P1 | 17 | 2 | 1 | 16 | 36 |
+| P0 | 18 | 2 | 1 | 27 | 48 |
+| P1 | 16 | 1 | 1 | 18 | 36 |
 | P2 | 10 | 0 | 0 | 4 | 14 |
 | P3 | 3 | 0 | 0 | 1 | 4 |
-| **All** | **52** | **5** | **2** | **43** | **102** |
+| **All** | **47** | **3** | **2** | **50** | **102** |
 
 ## How the current ordering is derived
 

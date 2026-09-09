@@ -327,6 +327,9 @@ version = "0.1.0"
 [[package]]
 name = "podbox-enter"
 version = "0.1.0"
+dependencies = [
+ "podbox-probe",
+]
 
 [[package]]
 name = "podbox-extract"

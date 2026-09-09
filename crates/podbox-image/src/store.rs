@@ -136,6 +136,24 @@ impl Default for Index {
     }
 }
 
+/// What a platform-qualified lookup found.
+///
+/// ⛔ Two states rather than an empty vector, because they need different
+/// sentences: "podbox does not hold this image" and "podbox holds this image,
+/// for another platform" send a caller to different remedies.
+#[derive(Debug, Default)]
+pub struct Found {
+    pub matched: Vec<Record>,
+    /// The platforms the store DOES hold for this reference, when none matched.
+    pub other_platforms: Vec<String>,
+}
+
+impl Found {
+    pub fn one(self) -> Option<Record> {
+        self.matched.into_iter().next()
+    }
+}
+
 #[derive(Debug)]
 pub struct Store {
     root: PathBuf,
@@ -450,19 +468,30 @@ impl Store {
         &self,
         want: &str,
         platform: Option<&crate::platform::Platform>,
-    ) -> Result<Vec<Record>> {
+    ) -> Result<Found> {
         let hits = self.find(want)?;
-        if hits.len() <= 1 {
-            return Ok(hits);
-        }
         let host = crate::platform::Platform::host();
         let want_p = platform.unwrap_or(&host);
-        let narrowed: Vec<Record> = hits
+        // ⛔ Filtered whatever the count. An earlier version short-circuited on
+        // a single hit, and a store holding only `linux/amd64` then answered a
+        // `--platform linux/arm64` request with the amd64 record: podbox ran the
+        // wrong architecture and said nothing. A count is not a match.
+        let matched: Vec<Record> = hits
             .iter()
             .filter(|r| r.platform == want_p.to_string())
             .cloned()
             .collect();
-        Ok(if narrowed.is_empty() { hits } else { narrowed })
+        Ok(Found {
+            other_platforms: if matched.is_empty() {
+                let mut p: Vec<String> = hits.iter().map(|r| r.platform.clone()).collect();
+                p.sort_unstable();
+                p.dedup();
+                p
+            } else {
+                Vec::new()
+            },
+            matched,
+        })
     }
 
     pub fn find_one(&self, want: &str) -> Result<Record> {
@@ -1044,14 +1073,35 @@ mod tests {
         // Asked for a platform: exactly that one comes back, by name.
         let p = crate::platform::Platform::parse("linux/arm64").unwrap();
         let got = s.find_for("alpine:latest", Some(&p)).unwrap();
-        assert_eq!(got.len(), 1);
-        assert_eq!(got[0].platform, "linux/arm64");
+        assert_eq!(got.matched.len(), 1);
+        assert_eq!(got.matched[0].platform, "linux/arm64");
 
-        // ⚠ Asked for a platform the store does not hold: the hits come back
-        // unfiltered so the caller can say "held, for another platform" rather
-        // than "no such image".
+        // ⚠ Asked for a platform the store does not hold: NOTHING matches, and
+        // what it does hold is reported separately so the caller can say "held,
+        // for another platform" rather than "no such image".
         let none = crate::platform::Platform::parse("linux/riscv64").unwrap();
-        assert_eq!(s.find_for("alpine:latest", Some(&none)).unwrap().len(), 2);
+        let miss = s.find_for("alpine:latest", Some(&none)).unwrap();
+        assert!(
+            miss.matched.is_empty(),
+            "a wrong-platform record was returned"
+        );
+        assert_eq!(miss.other_platforms.len(), 2);
+
+        // ⛔ The regression that produced `Found`: with ONE record in the store
+        // and a different platform asked for, a count-based short circuit
+        // returned it and podbox ran the wrong architecture in silence.
+        let solo = scratch("solo");
+        let mut only = record("docker.io/library/alpine", Some("latest"), 29);
+        only.platform = "linux/amd64".into();
+        solo.put_record(only).unwrap();
+        let arm = crate::platform::Platform::parse("linux/arm64").unwrap();
+        let got = solo.find_for("alpine:latest", Some(&arm)).unwrap();
+        assert!(
+            got.matched.is_empty(),
+            "one record in the store was returned for a platform it is not"
+        );
+        assert_eq!(got.other_platforms, vec!["linux/amd64".to_string()]);
+        let _ = std::fs::remove_dir_all(solo.root());
 
         let _ = std::fs::remove_dir_all(s.root());
     }

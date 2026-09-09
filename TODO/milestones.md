@@ -182,7 +182,7 @@ Source:      `TOOL.md` section 5 M2
 Category:    milestones
 Priority:    P0
 Effort:      L
-Status:      partial 2026-09-08
+Status:      done 2026-09-09
 
 Problem:     The single highest-risk component. Four separate tools in the
              corpus stop here.
@@ -211,7 +211,25 @@ below.
 | `alpine` has `etc/shadow` | present, 515 entries, the one gid-42 row recorded |
 | `voidlinux` has no `var/cache/xbps` link | gone, whiteouted by layer 2; 543 other symlinks survive |
 
-⛔ **THIS ENTRY CANNOT CLOSE UNTIL M3, AND THAT WAS KNOWN BEFORE M2 STARTED.**
+⭐ **CLOSED 2026-09-09, AND THE LAST TWO CLAUSES RAN UNDER `run --rm`.**
+
+| clause, from inside the container | reading |
+| --- | --- |
+| `podbox run --rm alpine:latest sh -c 'test -f /etc/shadow'` | exit 0, `shadow-present` |
+| `podbox run --rm voidlinux/voidlinux-musl:latest sh -c 'test -L /var/cache/xbps'` | not a link |
+
+⭐ **And running from inside showed the ownership wall for the first time.**
+`ls -ln /etc/shadow` inside the container reports **gid 0**, not the 42 the image
+declares. That is [extract.md](extract.md) T-0302 working exactly as designed
+and now visible from the payload's own side: podbox could not apply the id, it
+did not pretend to, and `.meta.jsonl` beside the rootfs carries what the image
+meant. ⚠ A caller who needs the real gid needs M6's interposer, and until then
+the sidecar is the honest answer rather than the convenient one.
+
+⚠ **What follows was true when this entry was `partial` and is kept** because it
+is why the `Prove` has the shape it has.
+
+⛔ **THIS ENTRY COULD NOT CLOSE UNTIL M3, AND THAT WAS KNOWN BEFORE M2 STARTED.**
 The `Prove` as authored ran `podbox run --rm`, which is [T-1104](milestones.md).
 M2 can implement and drive extraction and cannot enter the tree it produced, in
 exactly the way [T-0107](probe.md), [T-0108](probe.md) and [T-0204](image.md)
@@ -250,7 +268,7 @@ Source:      `TOOL.md` section 5 M3
 Category:    milestones
 Priority:    P0
 Effort:      M
-Status:      open
+Status:      partial 2026-09-09
 
 Problem:     ⭐ This is the product requirement the whole specification exists
              for: an agent that knows docker must need zero new knowledge.
@@ -260,7 +278,39 @@ Approach:    That exact command, inside the reconstruction, with the mode banner
              on stderr and nothing but the payload's output on stdout.
 Decision:    The banner goes to stderr. A banner on stdout corrupts every
              pipeline the payload is in, and the payload's stdout is data.
-Prove:       `./experiments/20-enter-target.sh --stage ./target/x86_64-unknown-linux-musl/release/podbox -- /workspace/podbox run --rm alpine:latest /bin/echo hi` prints `hi` on stdout, a `mode=` line on stderr, and exits 0
+Prove:       `./experiments/300-run.sh` exits 0. Clause 7 is the command above, with the store pre-pulled outside and staged in
+
+**Partial, 2026-09-09. The `Prove` above passes and the milestone's named work
+does not all exist yet**, which is why this is `partial` rather than `done`.
+
+⭐ **What passes.** `experiments/300-run.sh`, seven clauses, exit 0. Clause 7 is
+this entry's own acceptance, run inside the reconstruction:
+
+| | |
+| --- | --- |
+| stdout | `hi`, and nothing else |
+| exit | 0 |
+| rung selected inside the reconstruction | **`chroot`** |
+| the same podbox on this host | `namespace` |
+| the banner | `this mode does NOT provide: process, network, IPC or mount isolation` |
+
+⭐ **The rung differing between the two is the point.** Every other clause runs
+on this host, where `mount(2)` succeeds and podbox selects `namespace`; the
+reconstruction is where it is `EPERM` and podbox has to fall to the rung this
+milestone is named for. A run that selected `namespace` in both would have
+proven nothing about `chroot`.
+
+⚠ **The store is pre-pulled outside and staged in, and clause 7 runs
+`--pull never`.** The reconstruction has no CA bundle, so a pull from inside it
+fails on an unverifiable certificate. That is a fact about the reconstruction
+and not about `run`; acquisition is M1's and `150-image-acquisition.sh` proves
+it.
+
+⛔ **What is left, named rather than implied:** [T-0505](enter.md), `exec` as a
+fresh chroot; [T-0801](cli.md), the verb and flag parity table as data; and
+[T-0803](cli.md), answering to `docker` and `podman` on PATH. Each is its own
+entry and each is `open`. [T-0802](cli.md)'s exit codes are **done** and are
+clause 2.
 
 ---
 

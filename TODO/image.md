@@ -284,7 +284,7 @@ Source:      `TOOL.md` section 5 M1, section 6.8
 Category:    image
 Priority:    P1
 Effort:      M
-Status:      partial 2026-09-08
+Status:      done 2026-09-09
 
 Problem:     A GC that runs while a container is using an extraction deletes the
              tree out from under it, and the payload's failure names a missing
@@ -344,6 +344,22 @@ process holds the fd. That inheritance is precisely what this entry buys.
 ⚠ **`prune -f` is accepted and does nothing**, and `--help` says so rather than
 leaving it as a flag no code reads: docker's `-f` suppresses a confirmation
 prompt, and podbox never prompts ([cli.md](cli.md) T-0806).
+
+⭐ **The remaining half closed 2026-09-09 by M3.** The lock and its GC refusal
+were driven at M1 without the exec they exist for; `podbox run` is that caller.
+It takes the lock **before** checking whether the rootfs is extracted, so a
+concurrent `rmi` cannot delete the tree between podbox deciding it is there and
+entering it, and calls `Lock::hand_to_payload` immediately before the fork that
+leads to the payload's `execve`.
+
+⚠ `--rm` drops the lock **before** removing the rootfs. Holding it while
+deleting would be podbox refusing its own request, which is the kind of deadlock
+that only appears once the caller exists.
+
+⛔ [T-0211](#t-0211-an-image-lock-outlives-its-holder-whenever-anything-forks) is
+what this half cost: handing the fd to the payload the obvious way, by leaving
+it inheritable from the moment it was opened, leaked it into every unrelated
+fork in between.
 
 ---
 

@@ -16,6 +16,7 @@
 
 mod format;
 mod images;
+mod run;
 
 use std::io::Write;
 
@@ -31,6 +32,7 @@ const EXIT_USAGE: i32 = 2;
 const USAGE: &str = "\
 usage: podbox <command> [options]
 
+  run          extract an image if needed and run a command inside it
   probe        report what this machine permits, and the rung podbox selects
   pull         fetch an image into the content-addressed store
   extract      unpack a pulled image's layers into a rootfs
@@ -85,6 +87,7 @@ fn main() -> std::process::ExitCode {
     let argv0 = argv.first().cloned().unwrap_or_else(|| "podbox".into());
     let rest = if argv.len() > 2 { &argv[2..] } else { &[] };
     match argv.get(1).map(String::as_str) {
+        Some("run") => exit(run::run(rest)),
         Some("probe") => exit(probe(rest)),
         Some("pull") => exit(images::pull(rest)),
         Some("extract") => exit(images::extract(rest)),

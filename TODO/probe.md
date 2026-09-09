@@ -365,7 +365,7 @@ Source:      `TOOL.md` section 4.1, section 6.1; `paper_final.md` section 10.1
 Category:    probe
 Priority:    P0
 Effort:      M
-Status:      partial 2026-09-08
+Status:      done 2026-09-09
 
 Problem:     A weaker mode must never satisfy a stronger request. A user who
              believes they have namespaces when they have a `chroot` is worse
@@ -431,6 +431,19 @@ because every verb but `probe` is unimplemented, so the command would *pass
 vacuously*; that is not evidence and is not recorded as any. This entry closes
 when M3 lands and the first half is run against a real `run`.
 
+⭐ **The remaining half closed 2026-09-09 by M3.** This was `partial` because
+rung selection had no caller that entered anything: it was measured and never
+acted on. `podbox run` now selects the rung for a real entry, and
+`experiments/300-run.sh` clause 7 is the reading that matters, because it is the
+one taken somewhere the answer differs:
+
+| where | rung |
+| --- | --- |
+| this host | `namespace` |
+| inside `20-enter-target.sh`'s reconstruction | **`chroot`** |
+
+⛔ A selection that answered the same thing in both would have proven nothing.
+
 ---
 
 ### T-0108 The mode banner
@@ -439,7 +452,7 @@ Source:      `TOOL.md` section 6.1 and section 6.8, `paper_final.md` section 10.
 Category:    probe
 Priority:    P0
 Effort:      S
-Status:      partial 2026-09-08
+Status:      done 2026-09-09
 
 Problem:     An agent cannot notice that its "container" was a `chroot`. The
              banner is the product, not a disclaimer.
@@ -495,6 +508,21 @@ the mode.
 ⛔ **What is NOT done, and it is not out of scope.** "Once per `run` and `exec`"
 needs `run` and `exec`, which are [T-1104](milestones.md), M3. The config switch
 that suppresses it needs the configuration surface of [cli.md](cli.md).
+
+⭐ **The remaining half closed 2026-09-09 by M3.** The banner existed and was
+printed by `podbox probe`, which is a diagnostic nobody pipes. It now prints on
+**every `podbox run`**, on stderr, before the payload's first byte, and
+`experiments/300-run.sh` clause 1 asserts both halves: a `mode=` line **is** on
+stderr and **is not** on stdout.
+
+⛔ The second assertion is the load-bearing one. A banner on stdout corrupts
+every pipeline the payload is in, and a test that only checked it was printed
+somewhere would pass with the bug in place.
+
+⚠ Inside the reconstruction the banner also carries
+`this mode does NOT provide: process, network, IPC or mount isolation`, which is
+the sentence the whole honesty argument rests on: it is printed where it is
+true, and not printed on this host where podbox reaches `namespace`.
 
 ---
 

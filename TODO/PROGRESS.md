@@ -104,7 +104,7 @@ Acceptance, run on 2026-09-08:
 
 ```
 $ ./scripts/check-todo.py
-check-todo: 102 rows, 102 entries, 52 open, 5 partial, 2 blocked, 43 done
+check-todo: 102 rows, 102 entries, 47 open, 3 partial, 2 blocked, 50 done
 check-todo: ok
 $ ./scripts/plant.sh
   plants   18 caught, 0 missed
@@ -143,7 +143,7 @@ correction [T-1103](milestones.md)'s own `Prove` needed.
 
 ## Counts
 
-102 entries: 52 open, 5 partial, 2 blocked, 43 done.
+102 entries: 47 open, 3 partial, 2 blocked, 50 done.
 
 ⚠ Eight entries were **authored and not implemented** this session, in their own
 pass per `docs/AGENTS.md`'s routing table: [T-0206](image.md) to

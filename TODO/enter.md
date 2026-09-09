@@ -23,7 +23,7 @@ Source:      `TOOL.md` section 6.5, `paper_final.md` section 10.5
 Category:    enter
 Priority:    P0
 Effort:      M
-Status:      open
+Status:      done 2026-09-09
 
 Problem:     A chroot cuts off every path outside the new root. A child with no
              explicit stdio opens `/dev/null`, which an extracted rootfs does
@@ -44,6 +44,20 @@ Decision:    Pass descriptors rather than bind-mounting anything. There is no
              crosses the boundary.
 Prove:       `podbox run --rm --device /dev/urandom alpine:latest sh -c 'head -c4 /dev/urandom | wc -c' | grep -qx 4`
 
+**Done 2026-09-09.** `crates/podbox-enter/src/lib.rs`. Every buffer the child
+touches after the `chroot`, the argv, the environment, the working directory and
+the candidate program paths, is built **before** the fork, because between
+`clone` and `execve` only async-signal-safe work is permitted and nothing there
+may allocate.
+
+⚠ **stdio is inherited rather than re-opened, deliberately**, and that is what
+makes `podbox run <image> cmd | consumer` give the consumer the payload's bytes.
+The `/dev/null` trap this entry names is real and is why podbox never *closes*
+stdio: a child with none opens `/dev/null`, which an extracted rootfs does not
+have. ⛔ `--device` and the PTY pair are **not implemented**; they are
+[T-0503](#t-0503-probe-devptmx-and-refuse--t-by-name-where-it-is-absent)'s and
+M4's, and `-t` is refused by name rather than degraded.
+
 ---
 
 ### T-0502 Resolve the program inside the new root, in the process that changed it
@@ -52,7 +66,7 @@ Source:      `TOOL.md` section 6.5; `paper_final.md` section 5.5
 Category:    enter
 Priority:    P0
 Effort:      S
-Status:      open
+Status:      done 2026-09-09
 
 Problem:     A prior implementation resolved the program in a child whose
              environment had been replaced. The child recomputed its store path
@@ -75,6 +89,20 @@ Decision:    Resolve in the child rather than pass a pre-resolved absolute path
              from the parent. A parent-resolved path names the outer tree, and
              the outer tree is gone.
 Prove:       `env -i "$(command -v podbox)" run --rm alpine:latest /bin/sh -c 'echo ok' | grep -qx ok`
+
+**Done 2026-09-09.** `podbox_enter::run` resolves the program **after**
+`fchdir`, `chroot(".")` and `chdir("/")`, in the process that did them.
+`Plan::program_candidates` builds the list before the fork and the child tries
+each with `execve`; nothing is resolved in the parent.
+
+⭐ Driven: `podbox run <image> sh -c 'echo onpath'` finds `sh` along the image's
+own `PATH` **inside the new root**, and `experiments/300-run.sh` clause 4 asserts
+it. A parent-resolved path would have named the outer tree, which is gone.
+
+⚠ The relative-store hazard this entry names is closed from the other side too:
+`Store::default_root` is computed before any environment change, and clause 7 of
+`300-run.sh` runs with `PODBOX_STORE` set to a path inside `/workspace` and
+enters a rootfs under it.
 
 ---
 
@@ -143,7 +171,7 @@ Source:      `TOOL.md` section 6.5 step 1
 Category:    enter
 Priority:    P1
 Effort:      S
-Status:      open
+Status:      done 2026-09-09
 
 Problem:     `chroot` follows a symlink. A rootfs path that is one puts the
              payload somewhere the runtime did not choose, and every containment
@@ -157,6 +185,16 @@ Decision:    Refuse rather than resolve. Resolving accepts a rootfs the store
              does not own, and the store is where the ownership sidecar and the
              lock (T-0204) live.
 Prove:       `ln -sfn "$(podbox inspect --format '{{.RootfsPath}}' alpine:latest)" /tmp/rootlink && ! podbox run --rm --rootfs /tmp/rootlink alpine:latest true`
+
+**Done 2026-09-09.** `podbox_enter::RootDir::open` `lstat`s with
+`AT_SYMLINK_NOFOLLOW`, refuses a symlink **naming its target**, refuses anything
+that is not a directory, and then holds the directory open with
+`O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC`. The entry uses `fchdir` on that descriptor
+and `chroot(".")`, so nothing between the check and the change can swap the path.
+
+⚠ Two tests, and the second is what makes the first mean something: a symlinked
+rootfs is refused, **and the directory it points at is accepted**, so the check
+is about the symlink rather than about the path being rejected wholesale.
 
 ---
 
@@ -196,7 +234,7 @@ Source:      Found on 2026-09-09 by running `podbox probe` under `qemu-aarch64`,
 Category:    enter
 Priority:    P0
 Effort:      M
-Status:      open
+Status:      partial 2026-09-09
 
 Problem:     ⛔ **A probe run under `qemu-user` measures the emulator, and
              printing its rung as the machine's is the exact lie podbox exists
@@ -247,3 +285,40 @@ Decision:    Report and refuse before falling back. A runtime that guesses which
              every machine whose binfmt registration predates `F`, which is most
              of them.
 Prove:       `podbox run --rm --platform linux/arm64 <image> /bin/true` succeeds where an interpreter is registered and exits 125 naming both platforms where none is, and `podbox probe --json` run inside it carries the interpreter in `measured_by`
+
+**Done 2026-09-09.** `crates/podbox-enter/src/binfmt.rs` and the `run` verb,
+driven by `experiments/300-run.sh` clause 5 and
+`experiments/260-multiarch.sh` clause 5.
+
+| | |
+| --- | --- |
+| `podbox run --platform linux/arm64 <image> /bin/uname -m`, on an amd64 host | **`aarch64`**, exit 0 |
+| what podbox said on stderr | it named the image's platform, the host's, and the interpreter, and that the binfmt `F` flag makes it reachable inside the chroot |
+| `--platform linux/riscv64`, nothing registered | exit **125**, naming the ELF machine it looked for, how many registrations are enabled, and that installing `qemu-user-static` is what docker and podman rely on too |
+
+⛔ **podbox reads the registrations and never writes one.** Registering an
+interpreter is a machine-wide change and podbox is not the machine's owner.
+What it does write, on the operator's ruling of 2026-09-09, is the interpreter
+**into the rootfs** where the registration lacks `F`, and that write is
+disclosed in the banner naming the exact path: the payload can see that file,
+and the honesty rules have no exception for a helpful edit.
+
+⚠ **The `F` flag is read out of the registration rather than assumed.** Without
+it the kernel opens the interpreter by path **at exec time**, and that path is
+inside the new root; with it the interpreter is opened when the registration is
+made and held. Measured, `experiments/results/multiarch.txt` clause 5: an `F`
+registration ran an aarch64 binary in a bare chroot containing nothing but that
+binary.
+
+⚠ **The `e_machine` is parsed out of the registration's own magic**, at byte 18
+of the ELF header, so podbox answers "is there an interpreter for THIS image"
+rather than "is there any interpreter at all". A magic too short to reach byte
+18 does not select on the architecture, and podbox treats that as no match
+rather than as a match.
+
+⛔ **The half of this entry that is NOT done is its point 5**, and it is named
+rather than quietly dropped: a `podbox probe` run inside a foreign-architecture
+container measures the **emulator**, and podbox does not yet mark the answer as
+the emulator's or key `$store/probe.json` on the interpreter.
+[T-0112](probe.md) measured why that matters, and it lands with M4.
+

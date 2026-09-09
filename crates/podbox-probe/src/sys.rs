@@ -155,6 +155,11 @@ pub const SYS_FSMOUNT: i64 = Sysno::fsmount as i64;
 pub const SYS_PIDFD_GETFD: i64 = Sysno::pidfd_getfd as i64;
 pub const SYS_LANDLOCK_CREATE_RULESET: i64 = Sysno::landlock_create_ruleset as i64;
 pub const SYS_DUP3: i64 = Sysno::dup3 as i64;
+// ⭐ M3's entry sequence. TODO/enter.md T-0504: the rootfs is held as a
+// directory DESCRIPTOR and entered with `fchdir` then `chroot(".")`, so nothing
+// between checking the path and changing the root can swap it.
+pub const SYS_CHDIR: i64 = Sysno::chdir as i64;
+pub const SYS_FCHDIR: i64 = Sysno::fchdir as i64;
 
 // ⭐ The `*at` family, taken by `crates/podbox-extract` (TODO/extract.md
 // T-0304). Extraction resolves every entry against a directory FILE
@@ -578,6 +583,21 @@ pub fn close(fd: i64) -> Sysres {
 /// one through here would hand the kernel an integer where it reads an address.
 pub fn fcntl(fd: i64, cmd: u64, arg: u64) -> Sysres {
     unsafe { sys(SYS_FCNTL, [fd as u64, cmd, arg, 0, 0, 0]) }
+}
+
+/// ⛔ `chroot(2)` on a path, used only as `chroot(".")` after an `fchdir` onto
+/// a descriptor already held. TODO/enter.md T-0504: `chroot` follows a symlink,
+/// so a path checked and then passed is a path that can be swapped in between.
+pub fn chroot(path: &CBuf) -> Sysres {
+    unsafe { sys(SYS_CHROOT, [path.ptr(), 0, 0, 0, 0, 0]) }
+}
+
+pub fn chdir(path: &CBuf) -> Sysres {
+    unsafe { sys(SYS_CHDIR, [path.ptr(), 0, 0, 0, 0, 0]) }
+}
+
+pub fn fchdir(fd: i64) -> Sysres {
+    unsafe { sys(SYS_FCHDIR, [fd as u64, 0, 0, 0, 0, 0]) }
 }
 
 /// `open(2)` by name, `openat(2)` in fact, see [`stat`] for why every
