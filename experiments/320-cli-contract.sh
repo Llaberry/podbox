@@ -48,6 +48,16 @@ command -v jq >/dev/null 2>&1 || {
 	exit 2
 }
 
+# ⭐ The exit codes are DATA, read out of the binary rather than written here.
+# TODO/cli.md T-0802 and scripts/common/exit-codes.sh: six clauses across four
+# experiments had `[ "$rc" -eq 2 ]` in them and all went red at once the day
+# docker's codes were measured.
+. "$REPO/scripts/common/exit-codes.sh"
+podbox_exit_codes "$BIN" || {
+	echo "SKIP: cannot read podbox's exit-code table; is jq installed and the binary built?" >&2
+	exit 2
+}
+
 export PODBOX_STORE="$WORK/store"
 fail=0
 skipped=0
@@ -104,7 +114,7 @@ err="$(timeout 300 "$BIN" run "$noneflag" "$IMAGE" /bin/true 2>&1 >/dev/null)"
 rc=$?
 say "  run $noneflag        rc=$rc"
 say "    $(printf '%s' "$err" | head -1 | cut -c1-96)"
-[ "$rc" -eq 2 ] || { say "  FAIL: a None flag was not invalid input"; fail=1; }
+[ "$rc" -eq "$PODBOX_EXIT_FLAG_ERROR" ] || { say "  FAIL: a None flag was not a flag error"; fail=1; }
 printf '%s' "$err" | grep -q 'status None' || {
 	say "  FAIL: the refusal does not name the table's status"
 	fail=1
@@ -115,7 +125,7 @@ err="$(timeout 300 "$BIN" run --no-such-flag "$IMAGE" /bin/true 2>&1 >/dev/null)
 rc=$?
 say "  run --no-such-flag rc=$rc"
 say "    $(printf '%s' "$err" | head -1 | cut -c1-96)"
-[ "$rc" -eq 2 ] || { say "  FAIL: an unlisted flag was not invalid input"; fail=1; }
+[ "$rc" -eq "$PODBOX_EXIT_FLAG_ERROR" ] || { say "  FAIL: an unlisted flag was not a flag error"; fail=1; }
 printf '%s' "$err" | grep -q 'no row in the parity table' || {
 	say "  FAIL: the refusal does not say the table has no row"
 	fail=1

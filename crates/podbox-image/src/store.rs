@@ -1259,6 +1259,7 @@ mod tests {
     /// to the one call that matters.
     #[test]
     fn a_fork_while_the_lock_is_held_does_not_extend_it() {
+        let _serialised = FORKING_TESTS.lock().unwrap_or_else(|e| e.into_inner());
         let s = scratch("forkhold");
         let r = record("docker.io/library/alpine", Some("latest"), 17);
         s.put_record(r.clone()).unwrap();
@@ -1306,6 +1307,22 @@ mod tests {
         let _ = std::fs::remove_dir_all(s.root());
     }
 
+    /// ⛔ **THE TWO FORK TESTS BELOW MAY NOT RUN AT THE SAME TIME**, and this is
+    /// what stops them.
+    ///
+    /// `cargo test` runs tests in THREADS of one process. A bare `fork` copies
+    /// every open descriptor of that process, including a lock another test is
+    /// holding in another thread; that child then holds the lock for as long as
+    /// it lives, and the other test's assertion -- "the holder released it and
+    /// nobody else has it" -- fails for a reason that has nothing to do with its
+    /// subject. Measured on 2026-09-09: `a_spawned_process_does_not_inherit_the_lock`
+    /// failed once in a full-workspace run and passed alone and on the retry,
+    /// which is the shape a flake takes and is not one.
+    ///
+    /// ⚠ It is the same trap as T-0603's, which counted `/proc/self/task`
+    /// before and after a spawn and failed about one run in five.
+    static FORKING_TESTS: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     /// ⭐ T-0211's second half, and it is a **different** failure from the one
     /// above rather than the same one written twice.
     ///
@@ -1317,6 +1334,7 @@ mod tests {
     /// was confirmed they are independent.
     #[test]
     fn a_spawned_process_does_not_inherit_the_lock() {
+        let _serialised = FORKING_TESTS.lock().unwrap_or_else(|e| e.into_inner());
         let s = scratch("spawnhold");
         let r = record("docker.io/library/alpine", Some("latest"), 19);
         s.put_record(r.clone()).unwrap();
@@ -1514,7 +1532,9 @@ mod tests {
         let e = s
             .tag("alpine:latest", &format!("x@sha256:{}", "0".repeat(64)))
             .unwrap_err();
-        assert_eq!(e.exit_code(), crate::error::EXIT_USAGE);
+        // ⚠ 1 and not 125: an invalid reference is refused AFTER the flags
+        // parsed, and docker's own code for that is 1 (T-0802).
+        assert_eq!(e.exit_code(), crate::error::EXIT_CLI_ERROR);
         let _ = std::fs::remove_dir_all(s.root());
     }
 

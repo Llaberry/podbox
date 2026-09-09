@@ -15,7 +15,7 @@
 
 use std::io::Write;
 
-use podbox_image::error::{EXIT_RUNTIME_ERROR, EXIT_USAGE};
+use podbox_image::error::{EXIT_CLI_ERROR, EXIT_FLAG_ERROR, EXIT_RUNTIME_ERROR};
 use podbox_image::platform::Platform;
 use podbox_image::transport::Policy;
 use podbox_supervise::table::{Container, State};
@@ -53,6 +53,8 @@ pub const CONTAINER_INSPECT_FIELDS: &[&str] = &[
     "RootfsPath",
     "LogPath",
     "Rung",
+    "Complete.Fixups",
+    "Complete.Degraded",
     "Command",
     "Exec.Mode",
     "Exec.Shares",
@@ -91,6 +93,8 @@ pub fn create(args: &[String]) -> i32 {
                 p.env,
                 p.working_dir,
                 &p.rung,
+                p.completion.clone(),
+                p.completion_degraded,
             ) {
                 Ok(c) => {
                     println!("{}", c.id);
@@ -118,7 +122,7 @@ pub fn start(args: &[String]) -> i32 {
         }
         if want.starts_with('-') {
             eprintln!("podbox start: unknown option {want:?}");
-            return EXIT_USAGE;
+            return EXIT_FLAG_ERROR;
         }
         any = true;
         let c = match podbox_supervise::get(&s, want) {
@@ -146,7 +150,7 @@ pub fn start(args: &[String]) -> i32 {
     }
     if !any {
         println!("usage: podbox start <container> [container...]");
-        return EXIT_USAGE;
+        return EXIT_CLI_ERROR;
     }
     code
 }
@@ -171,7 +175,7 @@ pub fn ps(args: &[String]) -> i32 {
                 Some(t) => template = Some(t.clone()),
                 None => {
                     eprintln!("podbox ps: --format needs a template");
-                    return EXIT_USAGE;
+                    return EXIT_FLAG_ERROR;
                 }
             },
             other if other.starts_with("--format=") => {
@@ -180,7 +184,7 @@ pub fn ps(args: &[String]) -> i32 {
             other => {
                 eprintln!("podbox ps: unknown option {other:?}");
                 eprint!("{PS_USAGE}");
-                return EXIT_USAGE;
+                return EXIT_FLAG_ERROR;
             }
         }
     }
@@ -191,7 +195,7 @@ pub fn ps(args: &[String]) -> i32 {
     if let Some(t) = &template {
         if let Err(bad) = format::check(t, &fields) {
             eprintln!("podbox ps: {bad}");
-            return EXIT_USAGE;
+            return EXIT_CLI_ERROR;
         }
     }
     let s = match store() {
@@ -214,7 +218,7 @@ pub fn ps(args: &[String]) -> i32 {
                 Ok(line) => println!("{line}"),
                 Err(bad) => {
                     eprintln!("podbox ps: {bad}");
-                    return EXIT_USAGE;
+                    return EXIT_CLI_ERROR;
                 }
             }
         }
@@ -288,7 +292,7 @@ fn ps_fields(c: &Container, no_trunc: bool) -> Vec<(&'static str, String)> {
 pub fn logs(args: &[String]) -> i32 {
     let Some(want) = args.first() else {
         println!("usage: podbox logs <container>");
-        return EXIT_USAGE;
+        return EXIT_CLI_ERROR;
     };
     if want == "-h" || want == "--help" {
         println!("usage: podbox logs <container>");
@@ -325,19 +329,19 @@ pub fn stop(args: &[String]) -> i32 {
                 Some(v) => grace = v * 1000,
                 None => {
                     eprintln!("podbox stop: -t takes a number of seconds");
-                    return EXIT_USAGE;
+                    return EXIT_FLAG_ERROR;
                 }
             },
             other if other.starts_with('-') => {
                 eprintln!("podbox stop: unknown option {other:?}");
-                return EXIT_USAGE;
+                return EXIT_FLAG_ERROR;
             }
             other => names.push(other.to_string()),
         }
     }
     if names.is_empty() {
         println!("usage: podbox stop [-t seconds] <container> [container...]");
-        return EXIT_USAGE;
+        return EXIT_CLI_ERROR;
     }
     let s = match store() {
         Ok(s) => s,
@@ -380,24 +384,24 @@ pub fn kill(args: &[String]) -> i32 {
                     Some(n) => sig = n,
                     None => {
                         eprintln!("podbox kill: {v:?} is not a signal podbox knows");
-                        return EXIT_USAGE;
+                        return EXIT_FLAG_ERROR;
                     }
                 },
                 None => {
                     eprintln!("podbox kill: -s needs a signal");
-                    return EXIT_USAGE;
+                    return EXIT_FLAG_ERROR;
                 }
             },
             other if other.starts_with('-') => {
                 eprintln!("podbox kill: unknown option {other:?}");
-                return EXIT_USAGE;
+                return EXIT_FLAG_ERROR;
             }
             other => names.push(other.to_string()),
         }
     }
     if names.is_empty() {
         println!("usage: podbox kill [-s SIGNAL] <container> [container...]");
-        return EXIT_USAGE;
+        return EXIT_CLI_ERROR;
     }
     let s = match store() {
         Ok(s) => s,
@@ -438,7 +442,7 @@ fn signal_number(v: &str) -> Option<i32> {
 pub fn wait(args: &[String]) -> i32 {
     if args.is_empty() || args[0] == "-h" || args[0] == "--help" {
         println!("usage: podbox wait <container> [container...]");
-        return if args.is_empty() { EXIT_USAGE } else { 0 };
+        return if args.is_empty() { EXIT_CLI_ERROR } else { 0 };
     }
     let s = match store() {
         Ok(s) => s,
@@ -480,14 +484,14 @@ pub fn rm(args: &[String]) -> i32 {
             "-v" | "--volumes" => {}
             other if other.starts_with('-') => {
                 eprintln!("podbox rm: unknown option {other:?}");
-                return EXIT_USAGE;
+                return EXIT_FLAG_ERROR;
             }
             other => names.push(other.to_string()),
         }
     }
     if names.is_empty() {
         println!("usage: podbox rm [-f|--force] <container> [container...]");
-        return EXIT_USAGE;
+        return EXIT_CLI_ERROR;
     }
     let s = match store() {
         Ok(s) => s,
@@ -514,7 +518,7 @@ pub fn cp(args: &[String]) -> i32 {
     }
     if args.len() != 2 {
         eprintln!("podbox cp: takes exactly two paths, one of them <container>:<path>");
-        return EXIT_USAGE;
+        return EXIT_CLI_ERROR;
     }
     let s = match store() {
         Ok(s) => s,
@@ -529,7 +533,7 @@ pub fn cp(args: &[String]) -> i32 {
         }
         (None, None) => {
             eprintln!("podbox cp: one of the two paths has to be <container>:<path>");
-            EXIT_USAGE
+            EXIT_CLI_ERROR
         }
         (Some((name, inside)), None) => copy(&s, &name, &inside, std::path::Path::new(b), true),
         (None, Some((name, inside))) => copy(&s, &name, &inside, std::path::Path::new(a), false),
@@ -609,7 +613,7 @@ pub fn inspect_container(want: &str, template: Option<&str>) -> Option<i32> {
             }
             Err(bad) => {
                 eprintln!("podbox inspect: {bad}");
-                Some(EXIT_USAGE)
+                Some(EXIT_CLI_ERROR)
             }
         },
         None => {
@@ -661,6 +665,10 @@ fn container_fields(s: &podbox_image::Store, c: &Container) -> Vec<(&'static str
                 .to_string(),
         ),
         ("Rung", c.rung.clone()),
+        // ⭐ T-0804 rule 3. The mode a caller reads includes the shims, or the
+        // report says devices exist when they do not.
+        ("Complete.Fixups", c.completion_note()),
+        ("Complete.Degraded", c.completion_degraded.to_string()),
         ("Command", c.argv.join(" ")),
         ("Exec.Mode", crate::images::EXEC_MODE.to_string()),
         ("Exec.Shares", crate::images::EXEC_SHARES.to_string()),
@@ -713,6 +721,11 @@ pub struct Prepared {
     pub banner: String,
     pub detach: bool,
     pub rm: bool,
+    /// ⭐ T-0804 rule 3: `inspect` reports the TRUE mode per container, and a
+    /// shimmed `/dev/null` is part of that mode. One line per fixup that
+    /// changed a byte or failed, carried into the container record.
+    pub completion: Vec<String>,
+    pub completion_degraded: usize,
 }
 
 /// Resolve a container reference to the rootfs `exec` re-enters.
@@ -796,6 +809,8 @@ mod tests {
             exit_code: None,
             noticed: None,
             rung: "chroot".into(),
+            completion: vec!["created dev/null (dev-shim, T-0401)".into()],
+            completion_degraded: 1,
         };
         let built: Vec<&str> = container_fields(&s, &c).iter().map(|(k, _)| *k).collect();
         assert_eq!(built, CONTAINER_INSPECT_FIELDS);
@@ -828,6 +843,8 @@ mod tests {
             exit_code: None,
             noticed: None,
             rung: "chroot".into(),
+            completion: vec!["created dev/null (dev-shim, T-0401)".into()],
+            completion_degraded: 1,
         };
         let built: Vec<&str> = ps_fields(&c, false).iter().map(|(k, _)| *k).collect();
         assert_eq!(built, ps_field_names());

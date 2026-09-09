@@ -93,17 +93,18 @@ the blocker named and what would clear it.
 | [T-0305](extract.md) | P1 | extract | done | An absolute symlink target is rootfs-relative, not a refusal |
 | [T-0306](extract.md) | P1 | extract | done | Re-permission between layers, or the second layer fails |
 | [T-0307](extract.md) | P1 | extract | done | Hard links, symlinks and the layer order |
-| [T-0401](complete.md) | P0 | complete | open | Device shims as regular files |
-| [T-0402](complete.md) | P0 | complete | open | Always install the host's `/etc/resolv.conf` |
-| [T-0403](complete.md) | P2 | complete | open | `/etc/hosts` |
-| [T-0404](complete.md) | P0 | complete | open | Synthesize `/etc/passwd` and `/etc/group`, and let the payload's writes persist |
-| [T-0405](complete.md) | P1 | complete | open | `/etc/mtab` is a symlink, and writing through it escapes the rootfs |
-| [T-0406](complete.md) | P1 | complete | open | pacman: `DownloadUser` and the keyring |
-| [T-0407](complete.md) | P1 | complete | open | apt: the sandbox user, https sources and the CA bundle |
-| [T-0408](complete.md) | P2 | complete | open | zypper: fix the RIS index, not `repos.d` |
-| [T-0409](complete.md) | P2 | complete | open | Ownership failures from `dpkg`, `rpm` and `xbps` are warnings |
-| [T-0410](complete.md) | P0 | complete | open | Supply `/etc/nsswitch.conf`, or the supplied `/etc/passwd` is a no-op |
-| [T-0411](complete.md) | P1 | complete | open | A payload whose package sources are `http://`, on a runtime where tcp/80 hangs |
+| [T-0401](complete.md) | P0 | complete | done | Device shims as regular files |
+| [T-0402](complete.md) | P0 | complete | done | Always install the host's `/etc/resolv.conf` |
+| [T-0403](complete.md) | P2 | complete | done | `/etc/hosts` |
+| [T-0404](complete.md) | P0 | complete | done | Synthesize `/etc/passwd` and `/etc/group`, and let the payload's writes persist |
+| [T-0405](complete.md) | P1 | complete | done | `/etc/mtab` is a symlink, and writing through it escapes the rootfs |
+| [T-0406](complete.md) | P1 | complete | done | pacman: `DownloadUser` and the keyring |
+| [T-0407](complete.md) | P1 | complete | done | apt: the sandbox user, https sources and the CA bundle |
+| [T-0408](complete.md) | P2 | complete | done | zypper: fix the RIS index, not `repos.d` |
+| [T-0409](complete.md) | P2 | complete | done | Ownership failures from `dpkg`, `rpm` and `xbps` are warnings |
+| [T-0410](complete.md) | P0 | complete | done | Supply `/etc/nsswitch.conf`, or the supplied `/etc/passwd` is a no-op |
+| [T-0411](complete.md) | P1 | complete | done | A payload whose package sources are `http://`, on a runtime where tcp/80 hangs |
+| [T-0412](complete.md) | P1 | complete | open | A fixup that has to run INSIDE the rootfs, and podbox runs it from outside |
 | [T-0501](enter.md) | P0 | enter | done | Open every descriptor before the root changes |
 | [T-0502](enter.md) | P0 | enter | done | Resolve the program inside the new root, in the process that changed it |
 | [T-0503](enter.md) | P1 | enter | partial | Probe `/dev/ptmx`, and refuse `-t` by name where it is absent |
@@ -127,11 +128,11 @@ the blocker named and what would clear it.
 | [T-0708](interpose.md) | P2 | interpose | open | Intercept the operations the runtime cannot provide |
 | [T-0709](interpose.md) | P0 | interpose | open | Select the interposer by `DT_NEEDED`, and refuse on the version predicate |
 | [T-0801](cli.md) | P0 | cli | done | The verb and flag parity table |
-| [T-0802](cli.md) | P0 | cli | open | docker's exit codes, unaltered |
+| [T-0802](cli.md) | P0 | cli | done | docker's exit codes, unaltered |
 | [T-0803](cli.md) | P1 | cli | done | Answer to `docker` and `podman` on PATH |
-| [T-0804](cli.md) | P0 | cli | open | The honesty rules, and one switch that makes every degradation fatal |
+| [T-0804](cli.md) | P0 | cli | done | The honesty rules, and one switch that makes every degradation fatal |
 | [T-0805](cli.md) | P1 | cli | open | Diagnostics that name the operation, the errno, the mechanism and the remedy |
-| [T-0806](cli.md) | P0 | cli | open | Never prompt, never wait unbounded, and check space before every large write |
+| [T-0806](cli.md) | P0 | cli | done | Never prompt, never wait unbounded, and check space before every large write |
 | [T-0807](cli.md) | P2 | cli | done | `podbox images --format` refuses a template no verb can answer, before it looks at the store |
 | [T-0901](deps.md) | P1 | deps | done | Sweep: syscalls |
 | [T-0902](deps.md) | P2 | deps | done | Sweep: seccomp BPF |
@@ -144,7 +145,7 @@ the blocker named and what would clear it.
 | [T-0909](deps.md) | P1 | deps | blocked | Vendor the memfd and userland-exec rungs, and fix the fork's regression here |
 | [T-0910](deps.md) | P0 | deps | done | The `cargo bloat` baseline, committed, and checked at the gate |
 | [T-0911](deps.md) | P0 | deps | done | The syscall table and the kernel structs come from a crate, per architecture |
-| [T-0912](deps.md) | P2 | deps | open | The powerpc gate is the crate's and it is stale, so podbox can clear it |
+| [T-0912](deps.md) | P2 | deps | done | The powerpc gate is the crate's and it is stale, so podbox can clear it |
 | [T-1001](packaging.md) | P0 | packaging | **done** | A single static binary with no `PT_INTERP` |
 | [T-1002](packaging.md) | P1 | packaging | open | Embed the interposer as bytes and place it inside the rootfs |
 | [T-1003](packaging.md) | P2 | packaging | open | The launch ladder, and a single file with an embedded rootfs |
@@ -169,7 +170,7 @@ the blocker named and what would clear it.
 
 ## Counts
 
-106 items: 37 open, 1 partial, 2 blocked, 66 done.
+107 items: 23 open, 1 partial, 2 blocked, 81 done.
 
 Counted from the rows above by `scripts/todo-count.py` and asserted
 independently by `scripts/check-todo.py`, which is the gate. A number here
@@ -177,11 +178,11 @@ that disagrees with the rows cannot reach a commit.
 
 | Priority | Open | Partial | Blocked | Done | Total |
 | --- | --- | --- | --- | --- | --- |
-| P0 | 13 | 0 | 1 | 35 | 49 |
-| P1 | 11 | 1 | 1 | 25 | 38 |
-| P2 | 10 | 0 | 0 | 5 | 15 |
+| P0 | 6 | 0 | 1 | 42 | 49 |
+| P1 | 8 | 1 | 1 | 29 | 39 |
+| P2 | 6 | 0 | 0 | 9 | 15 |
 | P3 | 3 | 0 | 0 | 1 | 4 |
-| **All** | **37** | **1** | **2** | **66** | **106** |
+| **All** | **23** | **1** | **2** | **81** | **107** |
 
 ## How the current ordering is derived
 

@@ -37,13 +37,31 @@ use podbox_probe::sys::{self, CBuf};
 
 pub use plan::{Plan, Program};
 
-/// docker's codes, and podbox does not invent any of its own.
-/// [`TODO/cli.md`](../../../TODO/cli.md) T-0802.
-pub const EXIT_RUNTIME_ERROR: i32 = 125;
-/// The command was found and could not be invoked.
-pub const EXIT_CANNOT_INVOKE: i32 = 126;
-/// The command was not found.
-pub const EXIT_NOT_FOUND: i32 = 127;
+/// ⭐ **THE RUNG THIS CRATE IMPLEMENTS**, which is not the rung the probe
+/// selects.
+///
+/// [`crate::run`] performs `TOOL.md` section 6.5's sequence and nothing else: it
+/// `chroot`s. It does not `unshare`, it mounts nothing, and it creates no
+/// network or pid namespace, on any machine.
+///
+/// ⛔ **The banner must say THIS and not what the machine would permit**, or it
+/// breaks [`TODO/cli.md`](../../../TODO/cli.md) T-0804 rule 4: no output may
+/// imply namespaces, cgroups or devices exist when they do not. Measured on
+/// 2026-09-09: this host's probe selects `namespace`, and `podbox run` printed
+/// `mode=namespace (namespaces: as configured; mounts: full)` while entering a
+/// plain chroot. The machine's own selection is still reported, beside this,
+/// because "what podbox did" and "what this machine would permit" are two facts
+/// and a reader needs both.
+///
+/// ⚠ When the `namespace` rung is implemented this constant moves with it, and
+/// it is one constant so it cannot move in one place and not another.
+pub const ENTERED_RUNG: podbox_probe::select::Rung = podbox_probe::select::Rung::Chroot;
+
+// ⛔ **docker's codes, from the one file that holds them.**
+// [`TODO/cli.md`](../../../TODO/cli.md) T-0802. This crate declared its own 125,
+// 126 and 127 and `podbox-image` declared 125 again; a correction to one of them
+// did not reach the others.
+pub use podbox_probe::exit::{EXIT_CANNOT_INVOKE, EXIT_NOT_FOUND, EXIT_RUNTIME_ERROR};
 
 #[derive(Debug)]
 pub enum Error {
@@ -364,16 +382,38 @@ pub fn spawn(root: &RootDir, plan: &Plan, err: &mut dyn Write) -> Result<Child> 
             errno.name(),
             errno.0
         );
-        return Err(if buf[0] == 4 {
-            Error::NotFound(format!(
-                "{:?}: {text}",
-                plan.argv.first().map(String::as_str).unwrap_or("")
-            ))
-        } else {
+        let named = format!(
+            "{:?}: {text}",
+            plan.argv.first().map(String::as_str).unwrap_or("")
+        );
+        return Err(if buf[0] != 4 {
             Error::Runtime(text)
+        } else if invocable_but_refused(errno) {
+            // ⭐ 126 and not 127, and the difference is docker's. Measured by
+            // `experiments/330-exit-codes.sh` on 2026-09-09: `docker run alpine
+            // /etc/passwd` exits **126** and podbox exited 127, because every
+            // execve failure was folded into "not found". A caller branching on
+            // 127 retries with a different path; one branching on 126 does not.
+            Error::CannotInvoke(named)
+        } else {
+            Error::NotFound(named)
         });
     }
     Ok(Child { pid })
+}
+
+/// Was the file there and refused, rather than absent?
+///
+/// ⛔ **The errno decides, not a guess.** `execve` answers `ENOENT` for a path
+/// that is not there -- and also for a dynamic loader the binary names and that
+/// is not there, which is the trap -- while `EACCES`, `ENOEXEC`, `EISDIR`,
+/// `EPERM` and `ETXTBSY` all mean the file was found and could not be run.
+/// docker's codes split exactly there: 127 for the first, 126 for the rest.
+///
+/// ⚠ `ELOOP` and `ENAMETOOLONG` are `NotFound`'s side deliberately: both are
+/// answers about resolving the path rather than about the file at the end of it.
+fn invocable_but_refused(e: sys::Errno) -> bool {
+    matches!(e.0, 1 | 8 | 13 | 21 | 26)
 }
 
 /// docker's translation of a wait status into an exit code.

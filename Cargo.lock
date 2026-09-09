@@ -323,6 +323,13 @@ dependencies = [
 [[package]]
 name = "podbox-complete"
 version = "0.1.0"
+dependencies = [
+ "podbox-extract",
+ "podbox-image",
+ "podbox-probe",
+ "serde_json",
+ "ureq",
+]
 
 [[package]]
 name = "podbox-enter"

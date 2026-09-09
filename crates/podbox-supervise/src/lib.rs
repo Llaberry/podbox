@@ -90,6 +90,8 @@ pub fn create(
     env: Vec<String>,
     working_dir: String,
     rung: &str,
+    completion: Vec<String>,
+    completion_degraded: usize,
 ) -> Result<Container> {
     let id = new_id();
     let name = name
@@ -113,6 +115,8 @@ pub fn create(
         exit_code: None,
         noticed: None,
         rung: rung.to_string(),
+        completion,
+        completion_degraded,
     };
     table::update(store, |t| {
         // ⛔ A name identifies one container. docker refuses a duplicate and so

@@ -13,7 +13,7 @@
 use std::io::Write;
 
 use podbox_enter::{binfmt, Fds, Plan, RootDir};
-use podbox_image::error::EXIT_USAGE;
+use podbox_image::error::{EXIT_CLI_ERROR, EXIT_FLAG_ERROR};
 use podbox_image::platform::Platform;
 use podbox_image::transport::Policy;
 
@@ -28,6 +28,22 @@ usage: podbox run [options] <image> [command] [arg...]
   --entrypoint P   replace the image's entrypoint. ⚠ As docker: this also
                    drops the image's Cmd, because those were that
                    entrypoint's default arguments
+  --add-host N:IP  add a name to the container's /etc/hosts. Repeatable
+  --no-source-fixup
+                   leave the image's package sources exactly as extracted.
+                   ⚠ podbox rewrites http:// to https:// for a mirror that
+                   answers over HTTPS, because tcp/80 HANGS on the runtimes
+                   podbox targets. This turns that off, and UNDOES a rewrite
+                   an earlier container made in the same shared rootfs
+  --no-host-cas    do not append this machine's announced CA bundle
+                   ($SSL_CERT_FILE, $CURL_CA_BUNDLE, $REQUESTS_CA_BUNDLE) to
+                   the image's own trust store. ⚠ Where this machine
+                   intercepts TLS, an https package source then fails to
+                   verify inside the container, exactly as it does under
+                   docker
+  --strict         ⛔ refuse to run at all where anything about this
+                   invocation is Degraded or Stub: a flag, the selected rung,
+                   or a fixup the completion layer had to make
   --platform P     which platform of a multi-platform image to run
   --pull WHEN      never | missing (default) | always
   --insecure-registry HOST, --tls-verify=B
@@ -64,6 +80,9 @@ struct Opts {
     tty: bool,
     image: Option<String>,
     command: Vec<String>,
+    /// M5 and T-0804. ⚠ Carried in one struct so `run`, `create` and the
+    /// launcher cannot each grow their own copy of the same three answers.
+    ask: crate::complete::Ask,
 }
 
 /// ⛔ Parsing stops at the image name: everything after it is the payload's.
@@ -84,6 +103,7 @@ fn parse(args: &[String]) -> std::result::Result<Opts, i32> {
         tty: false,
         image: None,
         command: Vec::new(),
+        ask: crate::complete::Ask::default(),
     };
     let mut expecting: Option<&'static str> = None;
     let mut i = 0;
@@ -97,6 +117,7 @@ fn parse(args: &[String]) -> std::result::Result<Opts, i32> {
                 "--platform" => o.platform = Some(a.clone()),
                 "--pull" => o.pull = a.clone(),
                 "--name" => o.name = Some(a.clone()),
+                "--add-host" => crate::complete::add_host(&mut o.ask, "run", a)?,
                 _ => o.insecure.push(a.clone()),
             }
             i += 1;
@@ -116,6 +137,12 @@ fn parse(args: &[String]) -> std::result::Result<Opts, i32> {
         // its own reason instead of reading as an unknown option.
         if a.starts_with('-') {
             crate::parity::admit("run", a, RUN_USAGE)?;
+            // ⭐ T-0804 reads this. Recorded HERE, at the one place every flag
+            // passes through, so a flag added to a match arm and forgotten in a
+            // second list cannot exist.
+            o.ask
+                .seen_flags
+                .push(a.split('=').next().unwrap_or(a).to_string());
         }
         match a.as_str() {
             "-h" | "--help" => {
@@ -139,6 +166,13 @@ fn parse(args: &[String]) -> std::result::Result<Opts, i32> {
             "--pull" => expecting = Some("--pull"),
             "--insecure-registry" => expecting = Some("--insecure-registry"),
             "--tls-verify" => o.tls_verify = Some(true),
+            "--add-host" => expecting = Some("--add-host"),
+            other if other.starts_with("--add-host=") => {
+                crate::complete::add_host(&mut o.ask, "run", &other[11..])?
+            }
+            "--no-source-fixup" => o.ask.no_source_fixup = true,
+            "--no-host-cas" => o.ask.no_host_cas = true,
+            "--strict" => o.ask.strict = true,
             other if other.starts_with("--env=") => o.env.push(other[6..].to_string()),
             other if other.starts_with("--workdir=") => o.workdir = Some(other[10..].to_string()),
             other if other.starts_with("--entrypoint=") => {
@@ -154,7 +188,7 @@ fn parse(args: &[String]) -> std::result::Result<Opts, i32> {
                 "false" | "0" => o.tls_verify = Some(false),
                 v => {
                     eprintln!("podbox run: --tls-verify takes true or false, not {v:?}");
-                    return Err(EXIT_USAGE);
+                    return Err(EXIT_FLAG_ERROR);
                 }
             },
             other if other.starts_with('-') => {
@@ -162,11 +196,7 @@ fn parse(args: &[String]) -> std::result::Result<Opts, i32> {
                 // assertion rather than as a fallback: the table admitted this
                 // flag and this parser has no arm for it, which is a defect in
                 // podbox and is reported as one.
-                eprintln!(
-                    "podbox run: {other:?} is in the parity table and this parser has \
-                     no arm for it. That is a bug in podbox (TODO/cli.md T-0801)"
-                );
-                return Err(podbox_image::error::EXIT_RUNTIME_ERROR);
+                return Err(crate::parity::no_arm("run", other));
             }
             other => o.image = Some(other.to_string()),
         }
@@ -174,18 +204,18 @@ fn parse(args: &[String]) -> std::result::Result<Opts, i32> {
     }
     if let Some(flag) = expecting {
         eprintln!("podbox run: {flag} needs a value");
-        return Err(EXIT_USAGE);
+        return Err(EXIT_FLAG_ERROR);
     }
     if o.image.is_none() {
         eprint!("{RUN_USAGE}");
-        return Err(EXIT_USAGE);
+        return Err(EXIT_CLI_ERROR);
     }
     if !matches!(o.pull.as_str(), "never" | "missing" | "always") {
         eprintln!(
             "podbox run: --pull takes never, missing or always, not {:?}",
             o.pull
         );
-        return Err(EXIT_USAGE);
+        return Err(EXIT_FLAG_ERROR);
     }
     Ok(o)
 }
@@ -220,6 +250,8 @@ pub fn run(args: &[String]) -> i32 {
             p.env.clone(),
             p.working_dir.clone(),
             &p.rung,
+            p.completion.clone(),
+            p.completion_degraded,
         ) {
             Ok(c) => c,
             Err(e) => {
@@ -410,7 +442,7 @@ pub(crate) fn prepare(
             "podbox {verb}: {image} declares neither an Entrypoint nor a Cmd, and no \
              command was given. There is nothing to run"
         );
-        return Err(EXIT_USAGE);
+        return Err(EXIT_FLAG_ERROR);
     }
     let env = Plan::env_for(&cfg.config.env, &o.env);
     let path_dirs = Plan::path_from(&env);
@@ -425,7 +457,12 @@ pub(crate) fn prepare(
     // never claim.
     let findings = podbox_probe::run();
     let selection = podbox_probe::select::Selection::choose(&findings);
-    let mut banner = podbox_probe::report::banner(&findings, &selection);
+    // ⭐ T-0804 rule 4. The banner is built from the rung podbox ENTERS with,
+    // not the one the machine would permit: `podbox_enter::ENTERED_RUNG` is the
+    // sequence that crate implements, and it is one constant so the banner, the
+    // container record and `--strict` cannot disagree.
+    let entered = podbox_enter::ENTERED_RUNG;
+    let mut banner = podbox_probe::report::entry_banner(&findings, &selection, entered);
     // ⭐ TODO/cli.md T-0803. Where podbox was reached under somebody else's
     // name, the banner says which name was used and that this is podbox.
     // Taking the name is the product requirement; taking it silently is what
@@ -433,6 +470,13 @@ pub(crate) fn prepare(
     if let Some(note) = crate::names::alias_note() {
         banner.push_str(&note);
     }
+    // ⭐ M5. The completion layer runs HERE: after the rootfs exists and the
+    // image lock is held, and before anything is entered. Its report is part of
+    // the banner, because every one of these is an edit podbox made inside
+    // somebody else's image and the payload can see it.
+    let mut ask = o.ask.clone();
+    ask.container_name = o.name.clone();
+    let completion = crate::complete::prepare(verb, &rootfs, &ask, &mut banner)?;
     if !cfg.config.user.is_empty() {
         // ⚠ Read and REPORTED, never applied. podbox cannot setuid to an id
         // this machine does not map, which is the wall the project is about.
@@ -464,6 +508,16 @@ pub(crate) fn prepare(
             return Err(podbox_enter::EXIT_RUNTIME_ERROR);
         }
     }
+    // ⭐ T-0804, and it is the LAST thing before the run is committed to, so a
+    // refused caller still gets the whole account of why on stderr. ⛔ The
+    // refusal prints even where the banner is suppressed: the config switch
+    // silences a notice, never a refusal.
+    crate::complete::strict_refusal(verb, &ask, entered.word(), &completion, &mut err)?;
+    // ⭐ T-0804 rule 1, applied here and nowhere else, so `run`, `run -d` and
+    // the launcher cannot disagree about whether this machine prints it.
+    if crate::complete::banner_quiet(store) {
+        banner.clear();
+    }
     let _ = path_dirs;
     // ⚠ The lock this function took goes here. It existed to keep the rootfs
     // from being deleted between the extraction check and now; the process that
@@ -477,10 +531,25 @@ pub(crate) fn prepare(
         env,
         working_dir,
         name: o.name.clone(),
-        rung: selection.rung.word().to_string(),
+        rung: entered.word().to_string(),
         banner,
         detach: o.detach,
         rm: o.rm,
+        completion: completion
+            .fixups
+            .iter()
+            .filter(|f| f.action.changed() || f.action == podbox_complete::Action::Failed)
+            .map(|f| {
+                format!(
+                    "{} {} ({}, {})",
+                    f.action.word(),
+                    if f.path.is_empty() { "-" } else { &f.path },
+                    f.id,
+                    f.entry
+                )
+            })
+            .collect(),
+        completion_degraded: completion.degradations().len(),
     })
 }
 
@@ -599,8 +668,8 @@ mod tests {
 
     #[test]
     fn a_flag_needing_a_value_does_not_swallow_the_image() {
-        assert_eq!(parse(&v(&["--platform"])).unwrap_err(), EXIT_USAGE);
-        assert_eq!(parse(&v(&["-e"])).unwrap_err(), EXIT_USAGE);
+        assert_eq!(parse(&v(&["--platform"])).unwrap_err(), EXIT_FLAG_ERROR);
+        assert_eq!(parse(&v(&["-e"])).unwrap_err(), EXIT_FLAG_ERROR);
     }
 
     #[test]
@@ -617,7 +686,7 @@ mod tests {
     fn an_unknown_pull_mode_is_invalid_input_and_not_a_silent_default() {
         assert_eq!(
             parse(&v(&["--pull", "sometimes", "img"])).unwrap_err(),
-            EXIT_USAGE
+            EXIT_FLAG_ERROR
         );
         assert_eq!(
             parse(&v(&["--pull", "always", "img"])).unwrap().pull,
@@ -644,7 +713,12 @@ mod tests {
                     "img",
                     "true",
                 ]));
-                assert_eq!(got.unwrap_err(), EXIT_USAGE, "{:?} was not refused", r.flag);
+                assert_eq!(
+                    got.unwrap_err(),
+                    EXIT_FLAG_ERROR,
+                    "{:?} was not refused",
+                    r.flag
+                );
                 continue;
             }
             for spelling in r.flag.unwrap().split(',') {
@@ -653,29 +727,27 @@ mod tests {
                     assert_eq!(parse(&v(&[f])).unwrap_err(), 0, "{f} did not print usage");
                     continue;
                 }
-                // ⚠ ASSERTED ON THE EXIT CODE, not on a shape parsing. A
-                // valued flag needs a value, a boolean one does not, and one
-                // with a closed set of values (`--pull`) rejects any value this
-                // test could invent: all three are legitimate and only one of
-                // them parses. What no legitimate arm ever returns is
-                // EXIT_RUNTIME_ERROR, which is the fallback arm's own code and
-                // means exactly "the table admits this flag and nothing
-                // implements it".
+                // ⚠ THE ASSERTION IS `parity::no_arm`'s PANIC, not a code
+                // comparison. It used to compare against EXIT_RUNTIME_ERROR,
+                // which was the fallback arm's own code and distinguishable
+                // from a legitimate refusal's 2; T-0802 measured docker and
+                // made a flag error 125 as well, so that comparison started
+                // asserting `125 != 125` and could no longer fail. Both shapes
+                // are tried because a valued flag needs a value, a boolean one
+                // does not, and one with a closed set of values (`--pull`)
+                // refuses any value this test could invent: all three are
+                // legitimate, and only reaching the fallback arm is not.
                 for shape in [v(&[f, "V", "img", "true"]), v(&[f, "img", "true"])] {
-                    if let Err(code) = parse(&shape) {
-                        assert_ne!(
-                            code,
-                            podbox_image::error::EXIT_RUNTIME_ERROR,
-                            "{f} is in the parity table and this parser has no arm for it"
-                        );
-                    }
+                    let _ = parse(&shape);
                 }
             }
         }
     }
 
     #[test]
-    fn no_image_is_a_usage_error() {
-        assert_eq!(parse(&v(&["--rm"])).unwrap_err(), EXIT_USAGE);
+    /// ⚠ docker's own code for a required argument that is not there is 1 and
+    /// not 125: measured, `docker run` with no image exits 1. T-0802.
+    fn no_image_is_a_cli_error() {
+        assert_eq!(parse(&v(&["--rm"])).unwrap_err(), EXIT_CLI_ERROR);
     }
 }

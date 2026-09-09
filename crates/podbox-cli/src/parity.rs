@@ -160,6 +160,13 @@ pub const TABLE: &[Row] = &[
     Row { verb: "run", flag: Some("--cpus"), status: NoneStatus, note: "resource limits need a cgroup this runtime does not grant" },
     Row { verb: "run", flag: Some("--restart"), status: NoneStatus, note: "restarting needs a supervisor, which is M4" },
     Row { verb: "run", flag: Some("--hostname"), status: NoneStatus, note: "sethostname needs a UTS namespace this runtime does not grant" },
+    // ⭐ M5 and TODO/cli.md T-0804. Three flags docker does not have, and each
+    // is here for the same reason every other row is: a surface with no row is
+    // a surface nobody documented.
+    Row { verb: "run", flag: Some("--add-host"), status: Native, note: "name:ip, appended to the /etc/hosts the completion layer writes. Repeatable (T-0403)" },
+    Row { verb: "run", flag: Some("--no-source-fixup"), status: Native, note: "podbox's own: leave the image's package sources exactly as extracted, http:// and all, and UNDO any rewrite an earlier run made (T-0411)" },
+    Row { verb: "run", flag: Some("--no-host-cas"), status: Native, note: "podbox's own: do not append this machine's announced CA bundle ($SSL_CERT_FILE and friends) to the image's own trust store, even where the machine intercepts TLS (T-0407)" },
+    Row { verb: "run", flag: Some("--strict"), status: Native, note: "podbox's own: refuse rather than run where anything about this invocation is Degraded or Stub -- a flag, the selected rung, or a completion fixup (T-0804)" },
     // ------------------------------------------------------ exec's own flags
     Row { verb: "exec", flag: Some("-e, --env"), status: Native, note: "repeatable; a later one wins" },
     Row { verb: "exec", flag: Some("-w, --workdir"), status: Native, note: "chdir inside the new root, after the chroot" },
@@ -169,6 +176,10 @@ pub const TABLE: &[Row] = &[
     Row { verb: "exec", flag: Some("-h, --help"), status: Native, note: "prints this verb's usage and exits 0" },
     Row { verb: "exec", flag: Some("-d, --detach"), status: NoneStatus, note: "not implemented: an exec podbox does not watch has no exit code to report, which is the state T-0604 exists to avoid" },
     Row { verb: "exec", flag: Some("-u, --user"), status: NoneStatus, note: "podbox runs as uid 0 and cannot change to an unmapped id" },
+    Row { verb: "exec", flag: Some("--add-host"), status: Native, note: "name:ip, appended to the /etc/hosts the completion layer writes (T-0403)" },
+    Row { verb: "exec", flag: Some("--no-source-fixup"), status: Native, note: "as in run: leave the image's package sources as extracted, and undo an earlier rewrite (T-0411)" },
+    Row { verb: "exec", flag: Some("--no-host-cas"), status: Native, note: "as in run: leave the image's own trust store alone (T-0407)" },
+    Row { verb: "exec", flag: Some("--strict"), status: Native, note: "as in run: refuse rather than re-enter where anything about this invocation is Degraded or Stub (T-0804)" },
     // ------------------------------------------------------ pull's own flags
     Row { verb: "pull", flag: Some("--platform"), status: Native, note: "a bare word is an architecture, as docker reads it" },
     Row { verb: "pull", flag: Some("--insecure-registry"), status: Native, note: "docker's flag and docker's meaning" },
@@ -262,7 +273,7 @@ pub fn admit(verb: &str, arg: &str, usage: &str) -> Result<(), i32> {
                  table; `podbox system info` lists every flag this verb takes"
             );
             eprint!("{usage}");
-            Err(podbox_image::error::EXIT_USAGE)
+            Err(podbox_image::error::EXIT_FLAG_ERROR)
         }
         Some(r) if r.status == Status::None => {
             // ⛔ Refused UP FRONT, with the reason, rather than accepted and
@@ -273,10 +284,34 @@ pub fn admit(verb: &str, arg: &str, usage: &str) -> Result<(), i32> {
                 r.flag.unwrap_or(arg),
                 r.note
             );
-            Err(podbox_image::error::EXIT_USAGE)
+            Err(podbox_image::error::EXIT_FLAG_ERROR)
         }
         Some(_) => Ok(()),
     }
+}
+
+/// The arm a verb's parser reaches when [`admit`] passed a flag and the parser
+/// has no case for it.
+///
+/// ⛔ **That is a defect in podbox, not a caller mistake**, and it is reported
+/// as one. ⚠ It is also the case a test has to be able to see, and since
+/// T-0802 it can no longer be seen in the exit code: a flag error and a runtime
+/// failure are both docker's 125, so the sentinel the parser tests used to
+/// compare against became equal to the legitimate refusals it was distinguishing
+/// itself from. Under `cfg(test)` this panics with the flag's own name, which is
+/// a stronger assertion than the code comparison it replaces; in a shipped
+/// binary it returns 125 and says what happened, because a runtime that panics
+/// on its own argument surface is worse than one that refuses.
+pub fn no_arm(verb: &str, flag: &str) -> i32 {
+    let msg = format!(
+        "podbox {verb}: {flag:?} is in the parity table and this parser has no arm \
+         for it. That is a bug in podbox (TODO/cli.md T-0801)"
+    );
+    if cfg!(test) {
+        panic!("{msg}");
+    }
+    eprintln!("{msg}");
+    podbox_image::error::EXIT_RUNTIME_ERROR
 }
 
 /// The whole table as a JSON array, one object per row.

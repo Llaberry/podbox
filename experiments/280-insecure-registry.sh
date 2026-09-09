@@ -50,6 +50,16 @@ command -v openssl >/dev/null 2>&1 || { echo "SKIP: openssl is not on PATH" >&2;
 
 # ⚠ The store and the policy come from this script and nothing else, so a
 # caller's own configuration cannot decide what is measured.
+# ⭐ The exit codes are DATA, read out of the binary rather than written here.
+# TODO/cli.md T-0802 and scripts/common/exit-codes.sh: six clauses across four
+# experiments had `[ "$rc" -eq 2 ]` in them and all went red at once the day
+# docker's codes were measured.
+. "$REPO/scripts/common/exit-codes.sh"
+podbox_exit_codes "$BIN" || {
+	echo "SKIP: cannot read podbox's exit-code table; is jq installed and the binary built?" >&2
+	exit 2
+}
+
 export PODBOX_STORE="$WORK/store"
 unset PODBOX_INSECURE_REGISTRIES PODBOX_CONFIG
 export PODBOX_CONFIG="$WORK/registries.conf"
@@ -128,9 +138,9 @@ say "== 1. the default refuses an explicit http:// and NAMES the flag"
 # session, so the message has to carry the remedy.
 out="$(timeout 120 "$BIN" pull "http://localhost:$HTTP_PORT/x280:t" 2>&1)"
 rc=$?
-say "  exit              $rc (2 is invalid input)"
+say "  exit              $rc (want $PODBOX_EXIT_CLI_ERROR, the cli-error code)"
 say "  names the flag    $(printf '%s' "$out" | grep -c -- "--insecure-registry localhost:$HTTP_PORT")"
-[ "$rc" -eq 2 ] || { say "  FAIL: expected exit 2"; fail=1; }
+[ "$rc" -eq "$PODBOX_EXIT_CLI_ERROR" ] || { say "  FAIL: expected $PODBOX_EXIT_CLI_ERROR"; fail=1; }
 printf '%s' "$out" | grep -q -- "--insecure-registry localhost:$HTTP_PORT" || {
 	say "  FAIL: the refusal does not name the flag that would permit it"
 	fail=1
@@ -171,7 +181,7 @@ out="$(timeout 120 "$BIN" pull --insecure-registry "localhost:$HTTP_PORT" \
 	"http://localhost:$TLS_PORT/x280:t" 2>&1)"
 rc=$?
 say "  a DIFFERENT registry over http://: exit $rc"
-[ "$rc" -eq 2 ] || {
+[ "$rc" -eq "$PODBOX_EXIT_CLI_ERROR" ] || {
 	say "  FAIL: naming one registry insecure permitted plain HTTP to another"
 	fail=1
 }
@@ -196,7 +206,7 @@ else
 	out="$(timeout 120 "$BIN" pull --tls-verify=false "http://localhost:$HTTP_PORT/x280:t" 2>&1)"
 	rc=$?
 	say "  --tls-verify=false with an http:// reference: exit $rc"
-	[ "$rc" -eq 2 ] || {
+	[ "$rc" -eq "$PODBOX_EXIT_CLI_ERROR" ] || {
 		say "  FAIL: --tls-verify=false permitted plain HTTP, which is a different ask"
 		fail=1
 	}
@@ -246,7 +256,7 @@ printf 'localhost:%s\nhttps://oops/\n' "$HTTP_PORT" >"$PODBOX_CONFIG"
 out="$(timeout 120 "$BIN" pull "localhost:$HTTP_PORT/x280:t" 2>&1)"
 rc=$?
 say "  a URL where a host belongs: exit $rc, $(printf '%s' "$out" | tr -d '\n' | grep -oE 'registries.conf:[0-9]+' | head -1)"
-[ "$rc" -eq 2 ] || { say "  FAIL: a bad config line was not refused as invalid input"; fail=1; }
+[ "$rc" -eq "$PODBOX_EXIT_CLI_ERROR" ] || { say "  FAIL: a bad config line was not refused as invalid input"; fail=1; }
 : >"$PODBOX_CONFIG"
 
 cat "$WORK/report"

@@ -110,6 +110,26 @@ pub fn apply_layer(
             Kind::Normal => {}
         }
 
+        // ⭐ **THE ARCHIVE ROOT IS AN ENTRY, AND IT IS NOT A REFUSAL.** A tar
+        // built with a `./` prefix carries `./` itself as its first member, and
+        // it names the destination rather than something inside it: there is
+        // nothing to create and nothing to refuse.
+        //
+        // ⛔ Measured, not anticipated: `experiments/results/whiteout-contract.txt`
+        // read "no `./` on any layer" out of the two images pinned at M2, and
+        // that reading is about those two images. `public.ecr.aws/debian/debian`
+        // carries one, and on 2026-09-09 podbox refused the whole layer of every
+        // Debian image with "the entry \"./\" is not extractable because it is
+        // empty". ⚠ Only the root: an entry with a genuinely empty name is still
+        // refused, because a member with no name is a member podbox cannot place.
+        if safety::is_archive_root(&path) {
+            st.skipped += 1;
+            let k = "ArchiveRoot".to_string();
+            if !st.skipped_kinds.contains(&k) {
+                st.skipped_kinds.push(k);
+            }
+            continue;
+        }
         let parts = match safety::components(&path) {
             Ok(p) => p,
             Err(r) => return Err(refuse(digest, &path, &r)),

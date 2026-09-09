@@ -50,3 +50,12 @@ CC_armv7_unknown_linux_musleabihf = { value = "scripts/zig-cc.sh", relative = tr
 AR_armv7_unknown_linux_musleabihf = { value = "scripts/zig-ar.sh", relative = true }
 CC_i686_unknown_linux_musl = { value = "scripts/zig-cc.sh", relative = true }
 AR_i686_unknown_linux_musl = { value = "scripts/zig-ar.sh", relative = true }
+# ⭐ TODO/deps.md T-0912. The architecture that did not build until podbox
+# stopped taking its syscall trap from a crate that gates it behind nightly.
+CC_powerpc64le_unknown_linux_musl = { value = "scripts/zig-cc.sh", relative = true }
+AR_powerpc64le_unknown_linux_musl = { value = "scripts/zig-ar.sh", relative = true }
+# ⚠ `s390x` is CHECK-ONLY here and the gnu triple is why: rustup has no
+# prebuilt `s390x-unknown-linux-musl` std, so there is no static binary to run
+# under `qemu-s390x-static` from this host. T-0912 carries what that costs.
+CC_s390x_unknown_linux_gnu = { value = "scripts/zig-cc.sh", relative = true }
+AR_s390x_unknown_linux_gnu = { value = "scripts/zig-ar.sh", relative = true }

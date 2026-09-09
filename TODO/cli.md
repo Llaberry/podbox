@@ -102,7 +102,7 @@ Source:      `TOOL.md` section 6.8
 Category:    cli
 Priority:    P0
 Effort:      S
-Status:      open
+Status:      done
 
 Problem:     An automated caller reads the exit code first. A runtime that
              returns its own codes breaks every script that branches on
@@ -121,6 +121,57 @@ Approach:    Return the payload's status verbatim from `run`, `start` in the
 Decision:    Match docker rather than define a clearer scheme. Parity is the
              product.
 Prove:       `podbox run --rm alpine:latest sh -c 'exit 42'; test $? -eq 42 && podbox run --rm alpine:latest /nonexistent; test $? -eq 127`
+
+
+**Done 2026-09-09, and the entry's own description of docker's convention was
+incomplete.** `experiments/330-exit-codes.sh` runs the same case through both
+binaries on one host and compares the numbers, which is the only way this can be
+asserted: docker's contract is not written anywhere podbox can read, it is what
+the binary does.
+
+⭐ **THE DISCRIMINATOR IS NOT THE ONE THE ENTRY DESCRIBES, AND IT IS THE
+FINDING.** docker exits **125** for anything its FLAG PARSER refuses and **1**
+for anything the verb refuses afterwards. Measured on docker 29.3.1:
+
+| case | docker | what podbox did before |
+| --- | --- | --- |
+| `run --badflag`, `--pull=bogus`, `--memory=notasize` | **125** | 2 |
+| `images --format '{{.Nope}}'`, `run` with no image | **1** | 2 |
+| `rmi no-such-image` | **1** | 125 |
+| a verb neither tool has | **1** | 125 |
+| the bare name, no arguments | **0**, help on stdout | 125 |
+| the command found and not invocable | **126** | **127** |
+| the command not found | 127 | 127 |
+| the payload's own status, `128+N` for a signal | as docker | as docker |
+
+Four of those eight were wrong. ⛔ The 126/127 one is the one that costs a
+caller most: every `execve` failure was folded into "not found", so
+`podbox run alpine /etc/passwd` said 127 where docker says 126, and a script
+branching on 127 retries with another path. The split is on the **errno**:
+`EPERM`, `ENOEXEC`, `EACCES`, `EISDIR` and `ETXTBSY` are 126; `ENOENT` and
+anything about resolving the path are 127.
+
+⭐ **The codes now live in ONE file**, `crates/podbox-probe/src/exit.rs`, and
+are served as data by `podbox system info --format '{{json .ExitCodes}}'`.
+⛔ They had been written out in **three**: `podbox-image::error`,
+`podbox-cli::main` and `podbox-enter`, and two of the copies had already
+diverged -- `main.rs` still carried the old usage code while `error.rs` carried
+the corrected one, so two verbs of one binary disagreed about what a flag error
+is. `scripts/common/exit-codes.sh` is how a shell script reads the table, and
+six clauses across four experiments read it there instead of carrying a `2`.
+
+⛔ **A fixup never moves the payload's code**, which is what
+[T-0409](complete.md) depends on: clause 5 of the measurement runs the same
+payload with and without the completion layer's source rewrite and asserts both
+report the payload's own 7.
+
+Prove, run 2026-09-09:
+
+```
+$ ./experiments/330-exit-codes.sh
+  15 cases, podbox and docker agree on every one
+  exit 0
+```
 
 ---
 
@@ -198,7 +249,7 @@ Source:      `TOOL.md` section 4.1, section 6.8; `paper_final.md` section 10.1
 Category:    cli
 Priority:    P0
 Effort:      M
-Status:      open
+Status:      done
 
 Problem:     The audience is automated. An agent cannot notice that its
              "container" was a `chroot` the way a human skimming a log might, so
@@ -228,6 +279,86 @@ Decision:    Suppressible by config, never by default. `ruri` allows
              equivalent is a config file a machine's operator sets once, and it
              cannot be set from the command line of a single run.
 Prove:       `podbox run --rm --network=none alpine:latest true 2>&1 | grep -q 'network isolation'; test $? -eq 0 && podbox run --rm --memory=1g alpine:latest true; test $? -eq 0 && podbox run --strict --rm --memory=1g alpine:latest true; test $? -ne 0`
+
+
+**Done 2026-09-09.** All four rules, and the third and fourth needed a defect
+fixed rather than a switch added.
+
+1. **The banner prints on every `run` and `exec`**, suppressible by
+   `<store>/config` with `banner = quiet` and never from the command line. ⭐ A
+   file a machine's operator sets once is the Decision: `ruri`'s
+   `--disable-warnings` is the `sandlock` failure with a flag in front of it.
+   ⚠ Whether a machine has suppressed it is itself reported, by
+   `podbox system info --format '{{.Banner}}'`, because a silent banner nobody
+   can tell from an absent one is the same shape again. ⛔ A `--strict` refusal
+   prints whether or not the banner is quiet: the switch silences a notice,
+   never a refusal.
+2. **A request that requires isolation fails with a named reason.** Every
+   isolation flag -- `--network`, `--privileged`, `--cap-add`, `-m`, `--cpus`,
+   `--hostname`, `-v`, `-p`, `-u` -- is a `None` row and
+   [T-0801](#t-0801-the-verb-and-flag-parity-table-as-data)'s `parity::admit`
+   refuses it up front with the row's own reason.
+3. **`inspect` reports the true mode per container**, and the container record
+   now carries `Complete.Fixups` and `Complete.Degraded` beside `Rung`. A
+   `/dev/null` that is a regular file is part of the mode, and a report that
+   left it out would say devices exist when they do not.
+4. ⛔ **THE FOURTH RULE WAS BEING BROKEN, AND BY THE BANNER ITSELF.** The banner
+   printed `mode=` **the rung the PROBE selected**, and `podbox_enter` performs
+   a plain `chroot` on every machine. On this host, where the probe selects
+   `namespace`, every `podbox run` printed
+
+   ```
+   podbox 0.1.0: mode=namespace (namespaces: as configured; mounts: full; ...)
+   ```
+
+   for a payload that had no namespace and no mounts at all. It now reads the
+   rung the entry sequence IMPLEMENTS, from one constant
+   (`podbox_enter::ENTERED_RUNG`), and prints the machine's own answer beside
+   it rather than dropping it:
+
+   ```
+   podbox 0.1.0: mode=chroot (namespaces: uts-only; mounts: none; devices: real;
+   ownership: real; network: host-shared; pids: host-shared)
+   this mode does NOT provide: process, network, IPC or mount isolation
+   ⚠ this machine would permit `namespace`; podbox's entry sequence is `chroot`
+     and creates no namespace and mounts nothing
+   ```
+
+⭐ **`--strict` reads three inputs and names every reason at once**, rather than
+the first one it finds:
+
+- **the flags this invocation passed**, against the parity table's own status.
+  A `Degraded` or `Stub` row is a difference this run actually incurs;
+- **the rung podbox entered with**, against `Selection::STRICT_FLOOR` -- the same
+  constant `podbox probe --strict` gates on, not a second spelling of it;
+- **the completion layer's report**, one row per fixup marked degraded.
+
+⛔ A `None` row was already fatal without `--strict`, and has been since T-0801
+made the table binding, so the switch is about the two statuses that otherwise
+let a run proceed.
+
+⚠ **THE `Prove` ABOVE CANNOT PASS AND ITS SECOND CLAUSE IS THE REASON.** It
+expects `podbox run --rm --memory=1g ... true` to exit **0** and the same run
+under `--strict` to fail. T-0801 landed after this entry was written and made
+every `None` flag a refusal in the parser, so `--memory=1g` exits 125 with or
+without `--strict` -- the entry's own rule 2, enforced earlier than it expected.
+The rewrite, run 2026-09-09:
+
+```
+$ podbox run --rm public.ecr.aws/docker/library/alpine:3.20 true; echo $?
+  0, and the banner carries `mode=chroot` and the two lines above
+$ podbox run --strict --rm public.ecr.aws/docker/library/alpine:3.20 true; echo $?
+  podbox run: --strict, and this run is degraded in 2 way(s). podbox refuses
+  rather than running and letting the payload discover them:
+    - the selected rung is `chroot` and not `namespace`, so the payload shares
+      this machine's process table, network, IPC and mount namespaces
+    - rewrote etc/mtab (T-0405): ...
+  125
+$ podbox run --rm --memory=1g public.ecr.aws/docker/library/alpine:3.20 true; echo $?
+  podbox run: -m, --memory is in the parity table with status None: resource
+  limits need a cgroup this runtime does not grant
+  125
+```
 
 ---
 
@@ -270,7 +401,7 @@ Source:      `TOOL.md` section 11.3; [RULES.md](RULES.md) section 8
 Category:    cli
 Priority:    P0
 Effort:      S
-Status:      open
+Status:      done
 
 Problem:     A prompt with no terminal behind it is a hang, and a hang is total.
              The three ways a long autonomous run dies are the three ways podbox
@@ -298,6 +429,43 @@ Decision:    Check at the point of use rather than up front. lilipod's shape
              makes `pull` fail on a machine where `pull` would have worked, and
              `pull` is the verb an agent reaches for first.
 Prove:       `podbox run --rm alpine:latest true </dev/null && timeout 30 podbox pull alpine:latest </dev/null; test $? -ne 124`
+
+
+**Done 2026-09-09.** All three properties, and each is asserted rather than
+reviewed.
+
+1. **No code path reads stdin.** podbox never opens or reads fd 0: the payload
+   inherits the caller's, which is what makes `-i` a `Stub` rather than a
+   feature. ⚠ `experiments/330-exit-codes.sh` runs every case with stdin
+   redirected from `/dev/null` under a `timeout`, so a read that blocked would
+   arrive as exit 124 rather than as a hang nobody attributed.
+2. **Every wait has an upper bound and a distinct outcome for reaching it.**
+   The launcher's are [T-0602](supervise.md)'s. M5 added one more and it is
+   bounded too: the HTTPS reachability probe [T-0411](complete.md) makes before
+   rewriting a package source gets two seconds to connect and two to read, and
+   a host that does not answer keeps its `http://` and is named on the banner.
+3. **`statvfs` for blocks and inodes before every large write.** [T-0203](image.md)
+   covers the download and the extraction; M5 added the third caller, and it is
+   the one a caller with NOTHING can reach: the `/dev` shims are three megabytes
+   into a rootfs that may be on a small tmpfs, so `space::require` runs before
+   the first of them with the destination named in the error.
+
+⚠ **Where podbox needs a tool it does not have, it says so at the point of use.**
+The keyring half of [T-0406](complete.md) is the instance: podbox cannot run
+`pacman-key` from outside the chroot, so the fixup reports the state and names
+the two commands, rather than refusing the run. That is the Decision's own
+shape, against `lilipod`'s at
+`references/89luca89__lilipod/tree/pkg/utils/utils.go:194-214`, which refuses
+before every subcommand including `pull`.
+
+Prove, run 2026-09-09:
+
+```
+$ podbox run --rm public.ecr.aws/docker/library/alpine:3.20 true </dev/null; echo $?
+  0
+$ timeout 30 podbox pull public.ecr.aws/docker/library/alpine:3.20 </dev/null; echo $?
+  0, and never 124
+```
 
 ---
 

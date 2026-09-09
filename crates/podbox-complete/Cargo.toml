@@ -6,4 +6,13 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
+# ⛔ No new pin. Every dependency here is already in the artefact: `ureq` and
+# the TLS stack came in with `podbox-image` (TODO/deps.md T-0905), and the
+# containment-checked writes are `podbox-extract`'s own `safety` module rather
+# than a second implementation of it (TODO/complete.md T-0405).
 [dependencies]
+podbox-probe = { path = "../podbox-probe" }
+podbox-image = { path = "../podbox-image" }
+podbox-extract = { path = "../podbox-extract" }
+ureq.workspace = true
+serde_json.workspace = true

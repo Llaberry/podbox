@@ -6,12 +6,13 @@
 
 use std::fmt;
 
-/// docker's exit code for "the runtime could not run the command". The CLI
-/// maps everything here onto it except [`Error::Usage`].
-pub const EXIT_RUNTIME_ERROR: i32 = 125;
-/// `pathshim`'s contract, adopted at
-/// `references/compforge__pathshim/tree/README.md:65`: invalid input exits 2.
-pub const EXIT_USAGE: i32 = 2;
+// ⛔ **THE CODES ARE `podbox_probe::exit`'S AND ARE NOT DECLARED HERE.**
+// [`TODO/cli.md`](../../../TODO/cli.md) T-0802: they were written out in three
+// files and two of them had already diverged. That module carries the table, the
+// measurement that produced it and the reason 125 and 1 are different answers.
+pub use podbox_probe::exit::{
+    EXIT_CANNOT_INVOKE, EXIT_CLI_ERROR, EXIT_FLAG_ERROR, EXIT_NOT_FOUND, EXIT_RUNTIME_ERROR,
+};
 
 #[derive(Debug)]
 pub enum Error {
@@ -58,16 +59,27 @@ impl Error {
         }
     }
 
-    /// The process exit code this error produces. ⚠ Only a caller mistake is
-    /// 2; everything else is docker's 125, so a shell that branches on 2 is
-    /// branching on its own input and not on the network.
+    /// The process exit code this error produces.
+    ///
+    /// ⚠ Every variant here is raised **after** the flags parsed, so the caller
+    /// mistakes among them are docker's 1 rather than its 125. A flag error
+    /// never reaches this type: it is refused in the parser, which returns
+    /// [`EXIT_FLAG_ERROR`] directly.
     pub fn exit_code(&self) -> i32 {
         match self {
             // ⚠ `PlainHttpRefused` is here because it names something the
             // CALLER wrote: `podbox pull http://...`. A registry whose token
             // realm is `http://` is not caller input and is an `Http` error
             // with the same explanation, so the two do not share a code.
-            Error::Usage(_) | Error::Reference(_) | Error::PlainHttpRefused(_) => EXIT_USAGE,
+            // ⚠ `NoSuchImage` is here because it is a name that resolved to
+            // nothing, which docker answers with 1: measured on 2026-09-09,
+            // `docker rmi no-such-image` exits 1 where `docker run` on a
+            // missing image exits 125. The difference is not the lookup, it is
+            // whether the verb was going to RUN something.
+            Error::Usage(_)
+            | Error::Reference(_)
+            | Error::PlainHttpRefused(_)
+            | Error::NoSuchImage(_) => EXIT_CLI_ERROR,
             _ => EXIT_RUNTIME_ERROR,
         }
     }

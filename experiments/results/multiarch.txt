@@ -1,5 +1,5 @@
 == conditions
-date              2026-09-09T07:45:08Z
+date              2026-09-09T13:27:03Z
 host kernel       6.18.44-fc-v24
 host arch         x86_64
 rustc             rustc 1.98.1 (48a229cea 2026-09-01)
@@ -13,34 +13,43 @@ qemu-aarch64      qemu-aarch64 version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)
   ok    loongarch64-unknown-linux-musl     workspace checks
   ok    armv7-unknown-linux-musleabihf     workspace checks
   ok    i686-unknown-linux-musl            workspace checks
+  ok    powerpc64le-unknown-linux-musl     workspace checks
+  ok    s390x-unknown-linux-gnu            workspace checks
 
-== 2. the architecture that does NOT build, and exactly why
-  blocked powerpc64le-unknown-linux-musl   error[E0554]: `#![feature]` may not be used on the stable re
-          the syscalls crate gates powerpc/s390x/mips behind
-          asm_experimental_arch. Clause 3 measures whether that
-          gate is still true of rustc.
+== 2. the architectures that do NOT build, and exactly why
+  none. ⭐ T-0912 cleared the one there was: podbox no longer takes
+  its syscall trap from a crate that gates five architectures behind
+  nightly. `crates/podbox-probe/Cargo.toml` target-gates `syscalls`
+  away on those five and `sys.rs` reads linux-raw-sys instead.
+  ⚠ mips, mips64 and 32-bit powerpc are NOT in clause 1 and are not
+  silently skipped either: sys.rs answers them with a compile_error
+  naming what is missing, because o32 passes arguments five and six
+  on the stack and a convention nobody has run is a claim.
 
 == 3. is the crate's nightly gate still true of this rustc?
   ⚠ powerpc64 inline asm COMPILES on rustc 1.98.1 (48a229cea 2026-09-01)
-    so the crate gate is stale, not a rustc limit. What clears
-    clause 2 is a syscalls release dropping it, or podbox taking
-    the numbers from linux-raw-sys and carrying its own trap for
-    these two. T-0911 carries both and rules neither yet.
+    so the crate gate is stale, not a rustc limit. ⭐ T-0912 took the
+    second of the two options this clause named: podbox carries its
+    own trap and reads the numbers from linux-raw-sys, and clause 1
+    now includes powerpc64le. This clause stays because the day a
+    syscalls release drops the gate is worth knowing too.
 
 == 4. podbox RUNS on aarch64, and what that sentence is worth
   binary          ELF 64-bit LSB executable, ARM aarch64, version 1 (SYSV), 
-  bytes           1988464
-  binfmt for aarch64 registered: yes   ⚠ the probe re-execs itself
+  bytes           2128856
+  binfmt for aarch64 registered: no   ⚠ the probe re-execs itself
     once per probe, so without one every child exits 127 and the
     rung below reads `unsupported` instead of qemu's `namespace`.
   version         podbox 0.1.0             rc=0
-  rung, aarch64   namespace   ⛔ QEMU'S ANSWER, NOT AN ARM MACHINE'S
+  rung, aarch64   unsupported   ⛔ QEMU'S ANSWER, NOT AN ARM MACHINE'S
   rung, host      namespace   the same host, measured natively
-    probes: clone(NEWNS)=EINVAL mount=ok fsmount=skip(ENOSYS) move_mount=skip(ENOSYS)
+    probes: clone(NEWNS)=EINVAL mount=skip fsmount=skip move_mount=skip
       Seccomp: 0
+                     got  unshare(CLONE_NEWNS)=skip clone(CLONE_NEWNS)=EINVAL mount(tmpfs,/mnt)=skip mount(tmpfs,/mnt) in clone(NEWNS)=skip
       mount(tmpfs,/mnt) in clone(NEWNS)
       mount(MS_SLAVE,/) in clone(NEWNS)
       fsmount(tmpfs)
+          the child for "fsmount(tmpfs)" ended exit 127 and said nothing this parent can read; no verdict was established
   ⚠ Read those rows before quoting the rung. qemu-user does not
     implement fsmount, refuses clone(CLONE_NEWNS) with EINVAL and
     reports Seccomp 0 whatever the host is under. Every one of
@@ -50,16 +59,15 @@ qemu-aarch64      qemu-aarch64 version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)
     gives garbage block counts, and the writable rows are sane.
 
 == 5. binfmt_misc with F, which is how a foreign image will run
-  registered      an aarch64 entry, flags PF
-  in a bare chroot with NO qemu in it: podbox 0.1.0 (rc=0)
-  ⭐ That is the mechanism podbox run uses for a foreign
-    image, and it needs nothing copied into the rootfs.
+  SKIP: binfmt_misc is not mounted here
 
-== 6. T-0506 point 5: the answer is labelled with its instrument
-  measured_by.emulated    true
-  measured_by.interpreter /usr/bin/qemu-aarch64-static
-  cache_key.interpreter   /usr/bin/qemu-aarch64-static
-  banner says: MEASURED BY /usr/bin/qemu-aarch64-static
-  the emulated run against the native cache:
-    measured now, because the instrument changed: none took the cached answer and this process is /usr/bin/qemu-aa
-  the trap removes it on the way out
+== 7. podbox's OWN syscall trap, executed rather than only compiled
+  binary          ELF 64-bit LSB executable, 64-bit PowerPC or cisco 7500, O
+  bytes           2350984
+  version         podbox 0.1.0             rc=0
+  reads its own   ELF machine 0x15   (0x15 is PowerPC64)
+  probe --json parses and carries a rung: rc=0
+  ⚠ the rung under qemu is `unsupported` and that is CORRECT: no
+    binfmt entry selects ELF machine 0x15 here, so every probe
+    CHILD exits 127 and no verdict is established. What clause 7
+    measures is the parent, which is where the trap runs.

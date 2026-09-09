@@ -26,7 +26,7 @@
 //! architecture runtime for no reason but the table.
 //!
 //! - [`syscalls`] carries the kernel's own table for fourteen architectures and
-//!   the `syscall` instruction for each. `Sysno::openat as i64` is that table,
+//!   the `syscall` instruction for each. `nr!(openat, __NR_openat)` is that table,
 //!   so an architecture podbox has never been built on gets its numbers from
 //!   the kernel's source rather than from a session's transcription.
 //! - [`linux_raw_sys`] carries `struct stat` and `struct statfs64` generated
@@ -111,63 +111,128 @@ pub type Sysres = Result<i64, Errno>;
 // ⛔ Not one number is written here. `Sysno::<name> as i64` is the kernel's own
 // table for the architecture being built, carried by the `syscalls` crate.
 
+// ---------------------------------------------------- where a number comes from
+//
+// ⭐ **T-0912. TWO SOURCES, ONE PER LINE, AND THE ARCHITECTURE PICKS.**
+//
+// `syscalls` carries the kernel's table for fourteen architectures, and until
+// 2026-09-09 podbox took every number from it. ⛔ It also carries
+// `#![feature(asm_experimental_arch)]` for `mips`, `mips64`, `s390x`,
+// `powerpc` and `powerpc64`, which is a **crate-level attribute**: the whole
+// crate refuses to compile for those targets on stable, whatever podbox does.
+// That is why `powerpc64le-unknown-linux-musl` was the one architecture this
+// workspace could not build for.
+//
+// ⭐ **The gate is the crate's and not the compiler's, and that was measured
+// rather than assumed.** `experiments/260-multiarch.sh` clause 3 compiles a
+// `powerpc64` `sc` sequence against the real rustc:
+//
+//     ⚠ powerpc64 inline asm COMPILES on rustc 1.98.1
+//
+// So on exactly the five architectures the crate gates, podbox takes the
+// numbers from `linux-raw-sys` -- which it already depends on for the kernel
+// structs -- and carries its own trap. ⛔ Not a fork of `syscalls` and not a
+// patch to it in this tree: the numbers are already available from a crate
+// podbox takes, and one more source of them is one more place to disagree.
+//
+// ⚠ **Both spellings are on the same line**, `Sysno::openat` and
+// `__NR_openat`, so a reader can check the pair and a rename cannot silently
+// take a different number on one architecture.
+
+/// ⛔ The five the `syscalls` crate gates behind nightly. Written out at each
+/// use rather than aliased, because Rust has no `cfg` alias without a
+/// `build.rs`, and a `build.rs` to save three repetitions is a worse trade.
+#[cfg(not(any(
+    target_arch = "mips",
+    target_arch = "mips64",
+    target_arch = "s390x",
+    target_arch = "powerpc",
+    target_arch = "powerpc64",
+)))]
 use syscalls::Sysno;
 
-pub const SYS_READ: i64 = Sysno::read as i64;
-pub const SYS_WRITE: i64 = Sysno::write as i64;
-pub const SYS_CLOSE: i64 = Sysno::close as i64;
-pub const SYS_GETPID: i64 = Sysno::getpid as i64;
-pub const SYS_CLONE: i64 = Sysno::clone as i64;
-pub const SYS_EXECVE: i64 = Sysno::execve as i64;
-pub const SYS_WAIT4: i64 = Sysno::wait4 as i64;
-pub const SYS_KILL: i64 = Sysno::kill as i64;
-pub const SYS_PTRACE: i64 = Sysno::ptrace as i64;
-pub const SYS_GETUID: i64 = Sysno::getuid as i64;
-pub const SYS_GETGID: i64 = Sysno::getgid as i64;
-pub const SYS_SETUID: i64 = Sysno::setuid as i64;
-pub const SYS_SETGID: i64 = Sysno::setgid as i64;
-pub const SYS_SETSID: i64 = Sysno::setsid as i64;
-pub const SYS_GETGROUPS: i64 = Sysno::getgroups as i64;
-pub const SYS_SETGROUPS: i64 = Sysno::setgroups as i64;
-pub const SYS_STATFS: i64 = Sysno::statfs as i64;
-pub const SYS_FLOCK: i64 = Sysno::flock as i64;
-pub const SYS_FCNTL: i64 = Sysno::fcntl as i64;
-pub const SYS_PIVOT_ROOT: i64 = Sysno::pivot_root as i64;
-pub const SYS_PRCTL: i64 = Sysno::prctl as i64;
-pub const SYS_CHROOT: i64 = Sysno::chroot as i64;
-pub const SYS_MOUNT: i64 = Sysno::mount as i64;
-pub const SYS_UMOUNT2: i64 = Sysno::umount2 as i64;
-pub const SYS_SETHOSTNAME: i64 = Sysno::sethostname as i64;
-pub const SYS_EXIT_GROUP: i64 = Sysno::exit_group as i64;
-pub const SYS_UNSHARE: i64 = Sysno::unshare as i64;
-pub const SYS_OPENAT: i64 = Sysno::openat as i64;
-pub const SYS_PIPE2: i64 = Sysno::pipe2 as i64;
-pub const SYS_PROCESS_VM_READV: i64 = Sysno::process_vm_readv as i64;
-pub const SYS_KCMP: i64 = Sysno::kcmp as i64;
-pub const SYS_SECCOMP: i64 = Sysno::seccomp as i64;
-pub const SYS_GETRANDOM: i64 = Sysno::getrandom as i64;
-pub const SYS_MEMFD_CREATE: i64 = Sysno::memfd_create as i64;
-pub const SYS_OPEN_TREE: i64 = Sysno::open_tree as i64;
-pub const SYS_MOVE_MOUNT: i64 = Sysno::move_mount as i64;
-pub const SYS_FSOPEN: i64 = Sysno::fsopen as i64;
-pub const SYS_FSCONFIG: i64 = Sysno::fsconfig as i64;
-pub const SYS_FSMOUNT: i64 = Sysno::fsmount as i64;
-pub const SYS_PIDFD_GETFD: i64 = Sysno::pidfd_getfd as i64;
+#[cfg(not(any(
+    target_arch = "mips",
+    target_arch = "mips64",
+    target_arch = "s390x",
+    target_arch = "powerpc",
+    target_arch = "powerpc64",
+)))]
+macro_rules! nr {
+    ($sysno:ident, $raw:ident) => {
+        crate::sys::Sysno::$sysno as i64
+    };
+}
+
+#[cfg(any(
+    target_arch = "mips",
+    target_arch = "mips64",
+    target_arch = "s390x",
+    target_arch = "powerpc",
+    target_arch = "powerpc64",
+))]
+macro_rules! nr {
+    ($sysno:ident, $raw:ident) => {
+        linux_raw_sys::general::$raw as i64
+    };
+}
+
+pub const SYS_READ: i64 = nr!(read, __NR_read);
+pub const SYS_WRITE: i64 = nr!(write, __NR_write);
+pub const SYS_CLOSE: i64 = nr!(close, __NR_close);
+pub const SYS_GETPID: i64 = nr!(getpid, __NR_getpid);
+pub const SYS_CLONE: i64 = nr!(clone, __NR_clone);
+pub const SYS_EXECVE: i64 = nr!(execve, __NR_execve);
+pub const SYS_WAIT4: i64 = nr!(wait4, __NR_wait4);
+pub const SYS_KILL: i64 = nr!(kill, __NR_kill);
+pub const SYS_PTRACE: i64 = nr!(ptrace, __NR_ptrace);
+pub const SYS_GETUID: i64 = nr!(getuid, __NR_getuid);
+pub const SYS_GETGID: i64 = nr!(getgid, __NR_getgid);
+pub const SYS_SETUID: i64 = nr!(setuid, __NR_setuid);
+pub const SYS_SETGID: i64 = nr!(setgid, __NR_setgid);
+pub const SYS_SETSID: i64 = nr!(setsid, __NR_setsid);
+pub const SYS_GETGROUPS: i64 = nr!(getgroups, __NR_getgroups);
+pub const SYS_SETGROUPS: i64 = nr!(setgroups, __NR_setgroups);
+pub const SYS_STATFS: i64 = nr!(statfs, __NR_statfs);
+pub const SYS_FLOCK: i64 = nr!(flock, __NR_flock);
+pub const SYS_FCNTL: i64 = nr!(fcntl, __NR_fcntl);
+pub const SYS_PIVOT_ROOT: i64 = nr!(pivot_root, __NR_pivot_root);
+pub const SYS_PRCTL: i64 = nr!(prctl, __NR_prctl);
+pub const SYS_CHROOT: i64 = nr!(chroot, __NR_chroot);
+pub const SYS_MOUNT: i64 = nr!(mount, __NR_mount);
+pub const SYS_UMOUNT2: i64 = nr!(umount2, __NR_umount2);
+pub const SYS_SETHOSTNAME: i64 = nr!(sethostname, __NR_sethostname);
+pub const SYS_EXIT_GROUP: i64 = nr!(exit_group, __NR_exit_group);
+pub const SYS_UNSHARE: i64 = nr!(unshare, __NR_unshare);
+pub const SYS_OPENAT: i64 = nr!(openat, __NR_openat);
+pub const SYS_PIPE2: i64 = nr!(pipe2, __NR_pipe2);
+pub const SYS_PROCESS_VM_READV: i64 = nr!(process_vm_readv, __NR_process_vm_readv);
+pub const SYS_KCMP: i64 = nr!(kcmp, __NR_kcmp);
+pub const SYS_SECCOMP: i64 = nr!(seccomp, __NR_seccomp);
+pub const SYS_GETRANDOM: i64 = nr!(getrandom, __NR_getrandom);
+pub const SYS_MEMFD_CREATE: i64 = nr!(memfd_create, __NR_memfd_create);
+pub const SYS_OPEN_TREE: i64 = nr!(open_tree, __NR_open_tree);
+pub const SYS_MOVE_MOUNT: i64 = nr!(move_mount, __NR_move_mount);
+pub const SYS_FSOPEN: i64 = nr!(fsopen, __NR_fsopen);
+pub const SYS_FSCONFIG: i64 = nr!(fsconfig, __NR_fsconfig);
+pub const SYS_FSMOUNT: i64 = nr!(fsmount, __NR_fsmount);
+pub const SYS_PIDFD_GETFD: i64 = nr!(pidfd_getfd, __NR_pidfd_getfd);
 // ⭐ M4's supervisor. TODO/supervise.md T-0601 and T-0602: a pidfd per direct
 // child, `waitid` for its status, and `ppoll` to wait on the CONDITION rather
 // than on a guessed duration.
 // ⚠ `ppoll` and not `poll`: `poll` does not exist on aarch64 or riscv64, and
 // this workspace compiles for six architectures (TODO/deps.md T-0911).
-pub const SYS_PIDFD_OPEN: i64 = Sysno::pidfd_open as i64;
-pub const SYS_WAITID: i64 = Sysno::waitid as i64;
-pub const SYS_PPOLL: i64 = Sysno::ppoll as i64;
-pub const SYS_LANDLOCK_CREATE_RULESET: i64 = Sysno::landlock_create_ruleset as i64;
-pub const SYS_DUP3: i64 = Sysno::dup3 as i64;
+pub const SYS_PIDFD_OPEN: i64 = nr!(pidfd_open, __NR_pidfd_open);
+pub const SYS_WAITID: i64 = nr!(waitid, __NR_waitid);
+pub const SYS_PPOLL: i64 = nr!(ppoll, __NR_ppoll);
+pub const SYS_LANDLOCK_CREATE_RULESET: i64 =
+    nr!(landlock_create_ruleset, __NR_landlock_create_ruleset);
+pub const SYS_DUP3: i64 = nr!(dup3, __NR_dup3);
 // ⭐ M3's entry sequence. TODO/enter.md T-0504: the rootfs is held as a
 // directory DESCRIPTOR and entered with `fchdir` then `chroot(".")`, so nothing
 // between checking the path and changing the root can swap it.
-pub const SYS_CHDIR: i64 = Sysno::chdir as i64;
-pub const SYS_FCHDIR: i64 = Sysno::fchdir as i64;
+pub const SYS_CHDIR: i64 = nr!(chdir, __NR_chdir);
+pub const SYS_FCHDIR: i64 = nr!(fchdir, __NR_fchdir);
 
 // ⭐ The `*at` family, taken by `crates/podbox-extract` (TODO/extract.md
 // T-0304). Extraction resolves every entry against a directory FILE
@@ -180,21 +245,21 @@ pub const SYS_FCHDIR: i64 = Sysno::fchdir as i64;
 // routing through the `*at` form costs nothing and removes nine per-
 // architecture cases. The three call sites where the entry point IS the
 // measurement keep their own identity below.
-pub const SYS_FCHMOD: i64 = Sysno::fchmod as i64;
-pub const SYS_GETDENTS64: i64 = Sysno::getdents64 as i64;
-pub const SYS_MKDIRAT: i64 = Sysno::mkdirat as i64;
-pub const SYS_FCHOWNAT: i64 = Sysno::fchownat as i64;
-pub const SYS_UNLINKAT: i64 = Sysno::unlinkat as i64;
-pub const SYS_LINKAT: i64 = Sysno::linkat as i64;
-pub const SYS_SYMLINKAT: i64 = Sysno::symlinkat as i64;
-pub const SYS_READLINKAT: i64 = Sysno::readlinkat as i64;
-pub const SYS_FCHMODAT: i64 = Sysno::fchmodat as i64;
-pub const SYS_UTIMENSAT: i64 = Sysno::utimensat as i64;
-pub const SYS_MKNODAT: i64 = Sysno::mknodat as i64;
+pub const SYS_FCHMOD: i64 = nr!(fchmod, __NR_fchmod);
+pub const SYS_GETDENTS64: i64 = nr!(getdents64, __NR_getdents64);
+pub const SYS_MKDIRAT: i64 = nr!(mkdirat, __NR_mkdirat);
+pub const SYS_FCHOWNAT: i64 = nr!(fchownat, __NR_fchownat);
+pub const SYS_UNLINKAT: i64 = nr!(unlinkat, __NR_unlinkat);
+pub const SYS_LINKAT: i64 = nr!(linkat, __NR_linkat);
+pub const SYS_SYMLINKAT: i64 = nr!(symlinkat, __NR_symlinkat);
+pub const SYS_READLINKAT: i64 = nr!(readlinkat, __NR_readlinkat);
+pub const SYS_FCHMODAT: i64 = nr!(fchmodat, __NR_fchmodat);
+pub const SYS_UTIMENSAT: i64 = nr!(utimensat, __NR_utimensat);
+pub const SYS_MKNODAT: i64 = nr!(mknodat, __NR_mknodat);
 /// ⚠ Linux 5.6. A kernel without it answers `ENOSYS`, which is why
 /// `podbox-extract` carries an `O_NOFOLLOW` walk beside it rather than
 /// requiring it.
-pub const SYS_OPENAT2: i64 = Sysno::openat2 as i64;
+pub const SYS_OPENAT2: i64 = nr!(openat2, __NR_openat2);
 
 // ------------------------------------------------- stat, which has three names
 //
@@ -222,7 +287,7 @@ pub const SYS_OPENAT2: i64 = Sysno::openat2 as i64;
 ))]
 mod stat_call {
     pub use linux_raw_sys::general::stat as KernelStat;
-    pub const SYS_FSTATAT: i64 = super::Sysno::newfstatat as i64;
+    pub const SYS_FSTATAT: i64 = nr!(newfstatat, __NR_newfstatat);
 }
 
 #[cfg(any(
@@ -232,7 +297,7 @@ mod stat_call {
 ))]
 mod stat_call {
     pub use linux_raw_sys::general::stat as KernelStat;
-    pub const SYS_FSTATAT: i64 = super::Sysno::fstatat as i64;
+    pub const SYS_FSTATAT: i64 = nr!(fstatat, __NR_fstatat);
 }
 
 #[cfg(any(
@@ -244,7 +309,7 @@ mod stat_call {
 ))]
 mod stat_call {
     pub use linux_raw_sys::general::stat64 as KernelStat;
-    pub const SYS_FSTATAT: i64 = super::Sysno::fstatat64 as i64;
+    pub const SYS_FSTATAT: i64 = nr!(fstatat64, __NR_fstatat64);
 }
 
 pub use stat_call::{KernelStat, SYS_FSTATAT};
@@ -288,19 +353,19 @@ pub struct Entry {
     target_arch = "csky",
 ))]
 mod entry_points {
-    use super::{Entry, Sysno};
+    use super::Entry;
     pub const CHOWN: Entry = Entry {
-        nr: Sysno::fchownat as i64,
+        nr: nr!(fchownat, __NR_fchownat),
         name: "fchownat",
         via_at: true,
     };
     pub const LCHOWN: Entry = Entry {
-        nr: Sysno::fchownat as i64,
+        nr: nr!(fchownat, __NR_fchownat),
         name: "fchownat(AT_SYMLINK_NOFOLLOW)",
         via_at: true,
     };
     pub const MKNOD: Entry = Entry {
-        nr: Sysno::mknodat as i64,
+        nr: nr!(mknodat, __NR_mknodat),
         name: "mknodat",
         via_at: true,
     };
@@ -314,19 +379,19 @@ mod entry_points {
     target_arch = "csky",
 )))]
 mod entry_points {
-    use super::{Entry, Sysno};
+    use super::Entry;
     pub const CHOWN: Entry = Entry {
-        nr: Sysno::chown as i64,
+        nr: nr!(chown, __NR_chown),
         name: "chown",
         via_at: false,
     };
     pub const LCHOWN: Entry = Entry {
-        nr: Sysno::lchown as i64,
+        nr: nr!(lchown, __NR_lchown),
         name: "lchown",
         via_at: false,
     };
     pub const MKNOD: Entry = Entry {
-        nr: Sysno::mknod as i64,
+        nr: nr!(mknod, __NR_mknod),
         name: "mknod",
         via_at: false,
     };
@@ -391,6 +456,16 @@ pub const RESOLVE_NO_SYMLINKS: u64 = 0x04;
 /// alone can be defeated by a component created between the check and the use.
 pub const RESOLVE_BENEATH: u64 = 0x08;
 
+/// `openat2`'s "treat the starting descriptor as `/`".
+///
+/// ⭐ Symlinks ARE followed and an absolute target is rebased onto that
+/// descriptor, so nothing resolves outside it and `..` at the top stays at the
+/// top. [`TODO/complete.md`](../../../TODO/complete.md) T-0405 turns on the
+/// difference between this and [`RESOLVE_BENEATH`] `| ` [`RESOLVE_NO_SYMLINKS`]:
+/// during extraction a symlink is the attack, and afterwards a rootfs's own
+/// internal links are how its files are reached.
+pub const RESOLVE_IN_ROOT: u64 = 0x10;
+
 pub const AT_SYMLINK_NOFOLLOW: u64 = 0x100;
 pub const AT_REMOVEDIR: u64 = 0x200;
 pub const AT_EMPTY_PATH: u64 = 0x1000;
@@ -450,6 +525,13 @@ pub const MOVE_MOUNT_F_EMPTY_PATH: u64 = 0x0000_0004;
 /// The caller states that this syscall with these arguments is sound: any
 /// pointer argument is valid for the kernel's access, and the effect on this
 /// process is one the caller intends.
+#[cfg(not(any(
+    target_arch = "mips",
+    target_arch = "mips64",
+    target_arch = "s390x",
+    target_arch = "powerpc",
+    target_arch = "powerpc64",
+)))]
 pub unsafe fn syscall6(nr: i64, a0: u64, a1: u64, a2: u64, a3: u64, a4: u64, a5: u64) -> i64 {
     unsafe {
         syscalls::raw::syscall6(
@@ -463,6 +545,99 @@ pub unsafe fn syscall6(nr: i64, a0: u64, a1: u64, a2: u64, a3: u64, a4: u64, a5:
         ) as i64
     }
 }
+
+// ------------------------------------------- podbox's own trap, T-0912
+//
+// ⭐ **Two architectures, and both are RUN rather than only compiled.**
+// `experiments/260-multiarch.sh` builds `podbox` for
+// `powerpc64le-unknown-linux-musl` and `s390x-unknown-linux-musl` and executes
+// it under `qemu-ppc64le-static` and `qemu-s390x-static`, so the register
+// conventions below are measured and not asserted. ⛔ That distinction is the
+// whole reason these two are here and `mips` is not: getting a convention wrong
+// is not a build failure, it is a syscall with the arguments in the wrong
+// places, and asm nobody has executed is a claim.
+
+/// powerpc64, both endiannesses.
+///
+/// ⛔ **The error convention is NOT x86_64's and this is where that is
+/// handled.** powerpc does not return `-errno` in `r3`: it returns the positive
+/// errno there and sets **CR0.SO** to say the call failed. `split` upstream
+/// reads the kernel's `-4095..=-1` window, so the value is negated here when SO
+/// is set, and every caller then sees one convention.
+///
+/// r0 carries the number, r3 through r8 the six arguments, `sc` is the trap,
+/// and r9 through r12, cr0, ctr and xer are clobbered.
+#[cfg(target_arch = "powerpc64")]
+pub unsafe fn syscall6(nr: i64, a0: u64, a1: u64, a2: u64, a3: u64, a4: u64, a5: u64) -> i64 {
+    let ret: u64;
+    unsafe {
+        core::arch::asm!(
+            "sc",
+            // ⚠ `bns` is "branch if not summary overflow", on cr0. A local
+            // numeric label, because a named one would collide when this is
+            // inlined twice into one function.
+            "bns 2f",
+            "neg 3, 3",
+            "2:",
+            inlateout("r0") nr as u64 => _,
+            inlateout("r3") a0 => ret,
+            in("r4") a1,
+            in("r5") a2,
+            in("r6") a3,
+            in("r7") a4,
+            in("r8") a5,
+            lateout("r9") _,
+            lateout("r10") _,
+            lateout("r11") _,
+            lateout("r12") _,
+            options(nostack)
+        );
+    }
+    ret as i64
+}
+
+/// s390x.
+///
+/// ⚠ r1 carries the number and r2 through r7 the six arguments; `svc 0` is the
+/// trap and the result comes back in r2 as `-errno`, which is the convention
+/// `split` already reads.
+#[cfg(target_arch = "s390x")]
+pub unsafe fn syscall6(nr: i64, a0: u64, a1: u64, a2: u64, a3: u64, a4: u64, a5: u64) -> i64 {
+    let ret: u64;
+    unsafe {
+        core::arch::asm!(
+            "svc 0",
+            in("r1") nr as u64,
+            inlateout("r2") a0 => ret,
+            in("r3") a1,
+            in("r4") a2,
+            in("r5") a3,
+            in("r6") a4,
+            in("r7") a5,
+            options(nostack)
+        );
+    }
+    ret as i64
+}
+
+/// ⛔ **mips and mips64 are still gated, and this says so at compile time
+/// rather than shipping a convention nobody has run.**
+///
+/// T-0912's Approach names three families; two of them are here and executed
+/// under an emulator by `experiments/260-multiarch.sh`. mips is not, and the
+/// reason is not effort: `qemu-mips*-static` is installed on this host, but
+/// o32 passes arguments five and six **on the caller's stack**, which
+/// `options(nostack)` forbids and which a wrong frame layout gets wrong
+/// silently. ⚠ What would clear it is the same thing that cleared these two: a
+/// clause in `260-multiarch.sh` that builds for a mips target and RUNS the
+/// binary under the emulator.
+#[cfg(any(target_arch = "mips", target_arch = "mips64", target_arch = "powerpc"))]
+compile_error!(
+    "podbox has no measured syscall trap for this architecture. TODO/deps.md \
+     T-0912: powerpc64 and s390x carry podbox's own, executed under an emulator; \
+     mips, mips64 and 32-bit powerpc do not, and shipping a register convention \
+     nobody has run is what that entry refuses."
+);
 
 /// Split the raw return into a value and an errno.
 ///
@@ -639,6 +814,23 @@ pub fn write(fd: i64, buf: &[u8]) -> Sysres {
     }
 }
 
+/// `getrandom(2)`. ⛔ The only way podbox obtains random bytes.
+///
+/// Reading `/dev/urandom` with `std::fs::read` has no EOF and allocated 13 GB
+/// here before the OOM killer took the process
+/// ([`TODO/supervise.md`](../../../TODO/supervise.md) T-0602), and inside a
+/// chroot the file is a shim this project wrote
+/// ([`TODO/complete.md`](../../../TODO/complete.md) T-0401), so it is not an
+/// entropy source at all. ⚠ The kernel may return short; the caller loops.
+pub fn getrandom(buf: &mut [u8]) -> Sysres {
+    unsafe {
+        sys(
+            SYS_GETRANDOM,
+            [buf.as_mut_ptr() as u64, buf.len() as u64, 0, 0, 0, 0],
+        )
+    }
+}
+
 pub fn unlink(path: &CBuf) -> Sysres {
     unlinkat(AT_FDCWD as i64, path, 0)
 }
@@ -687,6 +879,25 @@ pub fn mkdirat(dirfd: i64, path: &CBuf, mode: u64) -> Sysres {
 
 pub fn unlinkat(dirfd: i64, path: &CBuf, flags: u64) -> Sysres {
     unsafe { sys(SYS_UNLINKAT, [dirfd as u64, path.ptr(), flags, 0, 0, 0]) }
+}
+
+/// `mknodat(2)`. ⭐ [`TODO/complete.md`](../../../TODO/complete.md) T-0401
+/// CALLS THIS FIRST and shims only where it fails: on a machine that permits
+/// it a real `/dev/null` is what the payload should get, and a shim reported as
+/// a shim on a machine that did not need one is a degradation podbox invented.
+///
+/// ⚠ `dev` is the encoded device number: `makedev(major, minor)`.
+pub fn mknodat(dirfd: i64, path: &CBuf, mode: u64, dev: u64) -> Sysres {
+    unsafe { sys(SYS_MKNODAT, [dirfd as u64, path.ptr(), mode, dev, 0, 0]) }
+}
+
+/// The kernel's `makedev`. ⚠ The wide encoding, which is what `mknodat`
+/// takes on every architecture podbox builds for.
+pub fn makedev(major: u64, minor: u64) -> u64 {
+    ((major & 0xfff) << 8)
+        | (minor & 0xff)
+        | ((minor & !0xffu64) << 12)
+        | ((major & !0xfffu64) << 32)
 }
 
 pub fn symlinkat(target: &CBuf, dirfd: i64, path: &CBuf) -> Sysres {

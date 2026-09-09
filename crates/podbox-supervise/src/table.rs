@@ -79,11 +79,33 @@ pub struct Container {
     pub noticed: Option<String>,
     /// The rung the launcher selected when it started this container.
     pub rung: String,
+    /// ⭐ What the completion layer did to this container's rootfs, one line
+    /// per fixup that changed a byte or failed.
+    /// [`TODO/cli.md`](../../../TODO/cli.md) T-0804 rule 3: `inspect` reports
+    /// the true mode PER CONTAINER, and a `/dev/null` that is a regular file is
+    /// part of that mode. ⚠ `serde(default)` so a table written before M5 still
+    /// parses; an empty list there means "not recorded", which is why
+    /// [`Container::completion_note`] says so rather than printing nothing.
+    #[serde(default)]
+    pub completion: Vec<String>,
+    #[serde(default)]
+    pub completion_degraded: usize,
 }
 
 impl Container {
     pub fn short_id(&self) -> String {
         self.id.chars().take(12).collect()
+    }
+
+    /// ⛔ A dash where the record predates M5, never an empty list read as
+    /// "nothing was done": the two are different facts and only one of them is
+    /// a claim about the rootfs.
+    pub fn completion_note(&self) -> String {
+        if self.completion.is_empty() {
+            "-".to_string()
+        } else {
+            self.completion.join("; ")
+        }
     }
 
     /// docker's STATUS column.
@@ -306,6 +328,8 @@ mod tests {
             exit_code: None,
             noticed: None,
             rung: "chroot".into(),
+            completion: Vec::new(),
+            completion_degraded: 0,
         }
     }
 

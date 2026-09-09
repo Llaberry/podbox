@@ -33,11 +33,30 @@ pub fn rows(f: &Findings) -> String {
 /// `TOOL.md` section 6.8's banner. Two lines of mode, then the probe verdicts
 /// that decided it.
 pub fn banner(f: &Findings, sel: &Selection) -> String {
-    let p = Provides::of(sel.rung, f);
+    entry_banner(f, sel, sel.rung)
+}
+
+/// The same banner for a caller that ENTERS, which is a different fact from the
+/// one the prober measured.
+///
+/// ⭐ **`entered` is the rung the entry sequence actually implements**, and it
+/// is what every field is derived from. [`TODO/cli.md`](../../../TODO/cli.md)
+/// T-0804 rule 4: no output may imply namespaces, cgroups or devices exist when
+/// they do not. Measured on 2026-09-09: this host's probe selects `namespace`
+/// and `podbox_enter` performs a plain `chroot` on every machine, so
+/// `podbox run` printed `mode=namespace (namespaces: as configured; mounts:
+/// full)` for a payload that had neither.
+///
+/// ⚠ Where the two differ the machine's own answer is printed beside the mode
+/// rather than dropped: "what podbox did" and "what this machine would permit"
+/// are two facts, and a caller deciding whether to move the workload needs the
+/// second.
+pub fn entry_banner(f: &Findings, sel: &Selection, entered: Rung) -> String {
+    let p = Provides::of(entered, f);
     let mut out = format!(
         "podbox {VERSION}: mode={} (namespaces: {}; mounts: {}; devices: {};\n\
          ownership: {}; network: {}; pids: {})\n",
-        sel.rung.word(),
+        entered.word(),
         p.namespaces,
         p.mounts,
         p.devices,
@@ -54,10 +73,21 @@ pub fn banner(f: &Findings, sel: &Selection) -> String {
         out.push_str(&cells[4..].join(" "));
         out.push('\n');
     }
-    if !sel.rung.must_never_claim().is_empty() {
+    if !entered.must_never_claim().is_empty() {
         out.push_str(&format!(
             "this mode does NOT provide: {}\n",
-            sel.rung.must_never_claim()
+            entered.must_never_claim()
+        ));
+    }
+    // ⛔ Said, not dropped. A machine that would permit more than podbox took
+    // is a fact the caller acts on, and printing only the mode would read as
+    // "this is all this machine can do".
+    if entered != sel.rung {
+        out.push_str(&format!(
+            "⚠ this machine would permit `{}`; podbox's entry sequence is `{}` and \
+             creates no namespace and mounts nothing\n",
+            sel.rung.word(),
+            entered.word()
         ));
     }
     // ⛔ TODO/enter.md T-0506 point 5. Where an emulator produced these rows,

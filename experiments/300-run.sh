@@ -45,6 +45,16 @@ IMAGE="${PODBOX_RUN_IMAGE:-ghcr.io/pkgforge-dev/archlinux:latest}"
 	exit 2
 }
 
+# ⭐ The exit codes are DATA, read out of the binary rather than written here.
+# TODO/cli.md T-0802 and scripts/common/exit-codes.sh: six clauses across four
+# experiments had `[ "$rc" -eq 2 ]` in them and all went red at once the day
+# docker's codes were measured.
+. "$REPO/scripts/common/exit-codes.sh"
+podbox_exit_codes "$BIN" || {
+	echo "SKIP: cannot read podbox's exit-code table; is jq installed and the binary built?" >&2
+	exit 2
+}
+
 export PODBOX_STORE="$WORK/store"
 unset PODBOX_DEFAULT_PLATFORM DOCKER_DEFAULT_PLATFORM
 
@@ -290,8 +300,8 @@ grep -q "$mode" "$WORK/e8" || {
 # ⚠ The status is read once, from the process that produced it, into a variable.
 timeout 300 "$BIN" exec "$IMAGE" >/dev/null 2>&1
 rc=$?
-say "  exec with no command: rc=$rc  (want 2, invalid input)"
-[ "$rc" -eq 2 ] || {
+say "  exec with no command: rc=$rc  (want $PODBOX_EXIT_CLI_ERROR, the cli-error code)"
+[ "$rc" -eq "$PODBOX_EXIT_CLI_ERROR" ] || {
 	say "  FAIL: exec fell back to the image's Cmd, or used the wrong exit code"
 	fail=1
 }

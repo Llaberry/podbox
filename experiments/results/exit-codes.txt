@@ -1,0 +1,45 @@
+== conditions
+date              2026-09-09T12:36:05Z
+host kernel       6.18.44-fc-v24
+podbox            podbox 0.1.0
+docker            29.3.1
+image             public.ecr.aws/docker/library/alpine:3.20
+
+== 0. podbox's table, as data
+  flag-error  125
+  cli-error  1
+  runtime-error  125
+  cannot-invoke  126
+  not-found  127
+  no-arguments  0
+  read from the table: flag=125 cli=1 notfound=127 invoke=126 runtime=125
+
+== 1. the flag parser refused it: docker's 125
+  run --badflag              want 125  podbox 125  docker 125  ok
+  run --pull=bogus           want 125  podbox 125  docker 125  ok
+  images --badflag           want 125  podbox 125  docker 125  ok
+  pull --badflag             want 125  podbox 125  docker 125  ok
+  run --memory=1g            want 125  podbox 125  docker 125  ok
+
+== 2. the verb refused it after the flags parsed: docker's 1
+  run, no image              want 1    podbox 1    docker 1    ok
+  images --format bad        want 1    podbox 1    docker 1    ok
+  rmi no-such-image          want 1    podbox 1    docker 1    ok
+  a verb neither has         want 1    podbox 1    docker 1    ok
+
+== 3. the payload's own answer
+  payload exit 42            want 42   podbox 42   docker 42   ok
+  command not found          want 127  podbox 127  docker 127  ok
+  command not invocable      want 126  podbox 126  docker 126  ok
+  payload exit 0             want 0    podbox 0    docker 0    ok
+
+== 4. the bare name, with NO arguments at all
+  no arguments at all        want 0    podbox 0    docker 0    ok
+
+== 5. ⛔ a fixup NEVER changes the payload's exit code
+  with fixups        7
+  --no-source-fixup  7
+
+== 6. --strict refuses rather than running, and with the runtime code
+  run --strict       125 (want 125 on a machine below the namespace rung)
+  StrictOk           true

@@ -722,7 +722,7 @@ Source:      Measured by `experiments/260-multiarch.sh` clause 3 on 2026-09-09, 
 Category:    deps
 Priority:    P2
 Effort:      M
-Status:      open
+Status:      done
 
 Problem:     `powerpc64le` is the one architecture the workspace does not build
              for, and [T-0911](deps.md) records it as blocked on `syscalls`
@@ -756,3 +756,70 @@ Decision:    Clear it here rather than wait for a `syscalls` release. Waiting is
              has already measured, and `docs/AGENTS.md` absolute 5 is that a
              blocked entry names what would clear it.
 Prove:       `./experiments/260-multiarch.sh` reports 7 architectures checking the workspace and 0 blocked, and clause 3 says the gate was the crate's
+
+**Done 2026-09-09, and the Prove's number was low: it says seven architectures
+and the reading is EIGHT.**
+
+⭐ **What was in the way was a CRATE-LEVEL attribute, which is why no `#[cfg]`
+inside podbox could route around it.** `syscalls` 0.8.1 carries
+`#![feature(asm_experimental_arch)]` for `mips`, `mips64`, `s390x`, `powerpc`
+and `powerpc64`, so the whole crate refuses to compile for those targets on
+stable however podbox uses it. The dependency is therefore **target-gated in
+`crates/podbox-probe/Cargo.toml`**, with the cfg list copied from the crate's
+own: a superset would drop `syscalls` where it works, a subset would leave the
+build broken where it does not.
+
+On those five, `crates/podbox-probe/src/sys.rs` takes every number from
+`linux-raw-sys`, which podbox already depends on for the kernel structs. ⚠ Both
+spellings are on one line -- `nr!(openat, __NR_openat)` -- so a reader can check
+the pair and a rename cannot silently take a different number on one
+architecture.
+
+⭐ **The trap is podbox's own for two of the five, and one of them is
+EXECUTED.** `experiments/260-multiarch.sh` clause 7 builds for
+`powerpc64le-unknown-linux-musl` and runs the result under
+`qemu-ppc64le-static`:
+
+```
+  binary          ELF 64-bit LSB executable, 64-bit PowerPC ...
+  version         podbox 0.1.0             rc=0
+  reads its own   ELF machine 0x15   (0x15 is PowerPC64)
+  probe --json parses and carries a rung: rc=0
+```
+
+⛔ That assertion is not decoration. `ELF machine 0x15` is a value the binary can
+only produce by opening and reading its own header **through the trap this entry
+wrote**, and powerpc's error convention is not x86_64's: it returns a POSITIVE
+errno in `r3` and sets `CR0.SO`, so a trap that compiled and ignored that would
+read every failure as a huge success. The `neg` under `bns` is what makes
+`split`'s `-4095..=-1` window mean the same thing on both.
+
+⚠ **`s390x` is CHECKED and not RUN, and the reason is recorded rather than
+smoothed over**: rustup has no prebuilt `s390x-unknown-linux-musl` std, so there
+is no static binary to hand `qemu-s390x-static`, and the gnu triple would need a
+glibc sysroot. Its trap is written from the kernel's own convention -- r1 the
+number, r2 through r7 the arguments, `svc 0`, `-errno` back in r2 -- and is
+compiled, not executed. One prebuilt std or a sysroot would clear it.
+
+⛔ **`mips`, `mips64` and 32-bit `powerpc` are REFUSED AT COMPILE TIME with a
+message naming what is missing**, rather than given a convention nobody has run.
+o32 passes arguments five and six on the caller's stack, which `options(nostack)`
+forbids and which a wrong frame layout gets wrong silently. ⚠ `qemu-mips-static`
+IS installed here, so what would clear it is a clause in `260-multiarch.sh` that
+builds for a mips target and RUNS the binary -- the same bar powerpc64 cleared.
+
+Prove, run 2026-09-09:
+
+```
+$ ./experiments/260-multiarch.sh
+  == 1. every claimed architecture compiles the whole workspace
+    ok  x86_64  aarch64  riscv64gc  loongarch64  armv7  i686
+    ok  powerpc64le-unknown-linux-musl
+    ok  s390x-unknown-linux-gnu
+  == 2. the architectures that do NOT build, and exactly why
+    none.
+  == 7. podbox's OWN syscall trap, executed rather than only compiled
+    reads its own ELF machine 0x15
+  exit 2, because binfmt_misc is not mounted on this host and clause 5
+  therefore could not run. ⛔ Not a failure: it is the third state.
+```

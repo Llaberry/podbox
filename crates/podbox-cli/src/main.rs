@@ -14,6 +14,7 @@
 //! exits 2, and a runtime failure exits 125.
 #![forbid(unsafe_op_in_unsafe_fn)]
 
+mod complete;
 mod exec;
 mod format;
 mod images;
@@ -28,11 +29,14 @@ use std::io::Write;
 use podbox_probe::report;
 use podbox_probe::select::{Selection, Strictness};
 
-/// docker's exit code for a daemon-side failure to run the command.
-const EXIT_RUNTIME_ERROR: i32 = 125;
-/// `pathshim`'s contract, adopted at
-/// `references/compforge__pathshim/tree/README.md:65`: invalid input exits 2.
-const EXIT_USAGE: i32 = 2;
+// ⛔ **THE CODES ARE `podbox_image::error`'S, AND THEY ARE NOT RE-DECLARED
+// HERE.** This file carried its own `const EXIT_RUNTIME_ERROR` and its own
+// `const EXIT_USAGE`, which is the two-declarations-of-one-value shape
+// [`TODO/RULES.md`](../../../TODO/RULES.md) names: on 2026-09-09 T-0802
+// corrected the usage code against a measurement of docker and the copy here
+// stayed at the old value, so `podbox probe --json --rows` and
+// `podbox run --badflag` disagreed about what a flag error is.
+use podbox_image::error::{EXIT_CLI_ERROR, EXIT_FLAG_ERROR, EXIT_RUNTIME_ERROR};
 
 const USAGE: &str = "\
 usage: podbox <command> [options]
@@ -64,6 +68,8 @@ usage: podbox <command> [options]
 
   Every other docker verb is named in that table with the reason podbox does
   not have it, and says so with exit 125 rather than being silently ignored.
+  A verb neither podbox nor docker has exits 1, which is docker's own code for
+  it (TODO/cli.md T-0802).
 ";
 
 const PROBE_USAGE: &str = "\
@@ -98,7 +104,7 @@ fn main() -> std::process::ExitCode {
             Some(name) => podbox_probe::run_child(name),
             None => {
                 eprintln!("podbox: {} needs a probe name", podbox_probe::CHILD_FLAG);
-                EXIT_USAGE
+                EXIT_FLAG_ERROR
             }
         };
         return exit(code);
@@ -136,6 +142,13 @@ fn main() -> std::process::ExitCode {
             print!("{USAGE}");
             std::process::ExitCode::SUCCESS
         }
+        // ⭐ T-0802, measured: `docker` with no arguments prints its help and
+        // exits **0**. podbox does the same, because a script that runs the
+        // bare name to see whether the tool is there reads that status.
+        None => {
+            print!("{USAGE}");
+            std::process::ExitCode::SUCCESS
+        }
         other => {
             let mut err = std::io::stderr().lock();
             let name = other.unwrap_or("");
@@ -154,19 +167,21 @@ fn main() -> std::process::ExitCode {
                 None => {
                     let _ = writeln!(
                         err,
-                        "podbox: {}: podbox has no such command, and neither does the \
-                         parity table (TOOL.md section 6.8)",
-                        if name.is_empty() {
-                            "no command given"
-                        } else {
-                            name
-                        }
+                        "podbox: {name}: podbox has no such command, and neither does \
+                         the parity table (TOOL.md section 6.8)"
                     );
                     let _ = write!(err, "{USAGE}");
                 }
             }
             let _ = writeln!(err, "podbox: invoked as {argv0}");
-            exit(EXIT_RUNTIME_ERROR)
+            // ⭐ T-0802, and the two halves are different codes because
+            // docker's are. A verb DOCKER HAS and podbox refuses is podbox
+            // failing to run the caller's command: 125. A verb neither has is
+            // a name docker itself answers with 1.
+            exit(match parity::verb(name) {
+                Some(_) => EXIT_RUNTIME_ERROR,
+                None => EXIT_CLI_ERROR,
+            })
         }
     }
 }
@@ -211,13 +226,13 @@ fn probe(args: &[String]) -> i32 {
             other => {
                 eprintln!("podbox probe: unknown option {other:?}");
                 eprint!("{PROBE_USAGE}");
-                return EXIT_USAGE;
+                return EXIT_FLAG_ERROR;
             }
         }
     }
     if json && rows {
         eprintln!("podbox probe: --json and --rows both write stdout; pick one");
-        return EXIT_USAGE;
+        return EXIT_FLAG_ERROR;
     }
 
     // ⭐ TODO/probe.md T-0111. `--cached` is the hot path `run` and `exec` take
@@ -228,7 +243,7 @@ fn probe(args: &[String]) -> i32 {
             "podbox probe: --cached serves the stored --json document, which \
              carries no per-probe rows; pick one"
         );
-        return EXIT_USAGE;
+        return EXIT_FLAG_ERROR;
     }
     if cached {
         return cached_probe(json, strictness);

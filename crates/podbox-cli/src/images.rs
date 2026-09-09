@@ -14,7 +14,7 @@
 
 use std::io::Write;
 
-use podbox_image::error::{Error, EXIT_USAGE};
+use podbox_image::error::{Error, EXIT_CLI_ERROR, EXIT_FLAG_ERROR};
 use podbox_image::{clock, pull, space, Record, Store};
 
 use crate::format;
@@ -183,24 +183,24 @@ pub fn pull(args: &[String]) -> i32 {
                 "false" | "0" => tls_verify = Some(false),
                 v => {
                     eprintln!("podbox pull: --tls-verify takes true or false, not {v:?}");
-                    return EXIT_USAGE;
+                    return EXIT_FLAG_ERROR;
                 }
             },
             other if other.starts_with('-') => return unknown("pull", other, PULL_USAGE),
             other if want.is_none() => want = Some(other),
             other => {
                 eprintln!("podbox pull: {other:?}: pull takes one image");
-                return EXIT_USAGE;
+                return EXIT_CLI_ERROR;
             }
         }
     }
     if let Some(flag) = expecting {
         eprintln!("podbox pull: {flag} needs a value");
-        return EXIT_USAGE;
+        return EXIT_FLAG_ERROR;
     }
     let Some(want) = want else {
         eprint!("{PULL_USAGE}");
-        return EXIT_USAGE;
+        return EXIT_CLI_ERROR;
     };
     // ⛔ Resolved before the store is opened, so a malformed --platform is a
     // usage error and not a runtime one. TODO/probe.md T-0110's contract.
@@ -265,7 +265,7 @@ pub fn images(args: &[String]) -> i32 {
                 Some(t) => o.format = Some(t.clone()),
                 None => {
                     eprintln!("podbox images: --format needs a template");
-                    return EXIT_USAGE;
+                    return EXIT_FLAG_ERROR;
                 }
             },
             other if other.starts_with("--format=") => {
@@ -275,7 +275,7 @@ pub fn images(args: &[String]) -> i32 {
             other if o.filter.is_none() => o.filter = Some(other.to_string()),
             other => {
                 eprintln!("podbox images: {other:?}: images takes at most one image");
-                return EXIT_USAGE;
+                return EXIT_CLI_ERROR;
             }
         }
     }
@@ -290,7 +290,7 @@ pub fn images(args: &[String]) -> i32 {
     if let Some(t) = &o.format {
         if let Err(bad) = format::check(t, IMAGE_FIELDS) {
             eprintln!("podbox images: {bad}");
-            return EXIT_USAGE;
+            return EXIT_CLI_ERROR;
         }
     }
 
@@ -318,7 +318,7 @@ pub fn images(args: &[String]) -> i32 {
                 }
                 Err(bad) => {
                     eprintln!("podbox images: {bad}");
-                    return EXIT_USAGE;
+                    return EXIT_CLI_ERROR;
                 }
             }
         }
@@ -365,7 +365,7 @@ pub fn rmi(args: &[String]) -> i32 {
     }
     if wanted.is_empty() {
         eprint!("{RMI_USAGE}");
-        return EXIT_USAGE;
+        return EXIT_CLI_ERROR;
     }
     let store = match podbox_image::open_store() {
         Ok(s) => s,
@@ -406,7 +406,7 @@ pub fn tag(args: &[String]) -> i32 {
     }
     if positional.len() != 2 {
         eprint!("{TAG_USAGE}");
-        return EXIT_USAGE;
+        return EXIT_CLI_ERROR;
     }
     let store = match podbox_image::open_store() {
         Ok(s) => s,
@@ -503,17 +503,17 @@ pub fn extract(args: &[String]) -> i32 {
             other if want.is_none() => want = Some(other),
             other => {
                 eprintln!("podbox extract: {other:?}: extract takes one image");
-                return EXIT_USAGE;
+                return EXIT_CLI_ERROR;
             }
         }
     }
     if expect_platform {
         eprintln!("podbox extract: --platform needs a value, for example linux/arm64");
-        return EXIT_USAGE;
+        return EXIT_FLAG_ERROR;
     }
     let Some(want) = want else {
         eprint!("{EXTRACT_USAGE}");
-        return EXIT_USAGE;
+        return EXIT_CLI_ERROR;
     };
     // ⚠ `None` where no flag was given, so `find_one_for` prefers the host's
     // platform and refuses only where that leaves more than one.
@@ -644,7 +644,7 @@ pub fn inspect(args: &[String]) -> i32 {
                 Some(t) => template = Some(t.clone()),
                 None => {
                     eprintln!("podbox inspect: --format needs a template");
-                    return EXIT_USAGE;
+                    return EXIT_FLAG_ERROR;
                 }
             },
             other if other.starts_with("--format=") => {
@@ -656,7 +656,7 @@ pub fn inspect(args: &[String]) -> i32 {
     }
     if wanted.is_empty() {
         eprint!("{INSPECT_USAGE}");
-        return EXIT_USAGE;
+        return EXIT_CLI_ERROR;
     }
     // ⛔ Before the store is even opened. Every reference may fail to resolve,
     // and a template checked only inside the loop over what DID resolve is
@@ -671,7 +671,7 @@ pub fn inspect(args: &[String]) -> i32 {
         {
             let bad = format::check(t, INSPECT_FIELDS).unwrap_err();
             eprintln!("podbox inspect: {bad}");
-            return EXIT_USAGE;
+            return EXIT_CLI_ERROR;
         }
     }
     let store = match podbox_image::open_store() {
@@ -706,7 +706,7 @@ pub fn inspect(args: &[String]) -> i32 {
                 Ok(line) => println!("{line}"),
                 Err(bad) => {
                     eprintln!("podbox inspect: {bad}");
-                    return EXIT_USAGE;
+                    return EXIT_CLI_ERROR;
                 }
             }
         }
@@ -894,7 +894,7 @@ pub(crate) fn table(rows: &[Vec<String>]) -> String {
 fn unknown(verb: &str, flag: &str, usage: &str) -> i32 {
     eprintln!("podbox {verb}: unknown option {flag:?}");
     eprint!("{usage}");
-    EXIT_USAGE
+    EXIT_FLAG_ERROR
 }
 
 fn fail(e: Error) -> i32 {

@@ -18,6 +18,7 @@
 
 pub mod binfmt;
 pub mod child;
+pub mod exit;
 pub mod identity;
 pub mod interp;
 pub mod json;

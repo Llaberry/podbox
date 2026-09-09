@@ -21,7 +21,7 @@
 use std::io::Write;
 
 use podbox_enter::{Fds, Plan, RootDir};
-use podbox_image::error::EXIT_USAGE;
+use podbox_image::error::{EXIT_CLI_ERROR, EXIT_FLAG_ERROR};
 use podbox_image::platform::Platform;
 
 pub const EXEC_USAGE: &str = "\
@@ -30,6 +30,13 @@ usage: podbox exec [options] <image> <command> [arg...]
   -e, --env K=V    set an environment variable. Repeatable; a later one wins
   -w, --workdir D  working directory inside the container
   --platform P     which platform of a multi-platform image to enter
+  --add-host N:IP  add a name to the container's /etc/hosts. Repeatable
+  --no-source-fixup
+                   leave the image's package sources exactly as extracted, and
+                   undo a rewrite an earlier run made (TODO/complete.md T-0411)
+  --no-host-cas    as in run: leave the image's trust store alone
+  --strict         ⛔ refuse to re-enter at all where anything about this
+                   invocation is Degraded or Stub (TODO/cli.md T-0804)
   -t, --tty        ⛔ REFUSED BY NAME where /dev/ptmx is unusable, rather
                    than silently degraded (TODO/enter.md T-0503)
 
@@ -65,6 +72,7 @@ struct Opts {
     tty: bool,
     image: Option<String>,
     command: Vec<String>,
+    ask: crate::complete::Ask,
 }
 
 /// ⛔ Parsing stops at the image name, exactly as `run`'s does: everything
@@ -77,6 +85,7 @@ fn parse(args: &[String]) -> std::result::Result<Opts, i32> {
         tty: false,
         image: None,
         command: Vec::new(),
+        ask: crate::complete::Ask::default(),
     };
     let mut expecting: Option<&'static str> = None;
     for a in args {
@@ -84,6 +93,7 @@ fn parse(args: &[String]) -> std::result::Result<Opts, i32> {
             match flag {
                 "-e" => o.env.push(a.clone()),
                 "-w" => o.workdir = Some(a.clone()),
+                "--add-host" => crate::complete::add_host(&mut o.ask, "exec", a)?,
                 _ => o.platform = Some(a.clone()),
             }
             continue;
@@ -97,6 +107,9 @@ fn parse(args: &[String]) -> std::result::Result<Opts, i32> {
         // refused with its own reason.
         if a.starts_with('-') {
             crate::parity::admit("exec", a, EXEC_USAGE)?;
+            o.ask
+                .seen_flags
+                .push(a.split('=').next().unwrap_or(a).to_string());
         }
         match a.as_str() {
             "-h" | "--help" => {
@@ -111,28 +124,31 @@ fn parse(args: &[String]) -> std::result::Result<Opts, i32> {
             "-e" | "--env" => expecting = Some("-e"),
             "-w" | "--workdir" => expecting = Some("-w"),
             "--platform" => expecting = Some("--platform"),
+            "--add-host" => expecting = Some("--add-host"),
+            other if other.starts_with("--add-host=") => {
+                crate::complete::add_host(&mut o.ask, "exec", &other[11..])?
+            }
+            "--no-source-fixup" => o.ask.no_source_fixup = true,
+            "--no-host-cas" => o.ask.no_host_cas = true,
+            "--strict" => o.ask.strict = true,
             other if other.starts_with("--env=") => o.env.push(other[6..].to_string()),
             other if other.starts_with("--workdir=") => o.workdir = Some(other[10..].to_string()),
             other if other.starts_with("--platform=") => o.platform = Some(other[11..].to_string()),
             other if other.starts_with('-') => {
                 // ⛔ Unreachable through the table above; an assertion, not a
                 // fallback. See `run`'s own arm for why.
-                eprintln!(
-                    "podbox exec: {other:?} is in the parity table and this parser has \
-                     no arm for it. That is a bug in podbox (TODO/cli.md T-0801)"
-                );
-                return Err(podbox_image::error::EXIT_RUNTIME_ERROR);
+                return Err(crate::parity::no_arm("exec", other));
             }
             other => o.image = Some(other.to_string()),
         }
     }
     if let Some(flag) = expecting {
         eprintln!("podbox exec: {flag} needs a value");
-        return Err(EXIT_USAGE);
+        return Err(EXIT_FLAG_ERROR);
     }
     if o.image.is_none() {
         eprint!("{EXEC_USAGE}");
-        return Err(EXIT_USAGE);
+        return Err(EXIT_CLI_ERROR);
     }
     // ⛔ docker's rule, and podbox's for the same reason: `exec` has no default
     // command. An image's Cmd is what `run` starts, not what a second entry
@@ -141,7 +157,7 @@ fn parse(args: &[String]) -> std::result::Result<Opts, i32> {
     if o.command.is_empty() {
         eprintln!("podbox exec: a command is required. `exec` never falls back to the image's Cmd");
         eprint!("{EXEC_USAGE}");
-        return Err(EXIT_USAGE);
+        return Err(EXIT_CLI_ERROR);
     }
     Ok(o)
 }
@@ -170,12 +186,30 @@ fn enter(
     let working_dir = o.workdir.clone().unwrap_or_else(|| "/".to_string());
     let findings = podbox_probe::run();
     let selection = podbox_probe::select::Selection::choose(&findings);
-    let mut banner = podbox_probe::report::banner(&findings, &selection);
+    let entered = podbox_enter::ENTERED_RUNG;
+    let mut banner = podbox_probe::report::entry_banner(&findings, &selection, entered);
     if let Some(note) = crate::names::alias_note() {
         banner.push_str(&note);
     }
     banner.push_str(&degradation());
+    // ⭐ M5. `exec` completes the rootfs exactly as `run` does, and for the same
+    // reason: a fresh chroot re-entry is a fresh payload, and the `/dev/null` a
+    // previous one turned into a file is still a file.
+    let mut ask = o.ask.clone();
+    ask.container_name = Some(target.to_string());
+    let completion = match crate::complete::prepare("exec", rootfs, &ask, &mut banner) {
+        Ok(r) => r,
+        Err(code) => return code,
+    };
     let mut err = std::io::stderr().lock();
+    if let Err(code) =
+        crate::complete::strict_refusal("exec", &ask, entered.word(), &completion, &mut err)
+    {
+        return code;
+    }
+    if crate::complete::banner_quiet(store) {
+        banner.clear();
+    }
     if o.tty && !ptmx_usable(&findings) {
         let _ = write!(err, "{banner}");
         let _ = writeln!(err, "{TTY_REFUSAL}");
@@ -196,7 +230,6 @@ fn enter(
             return e.exit_code();
         }
     };
-    let _ = store;
     match podbox_enter::run(&root, &plan, &mut err) {
         Ok(c) => c,
         Err(e) => {
@@ -311,7 +344,8 @@ pub fn exec(args: &[String]) -> i32 {
     // ------------------------------------------------------------- the banner
     let findings = podbox_probe::run();
     let selection = podbox_probe::select::Selection::choose(&findings);
-    let mut banner = podbox_probe::report::banner(&findings, &selection);
+    let entered = podbox_enter::ENTERED_RUNG;
+    let mut banner = podbox_probe::report::entry_banner(&findings, &selection, entered);
     // ⭐ TODO/cli.md T-0803. Where podbox was reached under somebody else's
     // name, the banner says which name was used and that this is podbox.
     // Taking the name is the product requirement; taking it silently is what
@@ -320,8 +354,26 @@ pub fn exec(args: &[String]) -> i32 {
         banner.push_str(&note);
     }
     banner.push_str(&degradation());
+    // ⭐ M5. The same completion the container path takes, from the same
+    // function: two entry paths that complete a rootfs differently would be two
+    // answers to one question, and the one nobody exercises is the one that
+    // diverges.
+    let mut ask = o.ask.clone();
+    ask.container_name = Some(image.clone());
+    let completion = match crate::complete::prepare("exec", &rootfs, &ask, &mut banner) {
+        Ok(r) => r,
+        Err(code) => return code,
+    };
 
     let mut err = std::io::stderr().lock();
+    if let Err(code) =
+        crate::complete::strict_refusal("exec", &ask, entered.word(), &completion, &mut err)
+    {
+        return code;
+    }
+    if crate::complete::banner_quiet(&store) {
+        banner.clear();
+    }
     if o.tty {
         // ⛔ T-0503, and the same rule as `run`: `Ok` and nothing else, because
         // a skip is not a pass.
@@ -392,7 +444,7 @@ mod tests {
     /// omission: an image's Cmd is what `run` starts.
     #[test]
     fn exec_has_no_default_command() {
-        assert_eq!(parse(&v(&["alpine"])).unwrap_err(), EXIT_USAGE);
+        assert_eq!(parse(&v(&["alpine"])).unwrap_err(), EXIT_CLI_ERROR);
         assert!(parse(&v(&["alpine", "true"])).is_ok());
     }
 
@@ -414,7 +466,12 @@ mod tests {
                     "img",
                     "true",
                 ]));
-                assert_eq!(got.unwrap_err(), EXIT_USAGE, "{:?} was not refused", r.flag);
+                assert_eq!(
+                    got.unwrap_err(),
+                    EXIT_FLAG_ERROR,
+                    "{:?} was not refused",
+                    r.flag
+                );
                 continue;
             }
             for spelling in r.flag.unwrap().split(',') {
@@ -431,14 +488,11 @@ mod tests {
                 // EXIT_RUNTIME_ERROR, which is the fallback arm's own code and
                 // means exactly "the table admits this flag and nothing
                 // implements it".
+                // ⚠ The assertion is `parity::no_arm`'s panic. See the same
+                // test in `run.rs` for why the code comparison it replaced
+                // stopped being able to fail.
                 for shape in [v(&[f, "V", "img", "true"]), v(&[f, "img", "true"])] {
-                    if let Err(code) = parse(&shape) {
-                        assert_ne!(
-                            code,
-                            podbox_image::error::EXIT_RUNTIME_ERROR,
-                            "{f} is in the parity table and this parser has no arm for it"
-                        );
-                    }
+                    let _ = parse(&shape);
                 }
             }
         }
@@ -446,8 +500,8 @@ mod tests {
 
     #[test]
     fn a_flag_needing_a_value_does_not_swallow_the_image() {
-        assert_eq!(parse(&v(&["--platform"])).unwrap_err(), EXIT_USAGE);
-        assert_eq!(parse(&v(&["-w"])).unwrap_err(), EXIT_USAGE);
+        assert_eq!(parse(&v(&["--platform"])).unwrap_err(), EXIT_FLAG_ERROR);
+        assert_eq!(parse(&v(&["-w"])).unwrap_err(), EXIT_FLAG_ERROR);
     }
 
     /// ⭐ The banner and the machine-readable field are one pair of constants,

@@ -1,0 +1,35 @@
+# archlinux
+# pinned ghcr.io/pkgforge-dev/archlinux@sha256:b2507f1964270cab3cc190aa8df858521f6a7e45e969146a012877891d5dfc9b
+# podbox run exit 0
+--- stdout
+ID=0:0
+DEVNULL=usable
+DEVNULL_WRITE=ok
+RESOLVER=8.8.8.8
+NSSWITCH=files systemd
+GETENT_ROOT=root
+PM=pacman
+INSTALL_RC=0
+INSTALL_TAIL=(1/3) Arming ConditionNeedsUpdate... (2/3) Linking executables installed outside PATH... (3/3) Cleaning up package cache... 
+CC=/usr/sbin/cc
+CC_VERSION=cc (GCC) 16.2.1 20260810
+BUILD_RC=0
+BUILD_TAIL=
+BUILT_AND_RAN=42
+--- the completion layer said
+podbox: complete: created dev/null (dev-node, T-0401): a real character device 1:3. This machine permits mknod(2), so podbox made the node rather than a shim
+podbox: complete: created dev/zero (dev-node, T-0401): a real character device 1:5. This machine permits mknod(2), so podbox made the node rather than a shim
+podbox: complete: created dev/random (dev-node, T-0401): a real character device 1:8. This machine permits mknod(2), so podbox made the node rather than a shim
+podbox: complete: created dev/urandom (dev-node, T-0401): a real character device 1:9. This machine permits mknod(2), so podbox made the node rather than a shim
+podbox: complete: rewrote etc/resolv.conf (resolv.conf, T-0402): this machine's /etc/resolv.conf, 67 bytes
+podbox: complete: rewrote etc/hosts (hosts, T-0403): localhost
+podbox: complete: rewrote etc/mtab (mtab, T-0405): it was a symlink to ../proc/self/mounts, and /proc is not mounted inside a chroot, so the link does not resolve. ⛔ podbox REPLACED the link rather 
+podbox: complete: rewrote etc/ssl/certs/ca-certificates.crt (ca-bundle, T-0407): APPENDED this machine's CA bundle (228527 bytes, announced in $SSL_CERT_FILE as /root/.ccr/ca-bundle.crt). The image's 
+podbox: complete: created etc/ssl/ca-bundle.pem (ca-bundle, T-0407): APPENDED this machine's CA bundle (228527 bytes, announced in $SSL_CERT_FILE as /root/.ccr/ca-bundle.crt). The image's own roots ar
+podbox: complete: 9 fixup(s) applied to this image's rootfs, 3 degraded, 0 failed; libc=glibc. ⛔ These are edits podbox made inside somebody else's image and the payload can see them
+--- the last of stderr
+ownership: real; network: host-shared; pids: host-shared)
+probes: clone(NEWNS)=ok mount=ok fsmount=ok move_mount=ok
+        clone(NEWUTS)=ok sethostname=ok chroot=ok ptrace=ok
+this mode does NOT provide: process, network, IPC or mount isolation
+⚠ this machine would permit `namespace`; podbox's entry sequence is `chroot` and creates no namespace and mounts nothing

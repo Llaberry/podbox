@@ -65,6 +65,58 @@ fn load_bundle(path: &str) -> Option<Vec<CertificateDer<'static>>> {
     }
 }
 
+/// The host's CA bundle as the PEM bytes on disk, and where they came from.
+///
+/// ⭐ [`TODO/complete.md`](../../../TODO/complete.md) T-0407 installs this into
+/// an image that ships none, so that an `https://` package source can verify.
+/// ⛔ It is THIS list rather than a second one: podbox's own transport already
+/// had to answer "where does this machine keep its roots", and two lists drift
+/// so that the one a reader trusts is the wrong one.
+///
+/// ⚠ The bytes are returned only where they parse as at least one certificate,
+/// so an empty or truncated file reads as "this machine has none" rather than
+/// being copied into an image where it would fail later and further away.
+pub fn host_bundle_bytes() -> Option<HostBundle> {
+    let mut candidates: Vec<(String, Option<&str>)> = Vec::new();
+    for var in BUNDLE_ENV {
+        if let Some(p) = std::env::var_os(var) {
+            candidates.push((p.to_string_lossy().to_string(), Some(var)));
+        }
+    }
+    candidates.extend(BUNDLE_PATHS.iter().map(|p| ((*p).to_string(), None)));
+    for (p, var) in candidates {
+        if load_bundle(&p).is_some() {
+            if let Ok(bytes) = std::fs::read(&p) {
+                return Some(HostBundle {
+                    path: p,
+                    announced_by: var.map(str::to_string),
+                    bytes,
+                });
+            }
+        }
+    }
+    None
+}
+
+/// This machine's CA bundle, and ⭐ **whether the machine ANNOUNCED it**.
+pub struct HostBundle {
+    pub path: String,
+    /// The environment variable that named it, where one did.
+    ///
+    /// ⭐ **This is the difference between "the host's distro trust store" and
+    /// "this machine intercepts TLS and here is the root to use".** `curl`,
+    /// `python`, `node` and `cargo` all read `$SSL_CERT_FILE`,
+    /// `$CURL_CA_BUNDLE` or `$REQUESTS_CA_BUNDLE`; a machine that sets them has
+    /// already told every tool on it which trust store to use, and a container
+    /// that ignores them is the anomaly rather than the safe default.
+    /// [`TODO/complete.md`](../../../TODO/complete.md) T-0407 turns on this.
+    ///
+    /// ⚠ `None` means the bundle came from a default path, which is no
+    /// announcement at all and is not a reason to touch an image's own trust.
+    pub announced_by: Option<String>,
+    pub bytes: Vec<u8>,
+}
+
 fn host_bundle() -> Option<(String, Vec<CertificateDer<'static>>)> {
     for var in BUNDLE_ENV {
         if let Some(p) = std::env::var_os(var) {

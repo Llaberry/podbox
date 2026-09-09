@@ -26,7 +26,7 @@ use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use podbox_image::error::{EXIT_RUNTIME_ERROR, EXIT_USAGE};
+use podbox_image::error::{EXIT_CLI_ERROR, EXIT_FLAG_ERROR, EXIT_RUNTIME_ERROR};
 
 /// The names podbox answers to besides its own.
 pub const ALIASES: &[&str] = &["docker", "podman"];
@@ -177,7 +177,7 @@ pub fn install(args: &[String]) -> i32 {
                 Some(d) => dir = Some(PathBuf::from(d)),
                 None => {
                     eprintln!("podbox system install-names: --dir needs a directory");
-                    return EXIT_USAGE;
+                    return EXIT_FLAG_ERROR;
                 }
             },
             other if other.starts_with("--dir=") => {
@@ -186,7 +186,7 @@ pub fn install(args: &[String]) -> i32 {
             other if other.starts_with('-') => {
                 eprintln!("podbox system install-names: unknown option {other:?}");
                 eprint!("{INSTALL_USAGE}");
-                return EXIT_USAGE;
+                return EXIT_FLAG_ERROR;
             }
             other => {
                 if !ALIASES.contains(&other) {
@@ -195,7 +195,7 @@ pub fn install(args: &[String]) -> i32 {
                          answers to. It answers to: {}",
                         ALIASES.join(", ")
                     );
-                    return EXIT_USAGE;
+                    return EXIT_CLI_ERROR;
                 }
                 wanted.push(other.to_string());
             }

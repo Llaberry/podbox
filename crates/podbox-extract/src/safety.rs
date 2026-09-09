@@ -78,6 +78,18 @@ impl Refusal {
 ///
 /// ⛔ Returns the components rather than a boolean, so the caller cannot use
 /// the original string after the check and reintroduce what was rejected.
+/// Is this member name the archive's own root rather than something in it?
+///
+/// ⭐ `./`, `.` and `/` are the destination. GNU tar writes `./` as the first
+/// member of an archive created from `.`, and Debian's base images carry it.
+/// ⛔ It is NOT the same as an empty name: `""` names nothing and stays a
+/// refusal, because a member podbox cannot place is a member it may not
+/// silently drop.
+pub fn is_archive_root(path: &str) -> bool {
+    let t = path.trim_end_matches('/');
+    t == "." || t.is_empty() && path.starts_with('/')
+}
+
 pub fn components(path: &str) -> std::result::Result<Vec<&str>, Refusal> {
     if path.contains('\0') {
         return Err(Refusal::NulByte);
@@ -193,16 +205,51 @@ impl Drop for Dir {
 /// which is `scripts/plant.sh`'s whole argument applied to this crate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Resolve {
-    /// `openat2` where the kernel has it, the walk otherwise. Production.
+    /// `openat2` where the kernel has it, the walk otherwise. Production, for
+    /// EXTRACTION.
     Auto,
     /// ⛔ Force the `O_NOFOLLOW` walk. Used by the tests to drive the pre-5.6
     /// path on a kernel that does not need it.
     Walk,
+    /// ⭐ **Follow a symlink, confined to the root**, which is what a FINISHED
+    /// rootfs needs and what an extraction must never do.
+    ///
+    /// ⛔ The two are different questions and conflating them broke both ways.
+    /// During extraction a symlink another entry in the same layer created is
+    /// the attack ([`crate`] rule 4), so [`Resolve::Auto`] refuses every one of
+    /// them. Afterwards, the rootfs is full of legitimate internal links  --
+    /// `/etc/ssl/certs -> /var/lib/ca-certificates/pem` on openSUSE, `/lib ->
+    /// usr/lib` on void -- and a writer that refuses those cannot reach the file
+    /// the payload will actually read.
+    ///
+    /// ⚠ Measured on 2026-09-09 by `experiments/240-distro-sweep.sh`: with
+    /// `Auto`, `podbox-complete`'s CA-bundle fixup reported
+    /// `etc/ssl/certs/ca-certificates.crt: ... leaves the destination` on
+    /// openSUSE, and its libc probe read `unknown` on void because `/lib` is a
+    /// link. Both are rootfs-internal links and neither leaves anything.
+    ///
+    /// ⛔ It applies to the DIRECTORY components only. The final component is
+    /// still opened `O_NOFOLLOW` by the caller and replaced by
+    /// unlink-then-create, because following THAT is
+    /// [`TODO/complete.md`](../../../TODO/complete.md) T-0405's escape.
+    InRoot,
 }
 
 impl Resolve {
     fn use_openat2(self) -> bool {
-        self == Resolve::Auto && have_openat2()
+        self != Resolve::Walk && have_openat2()
+    }
+
+    /// The `openat2` resolve flags this mode asks the kernel for.
+    fn flags(self) -> u64 {
+        match self {
+            // ⚠ `RESOLVE_IN_ROOT` treats the starting descriptor as `/`: an
+            // absolute symlink target is rebased onto it and `..` at the top
+            // stays at the top, so nothing resolves outside the rootfs and the
+            // kernel enforces it rather than this code.
+            Resolve::InRoot => sys::RESOLVE_IN_ROOT,
+            _ => sys::RESOLVE_BENEATH | sys::RESOLVE_NO_SYMLINKS,
+        }
     }
 }
 
@@ -268,6 +315,9 @@ pub fn open_parent_with(
         Some(x) => x,
         None => return Ok(Err(Refusal::Empty)),
     };
+    if how == Resolve::InRoot {
+        return in_root_parent(root, dirs, last, make_dirs);
+    }
     let mut cur = dup_dir(root, how)?;
     for d in dirs {
         match step(&cur, d, make_dirs, how)? {
@@ -278,15 +328,97 @@ pub fn open_parent_with(
     Ok(Ok((cur, (*last).to_string())))
 }
 
-fn dup_dir(d: &Dir, how: Resolve) -> Result<Dir> {
-    let c = cbuf(".")?;
-    let fd = if how.use_openat2() {
+/// [`Resolve::InRoot`]'s own walk, and it is a different shape rather than the
+/// same one with another flag.
+///
+/// ⛔ **`RESOLVE_IN_ROOT` treats THE DESCRIPTOR IT IS GIVEN as `/`.** Stepping
+/// one component at a time moves that root with every step: after descending
+/// into `etc`, an absolute link `/var/aptreal` rebases onto `<rootfs>/etc` and
+/// answers `ENOENT`. Measured on 2026-09-09 by
+/// `experiments/85-completion-symlink-escape.sh` door F, which is openSUSE's
+/// own `/etc/ssl/certs -> /var/lib/ca-certificates/pem` shape.
+///
+/// So every open here is from the **rootfs descriptor**, with the accumulated
+/// path, and that descriptor never moves. ⚠ Quadratic in the depth of the path
+/// and the depth is four or five: a directory this walks is a configuration
+/// directory, not a tree.
+fn in_root_parent(
+    root: &Dir,
+    dirs: &[&str],
+    last: &str,
+    make_dirs: bool,
+) -> Result<std::result::Result<(Dir, String), Refusal>> {
+    if !have_openat2() {
+        // ⛔ There is no `O_NOFOLLOW` equivalent of `RESOLVE_IN_ROOT`, and
+        // re-implementing it in user space means resolving each link here and
+        // re-walking, which races anything else writing the tree. A caller gets
+        // a refusal it can report rather than an approximation nobody measured.
+        return Ok(Err(Refusal::Escapes(
+            "this kernel has no openat2(2), so podbox cannot follow a symlinked \
+             directory while proving it stays inside the rootfs"
+                .to_string(),
+        )));
+    }
+    let open_at_root = |rel: &str| -> Result<std::result::Result<Dir, Errno>> {
+        let c = cbuf(rel)?;
         let how = sys::OpenHow {
             flags: sys::O_RDONLY | sys::O_DIRECTORY | sys::O_CLOEXEC,
             mode: 0,
-            resolve: sys::RESOLVE_BENEATH | sys::RESOLVE_NO_SYMLINKS,
+            resolve: sys::RESOLVE_IN_ROOT,
         };
-        sys::openat2(d.fd(), &c, &how)
+        Ok(sys::openat2(root.fd(), &c, &how).map(Dir))
+    };
+    let mut cur = match open_at_root(".")? {
+        Ok(d) => d,
+        Err(e) => {
+            return Err(Error::Extract(format!(
+                "cannot re-open the destination: {}",
+                e.name()
+            )))
+        }
+    };
+    let mut acc = String::new();
+    for d in dirs {
+        if !acc.is_empty() {
+            acc.push('/');
+        }
+        acc.push_str(d);
+        match open_at_root(&acc)? {
+            Ok(next) => cur = next,
+            Err(e) if e == sys::ENOENT && make_dirs => {
+                // ⚠ Created against the RESOLVED parent, by bare name. The name
+                // does not exist, so no link can be traversed by creating it.
+                let c = cbuf(d)?;
+                match sys::mkdirat(cur.fd(), &c, 0o755) {
+                    Ok(_) => {}
+                    Err(e) if e == sys::EEXIST => {}
+                    Err(e) => {
+                        return Err(Error::Extract(format!(
+                            "cannot create the directory {d:?}: {}",
+                            e.name()
+                        )))
+                    }
+                }
+                match open_at_root(&acc)? {
+                    Ok(next) => cur = next,
+                    Err(e) => return Ok(Err(Refusal::Escapes(format!("{d:?}: {}", e.name())))),
+                }
+            }
+            Err(e) => return Ok(Err(Refusal::Escapes(format!("{d:?}: {}", e.name())))),
+        }
+    }
+    Ok(Ok((cur, last.to_string())))
+}
+
+fn dup_dir(d: &Dir, how: Resolve) -> Result<Dir> {
+    let c = cbuf(".")?;
+    let fd = if how.use_openat2() {
+        let h = sys::OpenHow {
+            flags: sys::O_RDONLY | sys::O_DIRECTORY | sys::O_CLOEXEC,
+            mode: 0,
+            resolve: how.flags(),
+        };
+        sys::openat2(d.fd(), &c, &h)
     } else {
         sys::openat(
             d.fd(),
@@ -325,12 +457,26 @@ fn step(
     }
     let flags = sys::O_RDONLY | sys::O_DIRECTORY | sys::O_CLOEXEC;
     let r = if how.use_openat2() {
-        let how = sys::OpenHow {
+        let h = sys::OpenHow {
             flags,
             mode: 0,
-            resolve: sys::RESOLVE_BENEATH | sys::RESOLVE_NO_SYMLINKS,
+            resolve: how.flags(),
         };
-        sys::openat2(cur.fd(), &c, &how)
+        sys::openat2(cur.fd(), &c, &h)
+    } else if how == Resolve::InRoot {
+        // ⛔ **`RESOLVE_IN_ROOT` IS `openat2`'s AND HAS NO `O_NOFOLLOW`
+        // EQUIVALENT.** Re-implementing it by hand means resolving each symlink
+        // in this process, rebasing an absolute target onto the root and
+        // re-walking -- a race against anything else writing the tree, which is
+        // exactly what the descriptor walk exists to avoid. So on a kernel
+        // without `openat2` this REFUSES rather than approximating: the caller
+        // records the fixup as one it could not apply and says why, which is a
+        // third state and not a silent failure.
+        return Ok(Err(Refusal::Escapes(format!(
+            "{name:?}: this component is reached through a symlink and this kernel \
+             has no openat2(2), so podbox cannot follow it while proving it stays \
+             inside the rootfs"
+        ))));
     } else {
         // ⛔ The fallback, and `O_NOFOLLOW` is what carries it. Opening one
         // component at a time from a held descriptor means `..` cannot appear
@@ -367,6 +513,13 @@ mod tests {
         );
         assert_eq!(components("").unwrap_err(), Refusal::Empty);
         assert_eq!(components("./").unwrap_err(), Refusal::Empty);
+        // ⭐ And the caller asks `is_archive_root` FIRST, so that refusal is
+        // never reached for the archive's own root. See `apply`.
+        assert!(is_archive_root("./"));
+        assert!(is_archive_root("."));
+        assert!(is_archive_root("/"));
+        assert!(!is_archive_root(""));
+        assert!(!is_archive_root("./etc"));
     }
 
     /// ⚠ A real OCI layer writes `bin/` and `bin`, with no `./` prefix, and a

@@ -35,6 +35,16 @@ IMAGE="${PODBOX_MULTIARCH_IMAGE:-ghcr.io/pkgforge-dev/archlinux:latest}"
 }
 command -v file >/dev/null 2>&1 || { echo "SKIP: file(1) is not on PATH" >&2; exit 2; }
 
+# ⭐ The exit codes are DATA, read out of the binary rather than written here.
+# TODO/cli.md T-0802 and scripts/common/exit-codes.sh: six clauses across four
+# experiments had `[ "$rc" -eq 2 ]` in them and all went red at once the day
+# docker's codes were measured.
+. "$REPO/scripts/common/exit-codes.sh"
+podbox_exit_codes "$BIN" || {
+	echo "SKIP: cannot read podbox's exit-code table; is jq installed and the binary built?" >&2
+	exit 2
+}
+
 export PODBOX_STORE="$WORK/store"
 # ⛔ Unset, so a caller's default cannot decide what this measures.
 unset PODBOX_DEFAULT_PLATFORM DOCKER_DEFAULT_PLATFORM
@@ -171,14 +181,14 @@ echo >>"$WORK/report"
 echo "== 5. a malformed --platform is a USAGE error, before any network" >>"$WORK/report"
 out="$(timeout 120 "$BIN" pull --platform 'a/b/c/d' "$IMAGE" 2>&1)"
 rc=$?
-printf '  exit              %d (2 is invalid input, TODO/probe.md T-0110)\n' "$rc" >>"$WORK/report"
+printf '  exit              %d (%s is a flag error, TODO/cli.md T-0802)\n' "$rc" "$PODBOX_EXIT_FLAG_ERROR" >>"$WORK/report"
 printf '  says              %s\n' "$(printf '%s' "$out" | tr -d '\n' | cut -c1-96)" >>"$WORK/report"
-[ "$rc" -eq 2 ] || { printf '  FAIL: expected exit 2\n' >>"$WORK/report"; fail=1; }
+[ "$rc" -eq "$PODBOX_EXIT_FLAG_ERROR" ] || { printf '  FAIL: expected the flag-error code %s\n' "$PODBOX_EXIT_FLAG_ERROR" >>"$WORK/report"; fail=1; }
 
 out="$(timeout 120 "$BIN" pull --platform "$IMAGE" 2>&1)"
 rc=$?
 printf '  --platform with no value: exit %d\n' "$rc" >>"$WORK/report"
-[ "$rc" -eq 2 ] || { printf '  FAIL: a flag swallowing its image is not exit 2\n' >>"$WORK/report"; fail=1; }
+[ "$rc" -eq "$PODBOX_EXIT_CLI_ERROR" ] || { printf '  FAIL: a flag swallowing its image is not the cli-error code %s\n' "$PODBOX_EXIT_CLI_ERROR" >>"$WORK/report"; fail=1; }
 
 cat "$WORK/report"
 mkdir -p "$(dirname "$OUT")"

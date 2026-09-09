@@ -81,6 +81,45 @@ impl Plan {
             out.retain(|existing: &String| existing.split('=').next().unwrap_or("") != name);
             out.push(e.clone());
         }
+        // ⭐ **DOCKER'S DEFAULTS, WHERE THE IMAGE DECLARES NONE**, and this was
+        // found by running something rather than by reading a specification.
+        //
+        // ⛔ Measured on 2026-09-09 against
+        // `quay.io/rockylinux/rockylinux:9`, whose config `Env` is
+        // `container=oci` and nothing else. `docker run ... env` prints `PATH`,
+        // `HOME` and `HOSTNAME`; `podbox run ... env` printed `container=oci`
+        // alone. The payload's shell then sets a PATH of its own **without
+        // exporting it**, so `gcc` was found and started with no `PATH` in its
+        // environment at all -- and gcc resolves its own installation directory
+        // by searching `$PATH` for `argv[0]`. With nothing to search it fell
+        // back to RELATIVE search directories:
+        //
+        //     programs: =../libexec/gcc/x86_64-redhat-linux/11/
+        //
+        // resolved against `/`, and every compile died with `cannot execute
+        // 'cc1': execvp: No such file or directory` while `cc1` sat in
+        // `/usr/libexec/...` with its execute bit set. ⚠ `almalinux:9`, the same
+        // gcc from the same family, worked, because its image config declares a
+        // `PATH`. A one-image test would have found nothing.
+        //
+        // ⚠ `HOSTNAME` is deliberately NOT added, where docker sets it. podbox
+        // has no UTS namespace, so `gethostname(2)` returns this machine's name;
+        // an environment variable disagreeing with the syscall is worse than a
+        // missing one, and `TOOL.md` section 4.1 forbids output that implies an
+        // isolation podbox does not have.
+        fn has(out: &[String], name: &str) -> bool {
+            out.iter()
+                .any(|e| e.split('=').next().unwrap_or("") == name)
+        }
+        if !has(&out, "PATH") {
+            out.push(format!("PATH={}", Self::DEFAULT_PATH));
+        }
+        if !has(&out, "HOME") {
+            // docker takes HOME from the user's passwd entry; podbox runs as
+            // uid 0 and cannot change to anything else (T-0704), so this is
+            // root's and it is the same value docker produces for root.
+            out.push("HOME=/root".to_string());
+        }
         out
     }
 
@@ -134,6 +173,47 @@ impl Plan {
 
 #[cfg(test)]
 mod tests {
+
+    /// ⭐ The defect M5's ten-distribution sweep found, as a test.
+    ///
+    /// ⛔ An image whose config declares no `PATH` -- `quay.io/rockylinux/rockylinux:9`
+    /// declares `container=oci` and nothing else -- must still hand its payload
+    /// docker's default, or the payload's own shell sets one WITHOUT exporting
+    /// it and every child process runs with no `PATH` at all. gcc resolves its
+    /// installation directory by searching `$PATH` for `argv[0]`, so it then
+    /// emitted relative search paths and could not execute `cc1`.
+    #[test]
+    fn an_image_with_no_path_still_gets_dockers_default() {
+        let env = Plan::env_for(&["container=oci".to_string()], &[]);
+        assert!(
+            env.iter()
+                .any(|e| e == &format!("PATH={}", Plan::DEFAULT_PATH)),
+            "{env:?}"
+        );
+        assert!(env.iter().any(|e| e == "HOME=/root"), "{env:?}");
+        assert!(env.iter().any(|e| e == "container=oci"), "{env:?}");
+        // ⚠ And NOT HOSTNAME: podbox has no UTS namespace, so an environment
+        // variable naming one would disagree with gethostname(2).
+        assert!(!env.iter().any(|e| e.starts_with("HOSTNAME=")), "{env:?}");
+    }
+
+    /// ⛔ The image's own value wins, and so does the caller's over it. A
+    /// default that overwrote either would be podbox deciding something the
+    /// image already decided.
+    #[test]
+    fn a_declared_path_and_home_are_never_replaced_by_the_default() {
+        let env = Plan::env_for(
+            &["PATH=/mine".to_string(), "HOME=/somewhere".to_string()],
+            &[],
+        );
+        assert!(env.contains(&"PATH=/mine".to_string()), "{env:?}");
+        assert!(env.contains(&"HOME=/somewhere".to_string()), "{env:?}");
+        assert_eq!(env.iter().filter(|e| e.starts_with("PATH=")).count(), 1);
+
+        let env = Plan::env_for(&["PATH=/mine".to_string()], &["PATH=/theirs".to_string()]);
+        assert_eq!(env.iter().filter(|e| e.starts_with("PATH=")).count(), 1);
+        assert!(env.contains(&"PATH=/theirs".to_string()), "{env:?}");
+    }
     use super::*;
 
     fn v(xs: &[&str]) -> Vec<String> {
@@ -193,7 +273,16 @@ mod tests {
         // entries with one name `getenv` finds is not the same on glibc and
         // musl. podbox decides here so the payload's libc cannot.
         let out = Plan::env_for(&v(&["A=1", "B=2"]), &v(&["A=9"]));
-        assert_eq!(out, v(&["B=2", "A=9"]));
+        // ⚠ The docker defaults are appended after the declared names, so the
+        // assertion is on the declared ones in order rather than on the whole
+        // vector: `an_image_with_no_path_still_gets_dockers_default` owns the
+        // other half.
+        let declared: Vec<String> = out
+            .iter()
+            .filter(|e| e.starts_with("A=") || e.starts_with("B="))
+            .cloned()
+            .collect();
+        assert_eq!(declared, v(&["B=2", "A=9"]));
         assert_eq!(out.iter().filter(|e| e.starts_with("A=")).count(), 1);
     }
 

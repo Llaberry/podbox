@@ -59,11 +59,21 @@ TARGETS=(
 	loongarch64-unknown-linux-musl
 	armv7-unknown-linux-musleabihf
 	i686-unknown-linux-musl
+	# ⭐ T-0912. This one was BLOCKED until 2026-09-09: `syscalls` 0.8.1 carries
+	# `#![feature(asm_experimental_arch)]` for it, which is a crate-level
+	# attribute and refuses to compile on stable whatever podbox writes. podbox
+	# now takes the numbers from `linux-raw-sys` and carries its own trap, and
+	# clause 5 RUNS the result under `qemu-ppc64le-static`.
+	powerpc64le-unknown-linux-musl
+	# ⚠ The gnu triple, and that is a limit rather than a preference: rustup has
+	# no prebuilt `s390x-unknown-linux-musl` std, so this architecture is
+	# CHECKED here and cannot be run from this host.
+	s390x-unknown-linux-gnu
 )
-# ⛔ NOT a "known failure" to be skipped quietly. It is checked like the rest and
-# its failure is reported as the third state, because the day the blocker clears
-# this is how the project finds out.
-BLOCKED=(powerpc64le-unknown-linux-musl)
+# ⛔ EMPTY, and it stays a list rather than becoming a comment. An architecture
+# that stops building goes back in here and clause 2 reports it as the third
+# state; a clause that had been deleted would report nothing.
+BLOCKED=()
 
 {
 	echo "== conditions"
@@ -98,7 +108,17 @@ for t in "${TARGETS[@]}"; do
 done
 
 echo >>"$WORK/report"
-echo "== 2. the architecture that does NOT build, and exactly why" >>"$WORK/report"
+echo "== 2. the architectures that do NOT build, and exactly why" >>"$WORK/report"
+if [ "${#BLOCKED[@]}" -eq 0 ]; then
+	printf '  none. ⭐ T-0912 cleared the one there was: podbox no longer takes\n' >>"$WORK/report"
+	printf '  its syscall trap from a crate that gates five architectures behind\n' >>"$WORK/report"
+	printf '  nightly. `crates/podbox-probe/Cargo.toml` target-gates `syscalls`\n' >>"$WORK/report"
+	printf '  away on those five and `sys.rs` reads linux-raw-sys instead.\n' >>"$WORK/report"
+	printf '  ⚠ mips, mips64 and 32-bit powerpc are NOT in clause 1 and are not\n' >>"$WORK/report"
+	printf '  silently skipped either: sys.rs answers them with a compile_error\n' >>"$WORK/report"
+	printf '  naming what is missing, because o32 passes arguments five and six\n' >>"$WORK/report"
+	printf '  on the stack and a convention nobody has run is a claim.\n' >>"$WORK/report"
+fi
 for t in "${BLOCKED[@]}"; do
 	if ! rustup target list --installed 2>/dev/null | grep -qx "$t"; then
 		rustup target add "$t" >/dev/null 2>&1
@@ -143,10 +163,11 @@ EOF
 asm_rc=$?
 if [ "$asm_rc" -eq 0 ]; then
 	printf '  ⚠ powerpc64 inline asm COMPILES on %s\n' "$(rustc --version)" >>"$WORK/report"
-	printf '    so the crate gate is stale, not a rustc limit. What clears\n' >>"$WORK/report"
-	printf '    clause 2 is a syscalls release dropping it, or podbox taking\n' >>"$WORK/report"
-	printf '    the numbers from linux-raw-sys and carrying its own trap for\n' >>"$WORK/report"
-	printf '    these two. T-0911 carries both and rules neither yet.\n' >>"$WORK/report"
+	printf '    so the crate gate is stale, not a rustc limit. ⭐ T-0912 took the\n' >>"$WORK/report"
+	printf '    second of the two options this clause named: podbox carries its\n' >>"$WORK/report"
+	printf '    own trap and reads the numbers from linux-raw-sys, and clause 1\n' >>"$WORK/report"
+	printf '    now includes powerpc64le. This clause stays because the day a\n' >>"$WORK/report"
+	printf '    syscalls release drops the gate is worth knowing too.\n' >>"$WORK/report"
 else
 	printf '  powerpc64 inline asm needs nightly here; the crate gate is right\n' >>"$WORK/report"
 fi
@@ -326,6 +347,65 @@ else
 		printf '  SKIP: no binfmt entry was registered, so neither the F flag nor\n' >>"$WORK/report"
 		printf '        T-0506 point 5 can be measured here\n' >>"$WORK/report"
 		skipped=1
+	fi
+fi
+
+# --------------------------------------------------------------------- 7
+echo >>"$WORK/report"
+echo "== 7. podbox's OWN syscall trap, executed rather than only compiled" >>"$WORK/report"
+# ⭐ T-0912. The architecture this workspace could not build for now builds, and
+# the reason it builds is a register convention podbox wrote by hand. ⛔ Asm
+# nobody has executed is a claim: getting a convention wrong is not a build
+# failure, it is a syscall with the arguments in the wrong places. So this
+# clause RUNS it.
+#
+# ⚠ powerpc's error convention is not x86_64's -- it returns a POSITIVE errno in
+# r3 and sets CR0.SO -- so a trap that compiled and did not handle that would
+# read every failure as a huge success. What is asserted below is a value the
+# binary can only produce by reading its own ELF header through its own
+# syscalls: the machine number, 0x15 for PowerPC64.
+PPC_BIN="$REPO/target/powerpc64le-unknown-linux-musl/release/podbox"
+if ! command -v qemu-ppc64le-static >/dev/null 2>&1; then
+	printf '  SKIP: qemu-ppc64le-static is not installed, so the trap was compiled\n' >>"$WORK/report"
+	printf '        and not executed. That is half the question and is recorded\n' >>"$WORK/report"
+	printf '        as half rather than as a pass.\n' >>"$WORK/report"
+	skipped=1
+else
+	RUSTFLAGS="-C target-feature=+crt-static -C linker=rust-lld -C link-self-contained=yes" \
+		cargo build --release -p podbox-cli --target powerpc64le-unknown-linux-musl \
+		>"$WORK/ppc.log" 2>&1
+	if [ ! -x "$PPC_BIN" ]; then
+		printf '  FAIL: the powerpc64le binary did not build; see the log\n' >>"$WORK/report"
+		fail=1
+	else
+		printf '  binary          %s\n' "$(file -b "$PPC_BIN" | cut -c1-58)" >>"$WORK/report"
+		printf '  bytes           %s\n' "$(stat -c %s "$PPC_BIN")" >>"$WORK/report"
+		ver="$(timeout 120 qemu-ppc64le-static "$PPC_BIN" version 2>&1)"
+		ver_rc=$?
+		printf '  version         %-24s rc=%d\n' "$ver" "$ver_rc" >>"$WORK/report"
+		[ "$ver_rc" -eq 0 ] || { printf '  FAIL: it does not run\n' >>"$WORK/report"; fail=1; }
+
+		# ⭐ THE ASSERTION. `measured_by.checked` names the ELF machine of this
+		# binary, which podbox reads out of its own header with `openat` and
+		# `read` -- through the trap this entry wrote. 0x15 is PowerPC64.
+		doc="$(timeout 300 qemu-ppc64le-static "$PPC_BIN" probe --json 2>/dev/null)"
+		machine="$(printf '%s' "$doc" | grep -oE 'ELF machine 0x[0-9a-f]+' | head -1)"
+		printf '  reads its own   %s   (0x15 is PowerPC64)\n' "${machine:-NOTHING}" >>"$WORK/report"
+		[ "$machine" = "ELF machine 0x15" ] || {
+			printf '  FAIL: the trap did not produce a reading about this binary\n' >>"$WORK/report"
+			fail=1
+		}
+		# ⚠ And the document parses, which a trap returning garbage would break.
+		if command -v jq >/dev/null 2>&1; then
+			printf '%s' "$doc" | jq -e '.podbox and .rung' >/dev/null 2>&1
+			jq_rc=$?
+			printf '  probe --json parses and carries a rung: rc=%d\n' "$jq_rc" >>"$WORK/report"
+			[ "$jq_rc" -eq 0 ] || { printf '  FAIL: the document is malformed\n' >>"$WORK/report"; fail=1; }
+		fi
+		printf '  ⚠ the rung under qemu is `unsupported` and that is CORRECT: no\n' >>"$WORK/report"
+		printf '    binfmt entry selects ELF machine 0x15 here, so every probe\n' >>"$WORK/report"
+		printf '    CHILD exits 127 and no verdict is established. What clause 7\n' >>"$WORK/report"
+		printf '    measures is the parent, which is where the trap runs.\n' >>"$WORK/report"
 	fi
 fi
 

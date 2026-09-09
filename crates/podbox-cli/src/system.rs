@@ -15,15 +15,16 @@
 //! permits, measured, and what that rung does not provide.
 
 use crate::{format, parity};
-use podbox_image::error::EXIT_USAGE;
+use podbox_image::error::{EXIT_CLI_ERROR, EXIT_FLAG_ERROR};
 
 pub const SYSTEM_USAGE: &str = "\
 usage: podbox system info [--format T]
        podbox system install-names [--dir D] [--force]
        podbox info [--format T]
 
-  Fields: .Parity .ParityRows .Version .Rung .StrictOk .Store .Platform
-          .Kernel .Verbs .VerbsNative .VerbsDegraded .VerbsStub .VerbsNone
+  Fields: .Parity .ParityRows .ExitCodes .Version .Rung .StrictOk .Store
+          .Banner .Platform .Kernel .Verbs .VerbsNative .VerbsDegraded
+          .VerbsStub .VerbsNone
 
   --format T   {{.Field}} placeholders, plus `{{json .Field}}`. .Parity is
                already a JSON document, so both spellings print it.
@@ -32,6 +33,10 @@ usage: podbox system info [--format T]
     rung this machine permits stands where docker prints a server version,
     and it is measured rather than assumed.
 
+  ⚠ .ExitCodes is docker's exit-code contract as data: one object per case,
+    with `case`, `code` and `what`. Measured against docker rather than read,
+    by experiments/330-exit-codes.sh (TODO/cli.md T-0802).
+
   ⚠ .Parity is the verb and flag parity table (TOOL.md section 6.8) as data:
     one object per row, with `verb`, `flag`, `status` and `note`. `status` is
     one of Native, Degraded, Stub, None and there is no fifth.
@@ -39,15 +44,20 @@ usage: podbox system info [--format T]
 
 /// Fields whose value is already a JSON document, so `{{json .X}}` prints it
 /// rather than quoting it. ⚠ A subset of [`FIELDS`], never a second list.
-const DOCUMENTS: &[&str] = &["Parity"];
+const DOCUMENTS: &[&str] = &["Parity", "ExitCodes"];
 
 pub const FIELDS: &[&str] = &[
     "Parity",
     "ParityRows",
+    // ⭐ T-0802. docker's exit codes as data, for the same reason the parity
+    // table is data: a caller decides from it, and a measurement asserts
+    // against it rather than against a number typed into a shell script.
+    "ExitCodes",
     "Version",
     "Rung",
     "StrictOk",
     "Store",
+    "Banner",
     "Platform",
     "Kernel",
     "Verbs",
@@ -56,6 +66,22 @@ pub const FIELDS: &[&str] = &[
     "VerbsStub",
     "VerbsNone",
 ];
+
+/// Whether this machine's `<store>/config` suppresses the mode banner.
+///
+/// ⚠ Reads `printed` where no store can be opened rather than refusing: the
+/// banner's default is on, and a machine with no store has not suppressed it.
+fn banner_state() -> String {
+    match podbox_image::open_store() {
+        Ok(s) if crate::complete::banner_quiet(&s) => format!(
+            "suppressed by {}/{} ({} = quiet)",
+            s.root().display(),
+            crate::complete::CONFIG_FILE,
+            crate::complete::BANNER_KEY
+        ),
+        _ => "printed on every run and exec".to_string(),
+    }
+}
 
 /// `podbox system <sub>`.
 pub fn system(args: &[String]) -> i32 {
@@ -93,7 +119,7 @@ pub fn info(args: &[String]) -> i32 {
                 Some(t) => template = Some(t.clone()),
                 None => {
                     eprintln!("podbox system info: --format needs a template");
-                    return EXIT_USAGE;
+                    return EXIT_FLAG_ERROR;
                 }
             },
             other if other.starts_with("--format=") => {
@@ -102,7 +128,7 @@ pub fn info(args: &[String]) -> i32 {
             other => {
                 eprintln!("podbox system info: unknown option {other:?}");
                 eprint!("{SYSTEM_USAGE}");
-                return EXIT_USAGE;
+                return EXIT_FLAG_ERROR;
             }
         }
     }
@@ -111,7 +137,7 @@ pub fn info(args: &[String]) -> i32 {
     if let Some(t) = &template {
         if let Err(bad) = format::check_with_documents(t, FIELDS, DOCUMENTS) {
             eprintln!("podbox system info: {bad}");
-            return EXIT_USAGE;
+            return EXIT_CLI_ERROR;
         }
     }
 
@@ -124,7 +150,7 @@ pub fn info(args: &[String]) -> i32 {
             }
             Err(bad) => {
                 eprintln!("podbox system info: {bad}");
-                EXIT_USAGE
+                EXIT_CLI_ERROR
             }
         },
         None => {
@@ -164,10 +190,16 @@ fn fields_from(rung: &str, strict_ok: bool, store: String) -> Vec<(&'static str,
     vec![
         ("Parity", parity::json()),
         ("ParityRows", parity::TABLE.len().to_string()),
+        ("ExitCodes", podbox_probe::exit::json()),
         ("Version", env!("CARGO_PKG_VERSION").to_string()),
         ("Rung", rung.to_string()),
         ("StrictOk", strict_ok.to_string()),
         ("Store", store),
+        // ⭐ T-0804 rule 1: the banner is suppressible by CONFIG and never by
+        // the command line, and whether a machine has suppressed it is itself
+        // reported. A silent banner nobody can tell from an absent one is the
+        // `sandlock` shape this rule exists to refuse.
+        ("Banner", banner_state()),
         (
             "Platform",
             podbox_image::platform::Platform::host().to_string(),

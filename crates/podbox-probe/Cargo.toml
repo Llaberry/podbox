@@ -7,7 +7,25 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-# ⭐ TODO/deps.md T-0911. The kernel's syscall table and struct layouts, per
-# architecture, so `crates/podbox-probe/src/sys.rs` declares neither.
-syscalls.workspace = true
+# ⭐ TODO/deps.md T-0911. The kernel's struct layouts and, on the architectures
+# below, its syscall table too, so `crates/podbox-probe/src/sys.rs` declares
+# neither.
 linux-raw-sys.workspace = true
+
+# ⭐ TODO/deps.md T-0912. `syscalls` carries the kernel's table for fourteen
+# architectures AND `#![feature(asm_experimental_arch)]` for five of them. That
+# is a CRATE-LEVEL attribute, so on `mips`, `mips64`, `s390x`, `powerpc` and
+# `powerpc64` the crate refuses to compile on stable whatever podbox writes, and
+# `powerpc64le-unknown-linux-musl` was the one architecture this workspace could
+# not build for.
+#
+# ⛔ The dependency is therefore TARGET-GATED rather than worked around in
+# source: a `#[cfg]` inside `sys.rs` cannot stop cargo from compiling a crate
+# that is in the graph. On those five, `sys.rs` takes the numbers from
+# `linux-raw-sys` and carries podbox's own trap.
+#
+# ⚠ The cfg list is `syscalls`'s own, from `syscalls-0.8.1/src/lib.rs:17-25`,
+# copied exactly. A list that is a superset would drop the crate where it works;
+# a subset would leave the build broken where it does not.
+[target.'cfg(not(any(target_arch = "mips", target_arch = "mips64", target_arch = "s390x", target_arch = "powerpc", target_arch = "powerpc64")))'.dependencies]
+syscalls.workspace = true
