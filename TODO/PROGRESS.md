@@ -43,7 +43,7 @@ is a control of the bogus-argument discriminator, and the consequence is
 | ⭐ **M5 rows that install a toolchain and build a program** | **10 of 10**; 0 the machine's, 0 podbox's | `experiments/240-distro-sweep.sh`, T-1106 |
 | the row that was podbox's, and what it was | `opensuse-leap`: libzypp reads a **hash-indexed CApath**, so a CAfile is invisible | the same, and [T-0412](complete.md) |
 | the row that was the machine's, and what closed it | `voidlinux-musl`: the same CApath mechanism, plus `$OPENSSLDIR/cert.pem` | the same |
-| ⭐ fixups that run a COMMAND inside the rootfs | 2: `openssl rehash` and `pacman-key --init`/`--populate` | `podbox run --steps`, T-0412 and T-0406 |
+| ⭐ fixups that run a COMMAND inside the rootfs | 2: `openssl rehash` and `pacman-key --init`/`--populate` | on by default; `--no-steps` refuses both. T-0412 and T-0406 |
 | roots the openSUSE CApath was missing, of the announced bundle's 152 | **22** | T-0412. ⚠ writing all 152 makes the tool print a duplicate line per copy |
 | ⭐ `/dev/null` inside a container on THIS host | a real character device 1:3 | `240-distro-sweep.sh`. ⚠ `mknod` is TRIED before a shim is written |
 | ⭐ architectures that check the workspace | **8**, and **0** blocked | `experiments/260-multiarch.sh`, T-0912 |

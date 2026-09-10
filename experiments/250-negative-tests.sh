@@ -41,6 +41,12 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT INT TERM
 
 IMAGE="${PODBOX_NEG_IMAGE:-public.ecr.aws/docker/library/alpine:3.20}"
+# ⭐ An image the completion layer must run a COMMAND inside, which alpine is
+# not: `--strict`'s fourth reason counts T-0412's steps, and against an image
+# with none that branch has never been seen to refuse. openSUSE is the row the
+# hash-indexed CApath was found on, so it is the one that has a step.
+# ⚠ Not a quota-bearing registry: the distribution's own.
+STEP_IMAGE="${PODBOX_NEG_STEP_IMAGE:-registry.opensuse.org/opensuse/leap:15.6}"
 
 [ -x "$BIN" ] || {
 	echo "SKIP: $BIN is not an executable. ./scripts/dev.sh build" >&2
@@ -156,6 +162,32 @@ timeout 300 "$BIN" run --rm "$IMAGE" true >/dev/null 2>&1
 rc=$?
 say "  the same run without --strict      rc=$rc (must be 0)"
 [ "$rc" -eq 0 ] || { say "  FAIL: the run does not work without --strict"; fail=1; }
+
+# ⛔ AND THE FOURTH REASON, which the image above cannot produce. `--strict`
+# counts T-0412's steps BEFORE any of them runs, because podbox executing a
+# command inside somebody else's image is exactly the difference from docker
+# that switch exists to refuse. ⚠ Against an image with no steps that branch is
+# never taken, so it was shipped unexercised until this clause existed.
+out="$(timeout 600 "$BIN" run --strict --rm "$STEP_IMAGE" true 2>&1 >/dev/null)"
+rc=$?
+if [ "$rc" = "$PODBOX_EXIT_RUNTIME_ERROR" ]; then
+	step="$(printf '%s' "$out" | grep -c '^  - podbox would run ')"
+	say "  --strict against an image with a step  rc=$rc, step reasons $step"
+	printf '%s' "$out" | grep -F -- '- podbox would run ' | head -1 \
+		| sed 's/^/      /' | cut -c1-120 >>"$WORK/report"
+	[ "$step" -ge 1 ] || {
+		say "  FAIL: it refused and named no step, so reason 4 did not fire"
+		fail=1
+	}
+elif [ "$rc" = 124 ]; then
+	say "  ⚠ the step image could not be fetched here (timeout), so reason 4"
+	say "    was not measured. That is a third state, not a pass."
+	skipped=1
+else
+	say "  ⚠ --strict exited $rc against $STEP_IMAGE, so reason 4 was not"
+	say "    measured here. A machine that needs no step is a legitimate reading."
+	skipped=1
+fi
 
 # --------------------------------------------------------------------- 3
 say ""
