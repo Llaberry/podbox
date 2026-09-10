@@ -585,3 +585,56 @@ quietly**:
 124, because the failure that refusal exists to prevent is a **hang** rather
 than an error: a clause with no bound would pass by hanging.
 
+
+---
+
+### T-1110 M6's acceptance: a payload the interposer is the only reason works
+
+Source:      `TOOL.md` section 9; T-1106's shape
+Category:    milestones
+Priority:    P0
+Effort:      L
+Status:      open
+
+Problem:     M5 has a ten-row matrix that installs a toolchain and builds a
+             program, and it found five defects a one-image test would not.
+             M6 has an object that clears the ownership wall in a container
+             driven by hand and **no acceptance at all**. ⛔ Clause 1 of
+             `experiments/250-negative-tests.sh` prints `SKIPPED: M6 has no
+             interposer yet` and is the reason that script exits 2.
+Premise:     Measured, and each is a row the acceptance has to cover:
+             `experiments/results/interpose-ownership.txt` -- the object clears
+             the wall under glibc and musl, and refuses the pair the loader
+             refuses. `experiments/results/interposer-abi.txt` -- a musl object
+             in a glibc payload is `invalid ELF header`, a glibc object in a
+             musl payload is `__snprintf_chk: symbol not found`, and a
+             `GLIBC_2.34` import against a 2.31 libc is refused by version.
+             ⚠ Those are the three ways the wrong object is chosen, so the
+             matrix must contain a row for each rather than one happy path.
+             ⚠ A **Go** payload is the one clause `TOOL.md` section 9 names,
+             and it is the hard case on purpose: a static Go binary makes raw
+             syscalls and `LD_PRELOAD` never sees them, so the honest outcome
+             is a NAMED DECLINE rather than a silent no-op. T-0706 owns that
+             refusal and this is what drives it.
+Approach:    A sweep in `experiments/240-distro-sweep.sh`'s shape, over
+             `scripts/common/distro-matrix.sh`'s rows, asking one question per
+             row: does a payload that needs virtualized ownership succeed, and
+             does podbox pick the right object without being told?
+             1. per row: extract, let podbox select and place the object, run a
+                payload that `chown`s and reads back;
+             2. per row: assert the SELECTION, not just the outcome -- a musl
+                row must have been given the musl object, which
+                `podbox system abi` can be asked about directly;
+             3. the three refusals above, each driven deliberately;
+             4. the Go clause, asserting a named decline.
+             ⛔ The docker control is what makes a failure attributable, as it
+             was for M5: this machine intercepts TLS and a row that fails under
+             both is the machine's.
+             ⚠ No quota-bearing registry: ghcr.io, public.ecr.aws and the
+             distributions' own, which `distro-matrix.sh` already holds.
+Decision:    Not taken. ⚠ It cannot start before [T-0702](interpose.md) places
+             the object, because until then there is nothing to select.
+Prove:       `./experiments/245-interpose-sweep.sh`, printing `rows`, `ran`,
+             `virtualized`, `declined` and `host_not_runtime`, and clause 1 of
+             `./experiments/250-negative-tests.sh` no longer printing SKIPPED.
+

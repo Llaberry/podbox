@@ -724,3 +724,124 @@ not be taken. It now falls back to `scripts/zig-cc.sh`, which is the compiler
 musl sources it compiles against. The script exits **0** for the first time and
 the conditions block says which compiler produced the object, because "the musl
 arm ran" means something different depending on it.
+
+---
+
+### T-0710 The ownership memo lives where the payload can edit it, and answers by linear scan
+
+Source:      `crates/podbox-interpose/src/memo.rs`; `experiments/results/interpose-ownership.txt`
+Category:    interpose
+Priority:    P1
+Effort:      L
+Status:      open
+
+Problem:     T-0704's memo makes `chown` answerable on a runtime that refuses
+             it, and the shape it took to get there is a append-only log at
+             `/.podbox/ownership.memo` **inside the payload's own rootfs**,
+             read back by scanning it backwards for the last record naming a
+             `(dev, ino)` pair. Three consequences, and the first is the one
+             that matters:
+             ⛔ **A wrong answer, never an error.** `lookup` stops at a 4 MiB
+             scan ceiling. A rootfs past it answers with the ownership the
+             payload set EARLIER rather than reporting that it cannot say, so a
+             `chown` that succeeded reads back as the original uid and the
+             payload concludes its own call did nothing.
+             ⚠ The payload can `rm` it, truncate it, or fill it. Everything in
+             the rootfs is the payload's, which is the property that makes
+             `podbox exec` see what the first process wrote and also the
+             property that makes the record forgeable.
+             ⚠ It grows without bound: one 32-byte record per `chown`, and a
+             `chown -R` over a distribution tree writes one per inode with no
+             compaction, so the scan gets slower exactly where it is used most.
+Premise:     Measured, `experiments/105-interpose-ownership.sh` checks C, D
+             and E: `MEMO=none` where the real `chown` worked, `MEMO=32` after
+             one virtualized call under each libc. The record is `dev` u64,
+             `ino` u64, `uid` u32, `gid` u32, `set` u32, pad u32, written with
+             one `O_APPEND` write and no lock, which is atomic for a
+             fixed-size record and is why there is no lock to begin with.
+             ⚠ fakeroot's own answer is a daemon holding the table in memory
+             (`references/salsa-debian__fakeroot/tree/libfakeroot.c:875-907`), which podbox cannot copy: there
+             is no process to hold it across `podbox exec`, and a daemon is the
+             notification tier T-0606 is blocked on in a different shape.
+Approach:    Three questions, and the first is the operator's to rule:
+             1. **Where it lives.** Inside the rootfs, visible and forgeable, or
+                beside the container record on the host, where the payload
+                cannot reach it and an interposer must therefore be handed a
+                descriptor to it at spawn. ⚠ The second costs nothing at
+                `chown` time and everything at `exec` time, because a fresh
+                chroot re-entry has to be given the same descriptor.
+             2. **A bounded read.** An index, a fixed-size hash table sized at
+                creation, or a compaction pass that rewrites the log at a
+                threshold. Whatever it is, ⛔ a lookup that cannot answer must
+                say so, and the caller's answer is then the real `stat`'s,
+                marked degraded, never a stale record.
+             3. **What a forged record may do.** It can name any `(dev, ino)`,
+                so a payload can make any file read as owned by anyone. That is
+                inside the payload's own trust boundary and harmless there;
+                it stops being harmless if podbox ever reads the memo to decide
+                something on the host, which nothing does today and which this
+                entry should forbid in writing.
+Decision:    Not taken. ⚠ Question 1 is a trade the operator should rule rather
+             than inherit, and it is question 2 of PROGRESS.md's open list.
+Prove:       `experiments/105-interpose-ownership.sh` gains a check G: write
+             more records than the ceiling admits, then read back a pair
+             recorded before it, and assert the answer is either correct or a
+             refusal, never a stale one. ⛔ The current code fails that check,
+             which is why it is written before the fix rather than after.
+
+---
+
+### T-0711 The identity calls, and podbox's honesty rules point the other way from fakeroot's
+
+Source:      `TOOL.md` section 6.7; `references/salsa-debian__fakeroot/tree/libfakeroot.c:669-678`
+Category:    interpose
+Priority:    P1
+Effort:      L
+Status:      open
+
+Problem:     A payload that is already uid 0 still calls `setuid`, `setgid` and
+             `setgroups`, and on the runtimes podbox targets they fail. A
+             package manager that drops to an unprivileged user to run a
+             maintainer script, `sshd`, and every build system with a "do not
+             run as root" guard all take that path.
+             ⛔ **The fork is unruled and the two answers are incompatible.**
+             fakeroot answers by LYING: it records the requested id and reports
+             it back through `getuid`, so the payload believes it dropped
+             privilege. podbox's own honesty rules
+             ([cli.md](cli.md) T-0804) forbid output implying a property the
+             runtime does not provide, and "you are now uid 1000" on a process
+             that still holds every capability bit is exactly that.
+Premise:     T-0704 already virtualizes ownership and the wall is the same one:
+             `EPERM`, or `EINVAL` where the runtime rejects the argument rather
+             than the permission. ⚠ Unlike `chown`, this one is **not**
+             confined to what a later `stat` reports: a payload that believes
+             it dropped privilege takes different code paths afterwards, so a
+             lie here changes behaviour rather than a reported number.
+             ⚠ The `EINVAL` half of T-0704 is unexercised, and the same arm is
+             load-bearing here, so the two should be measured together.
+Approach:    Measure first, on the matrix `experiments/125-across-distributions.sh`
+             already drives: which of `setuid`, `setgid`, `setgroups`,
+             `seteuid` and `setresuid` a real target refuses, with which errno,
+             and what the common callers do with the failure. ⚠ The answer may
+             be that the honest refusal is FINE, because the callers already
+             handle a failed drop; that is a measurement and not an assumption,
+             and it decides the entry.
+             Then rule, in writing, one of three:
+             1. **Refuse honestly.** The call fails as it does today and the
+                banner names it. Costs: a payload that treats a failed drop as
+                fatal cannot run.
+             2. **Lie, and say so everywhere else.** Record the id, answer
+                `getuid` from the record, and mark the container degraded so
+                `--strict` refuses it. ⛔ This is a behaviour change inside
+                somebody else's process, which is a larger thing than the
+                trust change T-0407 already carries.
+             3. **Neither by default**, with a flag. ⚠ A flag is not a ruling:
+                it is two rulings and a way to pick, and the default is still
+                the decision.
+Decision:    Not taken. It is question 3 of PROGRESS.md's open list.
+Prove:       `./experiments/106-interpose-identity.sh`, which runs a payload
+             that calls `setuid(1000)` and then `getuid()` under the object on
+             both libcs, asserts whichever of the three answers the ruling
+             picks, and asserts the BANNER says the same thing the call did --
+             because the failure this entry exists to prevent is podbox and its
+             own output disagreeing about who the payload is.

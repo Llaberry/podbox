@@ -530,3 +530,51 @@ Prove:       `podbox images --format '{{.Nope}}' >/dev/null 2>&1; test $? -eq 2`
 unterminated brace, the `table` prefix and a pipeline all exit 2 and name what
 is wrong; `{{.Digest}}` exits 0. `inspect` reports a bad template before it
 reports a missing image, because the template is the caller's own input.
+
+---
+
+### T-0808 Drive every row of the parity table through the shipped binary
+
+Source:      T-0801; the door sweep of 2026-09-10
+Category:    cli
+Priority:    P1
+Effort:      L
+Status:      open
+
+Problem:     ⛔ **The table is 141 rows and nothing asserts the binary agrees
+             with all of them.** `experiments/320-cli-contract.sh` drives a
+             handful: the JSON parses, one `None` flag refuses with its own
+             note, one unlisted flag is refused. The other rows are checked by
+             a unit test that walks the table and calls the PARSER, which is
+             the same code that reads the table, so the two cannot disagree
+             even when the binary is wrong.
+Premise:     Found by hand on 2026-09-10 and not by any check: `podbox create
+             --no-steps` was accepted and acted on while `podbox system info`
+             listed `--no-steps` under `run` and `exec` only. ⚠ The unit test
+             could not have caught it, because it asks the table which flags a
+             verb has and then asks the parser about those; a flag the parser
+             accepts and the table does not mention is invisible from that
+             direction. ⛔ **The check has to run the BINARY and start from the
+             flag, not from the row.**
+Approach:    One driver, over the table read out of the binary itself:
+             1. for every row with a flag, invoke the verb with it and assert
+                the outcome its status predicts -- `None` refuses with the
+                row's own note and the flag-error code, `Native` and
+                `Degraded` do not refuse for the flag's own sake, `Stub` is
+                accepted and named in the banner;
+             2. for every verb, invoke it with a flag no row names and assert
+                the refusal names **the verb the caller typed**;
+             3. the direction the unit test cannot go: for every flag the
+                parser has an arm for, assert a row exists. ⚠ This one needs
+                the arms enumerated from the source rather than from the
+                table, which is the only way the two lists can be compared at
+                all.
+             ⚠ Rows that need an image or a container are driven against a
+             store that has neither, so the assertion is about the FLAG's
+             refusal and not the verb's; a row whose flag cannot be reached
+             without state reports the third state rather than passing.
+Decision:    Not taken.
+Prove:       `./experiments/325-parity-drive.sh`, which exits 0 only when every
+             row of `podbox system info --format '{{json .Parity}}'` was driven
+             or reported as unreachable here, and prints the count of each.
+

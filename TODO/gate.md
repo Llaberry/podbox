@@ -423,3 +423,58 @@ misses. An arm nothing exercises is an arm that has stopped working, which is
 time and never written into `scripts/plant.sh`.** Naming it there would be a
 third declaration of the value this check exists to keep in one place, which is
 the trap `CEILING_NUM` and `TAKEN_EXP` were each written to avoid.
+
+---
+
+### T-1207 The one crate that runs inside other people's processes is the one the gate does not check
+
+Source:      `Cargo.toml:13-18`; `scripts/dev.sh:199-202`
+Category:    gate
+Priority:    P1
+Effort:      L
+Status:      open
+
+Problem:     ⛔ **`crates/podbox-interpose` is excluded from the workspace, and
+             every step of `./scripts/dev.sh check` is scoped to the
+             workspace.** `cargo fmt --all`, `cargo clippy --workspace
+             --all-targets -- -D warnings` and `cargo test --workspace` all
+             stop at the exclusion, so the object that is loaded into other
+             people's processes is the one artefact no gate step reads.
+Premise:     The exclusion is right and is not what this entry proposes to
+             change: `Cargo.toml:13-18` gives the reason, which is that a
+             member would share this workspace's dependency unification and
+             feature resolution, and that coupling is what
+             [interpose.md](interpose.md) T-0701 exists to avoid.
+             ⚠ Measured on 2026-09-09 and 2026-09-10: the crate needed four
+             clippy fixes (manual C-string literals, `new_without_default`, two
+             `question_mark` lints) and they were found by running clippy
+             against it BY HAND. Nothing would have caught them on the next
+             change, and nothing would catch the next four.
+             ⛔ [T-0910](deps.md)'s size ceiling has the same shape. It reads
+             the workspace binary; the two `.so` files are 266,632 and 286,056
+             bytes and are held to no ceiling at all, while they are embedded
+             in the binary that IS held to one.
+Approach:    A second scope, not a second gate:
+             1. `dev.sh check` runs the same four steps against
+                `crates/podbox-interpose` with its own target and linker, which
+                `scripts/build-interpose.sh` already knows how to select;
+             2. the object's exported-symbol count is checked against
+                `interpose.map` at the gate rather than only in
+                `experiments/105-interpose-ownership.sh`, because a version
+                script that stops being applied produces a working object that
+                exports hundreds of names into every process it enters;
+             3. its size joins T-0910's committed baseline, per libc, since two
+                objects are embedded in a binary with a declared ceiling and
+                growth in them is invisible in the number that IS checked;
+             4. ⚠ a step that cannot run -- no `zig`, no gnu target installed
+                -- reports the third state and does not read as a failure,
+                which is the rule the rest of the harness already follows.
+Decision:    Not taken on the shape. ⚠ Whether this belongs in `dev.sh check`
+             or in a `dev.sh check --all` matters: check is what a change
+             passes before it is committed and it is currently about 30 s, and
+             a second toolchain invocation on every commit is a cost the
+             operator should rule on rather than inherit.
+Prove:       `./scripts/plant.sh` gains a case that introduces a clippy failure
+             and an unformatted line in `crates/podbox-interpose` and asserts
+             `./scripts/dev.sh check` goes red naming that crate, which it does
+             not today.

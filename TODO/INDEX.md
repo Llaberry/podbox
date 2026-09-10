@@ -129,6 +129,8 @@ the blocker named and what would clear it.
 | [T-0707](interpose.md) | P1 | interpose | open | The paths that must not be rewritten |
 | [T-0708](interpose.md) | P2 | interpose | open | Intercept the operations the runtime cannot provide |
 | [T-0709](interpose.md) | P0 | interpose | done | Select the interposer by `DT_NEEDED`, and refuse on the version predicate |
+| [T-0710](interpose.md) | P1 | interpose | open | The ownership memo lives where the payload can edit it, and answers by linear scan |
+| [T-0711](interpose.md) | P1 | interpose | open | The identity calls, and podbox's honesty rules point the other way from fakeroot's |
 | [T-0801](cli.md) | P0 | cli | done | The verb and flag parity table |
 | [T-0802](cli.md) | P0 | cli | done | docker's exit codes, unaltered |
 | [T-0803](cli.md) | P1 | cli | done | Answer to `docker` and `podman` on PATH |
@@ -136,6 +138,7 @@ the blocker named and what would clear it.
 | [T-0805](cli.md) | P1 | cli | open | Diagnostics that name the operation, the errno, the mechanism and the remedy |
 | [T-0806](cli.md) | P0 | cli | done | Never prompt, never wait unbounded, and check space before every large write |
 | [T-0807](cli.md) | P2 | cli | done | `podbox images --format` refuses a template no verb can answer, before it looks at the store |
+| [T-0808](cli.md) | P1 | cli | open | Drive every row of the parity table through the shipped binary |
 | [T-0901](deps.md) | P1 | deps | done | Sweep: syscalls |
 | [T-0902](deps.md) | P2 | deps | done | Sweep: seccomp BPF |
 | [T-0903](deps.md) | P3 | deps | done | Sweep: Landlock |
@@ -163,16 +166,18 @@ the blocker named and what would clear it.
 | [T-1107](milestones.md) | P1 | milestones | open | M6 the interposer |
 | [T-1108](milestones.md) | P2 | milestones | open | M7 packaging |
 | [T-1109](milestones.md) | P1 | milestones | partial | The negative tests, which are tests |
+| [T-1110](milestones.md) | P0 | milestones | open | M6's acceptance: a payload the interposer is the only reason works |
 | [T-1201](gate.md) | P0 | gate | done | The gate reaches every file this project wrote |
 | [T-1202](gate.md) | P0 | gate | done | Every check is planted against, and a plant that stops reaching its subject says so |
 | [T-1203](gate.md) | P1 | gate | done | A measurement taken on one host is a property of that host |
 | [T-1204](gate.md) | P1 | gate | done | Check 17 holds the newest committed reading under the ceiling, not only the baseline |
 | [T-1205](gate.md) | P1 | gate | done | The gate holds experiment numbers unique, because four Proves already collide |
 | [T-1206](gate.md) | P0 | gate | done | CI installs the toolchain the build config names, and nine commits proved nobody was holding it |
+| [T-1207](gate.md) | P1 | gate | open | The one crate that runs inside other people's processes is the one the gate does not check |
 
 ## Counts
 
-109 items: 17 open, 3 partial, 2 blocked, 87 done.
+114 items: 22 open, 3 partial, 2 blocked, 87 done.
 
 Counted from the rows above by `scripts/todo-count.py` and asserted
 independently by `scripts/check-todo.py`, which is the gate. A number here
@@ -180,11 +185,11 @@ that disagrees with the rows cannot reach a commit.
 
 | Priority | Open | Partial | Blocked | Done | Total |
 | --- | --- | --- | --- | --- | --- |
-| P0 | 3 | 1 | 1 | 44 | 49 |
-| P1 | 5 | 2 | 1 | 32 | 40 |
+| P0 | 4 | 1 | 1 | 44 | 50 |
+| P1 | 9 | 2 | 1 | 32 | 44 |
 | P2 | 6 | 0 | 0 | 10 | 16 |
 | P3 | 3 | 0 | 0 | 1 | 4 |
-| **All** | **17** | **3** | **2** | **87** | **109** |
+| **All** | **22** | **3** | **2** | **87** | **114** |
 
 ## How the current ordering is derived
 

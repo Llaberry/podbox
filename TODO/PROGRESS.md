@@ -188,7 +188,7 @@ machine without a pty, and its clause 7's census is itself a third state.
 
 ## Counts
 
-109 entries: 17 open, 3 partial, 2 blocked, 87 done.
+114 entries: 22 open, 3 partial, 2 blocked, 87 done.
 
 ⭐ **Seven entries closed this session**: [T-0412](complete.md),
 [T-0406](complete.md), [T-1106](milestones.md), [T-0214](image.md),
@@ -196,8 +196,16 @@ machine without a pty, and its clause 7's census is itself a third state.
 [T-0704](interpose.md) is `partial`: the wall is cleared and measured under both
 libcs, and its `EINVAL` half and its identity half are what remain.
 
-⚠ **Nothing was authored and left unimplemented.** [T-0214](image.md) was
-authored and implemented in the same change, which is the rule.
+⭐ **Five entries were authored this session and are open**, each from
+something the work or a review pass found rather than from a wishlist:
+[T-0710](interpose.md) and [T-0711](interpose.md) are the two halves T-0704
+left; [T-0808](cli.md) is the check that would have caught the `create`
+defect the door sweep found by hand; [T-1110](milestones.md) is M6's own
+ten-row acceptance; and [T-1207](gate.md) is the crate the gate does not read.
+
+⚠ **Nothing was authored and left unimplemented that a change needed.**
+[T-0214](image.md) was authored and implemented in the same change, which is
+the rule; the five above are work, not deferred halves of finished work.
 
 Derived by `scripts/todo-count.py` and asserted by `scripts/check-todo.py`.
 [INDEX.md](INDEX.md)'s Counts block carries the per-priority breakdown, and the
@@ -308,6 +316,22 @@ one of the two is a silent corruption on its own.
 - ⛔ `240-distro-sweep.sh` reported the rung the **probe** selects as the rung
   podbox entered. It reads `.EnteredRung` and prints the machine's own answer
   beside it, labelled.
+- ⛔ **One verb was served by another verb's parser and nothing said so.**
+  `create` is parsed by `run::parse`, so `podbox create --no-steps` was
+  accepted and acted on while `podbox system info` listed the flag under `run`
+  and `exec` only, and `podbox create --no-such-flag` answered `podbox run:
+  unknown option` with `usage: podbox run`. `parity::rows_of` is now the one
+  place that says where a verb's rows live, and both the table and the refusal
+  name the borrowing. ⚠ Threading the verb was not cosmetic: without
+  `rows_of`, naming the caller's verb would have made `create` refuse every
+  flag it accepts.
+- ⛔ **`--strict`'s fourth reason had never been seen to refuse.** It counts
+  T-0412's steps, and the clause driving `--strict` used an image with none.
+  Clause 2 of the negative tests now drives an image that has one.
+- ⛔ **An exit code read from the wrong process.** `./script > log 2>&1; echo
+  "rc=$?"` in a background wrapper reports the **echo's** code, so a target
+  image build that exited 2 was read as 0 and two experiments went on
+  reporting `SKIP`. The rule this project already writes down, paid for again.
 
 ## In progress
 
@@ -330,13 +354,28 @@ kickoff prompt.
 2. **[T-0703](interpose.md), the entry-point set**, and the `*at` resolution
    rules. `experiments/100-interpose-symbols.sh` already measured that `execve`
    alone catches 1 of 7 and that the full set catches 7 of 7.
-3. **[T-0704](interpose.md) to `done`**: exercise the `EINVAL` arm, and rule the
-   identity half -- `setuid`, `setgid`, `setgroups` -- which is an unruled fork.
-4. **[T-0805](cli.md)**, the four-part diagnostic: the operation, the errno, the
+3. ⭐ **[T-1110](milestones.md), M6's acceptance**, in M5's shape: a payload the
+   interposer is the only reason works, across the libc matrix, with the three
+   ways the wrong object is chosen driven deliberately and a Go payload getting
+   a NAMED DECLINE. ⚠ It cannot start before T-0702 places the object.
+4. **[T-0704](interpose.md) to `done`**: exercise the `EINVAL` arm. Its two
+   remaining halves are entries now -- [T-0710](interpose.md) the memo's
+   placement and its linear scan, [T-0711](interpose.md) the identity calls --
+   and both carry a ruling the operator owns.
+5. **[T-0805](cli.md)**, the four-part diagnostic: the operation, the errno, the
    mechanism and the remedy, with `TOOL.md` section 8's table as the mapping.
    [T-0102](probe.md)'s discriminator and [T-0105](probe.md)'s maps are its
    inputs, so it quotes measured state rather than guessing.
-5. **M7 packaging**, [T-1108](milestones.md) and [packaging.md](packaging.md).
+6. **[T-0808](cli.md)**, driving all 141 parity rows through the shipped binary.
+   ⚠ It is here because the `create` defect below was found BY HAND: the unit
+   test asks the table which flags a verb has and then asks the parser, so a
+   flag the parser accepts and the table does not name is invisible from that
+   direction.
+7. **[T-1207](gate.md)**, the crate the gate does not read.
+   `crates/podbox-interpose` is excluded from the workspace for a good reason
+   and every `dev.sh check` step is workspace-scoped, so the object loaded into
+   other people's processes is checked by nothing.
+8. **M7 packaging**, [T-1108](milestones.md) and [packaging.md](packaging.md).
 
 ⚠ [T-0606](supervise.md) stays `blocked` and is not in the order: `supervise`
 has no read channel on the target and no way to be made race-safe if it had one.
@@ -356,12 +395,20 @@ has no read channel on the target and no way to be made race-safe if it had one.
    `/.podbox/ownership.memo` today, which is where the payload can see it,
    delete it, and grow it. ⚠ The alternative is a host-side file the payload
    cannot reach, which costs the property that a `podbox exec` into a running
-   container reads back what the first process wrote. [T-0704](interpose.md)
-   carries the trade and it is a ruling rather than a measurement.
+   container reads back what the first process wrote. ⛔ Either way its
+   `lookup` stops at a 4 MiB scan ceiling and then answers with a STALE record
+   rather than saying it cannot answer, which is a wrong number and not an
+   error. [T-0710](interpose.md) carries all three and its `Prove` is written
+   as a check the current code fails.
 3. ⚠ **The identity half of ownership virtualization is an unruled fork.**
    `setuid`/`setgid`/`setgroups` inside a payload that already IS uid 0 either
    succeed as a lie or fail honestly, and fakeroot chose the lie. ⛔ podbox's
-   own honesty rules point the other way, and the two cannot both hold.
+   own honesty rules point the other way, and the two cannot both hold. ⚠
+   Unlike `chown`, a lie here changes what the payload DOES next rather than
+   what it reports, so the two are not the same trade.
+   [T-0711](interpose.md) carries it, and it says to measure the real
+   refusals before ruling, because the answer may be that honest refusal costs
+   nothing.
 4. **Why a static glibc binary takes SIGFPE on `opensuse-leap-15.6`.**
    Measured by `experiments/125-across-distributions.sh` and recorded as a
    reading, not a diagnosis. That row is also the one distribution whose
