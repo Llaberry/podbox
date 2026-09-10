@@ -1,5 +1,5 @@
 == conditions
-date              2026-09-09T18:52:55Z
+date              2026-09-10T00:13:04Z
 host kernel       6.18.44-fc-v24
 host arch         x86_64
 podbox            podbox 0.1.0
@@ -35,9 +35,10 @@ image             ghcr.io/pkgforge-dev/archlinux:latest
   says              podbox run: the store holds ghcr.io/pkgforge-dev/archlinux:latest for linux/amd64, and linux/ppc
 
 == 7. T-1104's own acceptance: inside the reconstruction
-  SKIP: container-research/target:1 is not built.
-        ./experiments/10-build-target-image.sh
-  ⚠ clause 7 did not run, so the chroot rung is unmeasured here
+  stdout            [hi]
+  exit              0
+  rung inside       chroot   (this host selects namespace)
+  says it does NOT provide: does NOT provide: process, network, IPC or mount isolation
 
 == 8. T-0505: exec is a fresh chroot, and every channel says so
   stdout            [marker]
