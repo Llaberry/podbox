@@ -211,14 +211,28 @@ fn run_nsswitch(root: &Root, libc: Libc) -> Result<Vec<Fixup>> {
 
     // 4. glibc and no nsswitch.conf: write a minimal one.
     let Some(text) = present else {
-        if !matches!(root.kind("etc")?, Kind::Dir) {
-            return Ok(vec![Fixup::new(
-                "T-0410",
-                "nsswitch",
-                path,
-                Action::Skipped,
-            )
-            .why("this image has no /etc directory")]);
+        // ⛔ `reach` and not `Kind::Dir`. Found by the door sweep of
+        // 2026-09-09 after `experiments/85-completion-symlink-escape.sh` door D
+        // caught the same shape in the CA fixup: a test on the last component
+        // answers "not a directory" both for an image that has NO `/etc` and for
+        // one whose `/etc` is a symlink podbox cannot follow, and only the first
+        // of those is quiet.
+        match root.reach("etc")? {
+            crate::write::Reach::Yes => {}
+            crate::write::Reach::Absent => {
+                return Ok(vec![Fixup::new(
+                    "T-0410",
+                    "nsswitch",
+                    path,
+                    Action::Skipped,
+                )
+                .why("this image has no /etc directory")])
+            }
+            crate::write::Reach::Unreachable(why) => {
+                return Ok(vec![Fixup::new("T-0410", "nsswitch", path, Action::Failed)
+                    .why(why)
+                    .degraded()])
+            }
         }
         let w = root.write(path, MINIMAL_NSSWITCH.as_bytes(), 0o644)?;
         return Ok(vec![Fixup::new("T-0410", "nsswitch", path, crate::act(w))

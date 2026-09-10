@@ -1,6 +1,11 @@
 # archlinux
 # pinned ghcr.io/pkgforge-dev/archlinux@sha256:b2507f1964270cab3cc190aa8df858521f6a7e45e969146a012877891d5dfc9b
 # podbox run exit 0
+--- the pull
+f9b891f38f9e: Pull complete
+2dacb2369e13: Pull complete
+Digest: sha256:b2507f1964270cab3cc190aa8df858521f6a7e45e969146a012877891d5dfc9b
+Status: Downloaded newer image for ghcr.io/pkgforge-dev/archlinux@sha256:b2507f1964270cab3cc190aa8df858521f6a7e45e969146a012877891d5dfc9b
 --- stdout
 ID=0:0
 DEVNULL=usable
@@ -29,7 +34,7 @@ podbox: complete: created etc/ssl/ca-bundle.pem (ca-bundle, T-0407): APPENDED th
 podbox: complete: rewrote etc/ssl/certs (ca-hash-dir, T-0412): 152 of this machine's 152 announced roots are not in this image's CApath; written as one certificate per file (podbox-host-ca-*.pem), 152
 podbox: complete: step 1 of 1: `/usr/bin/openssl rehash /etc/ssl/certs` (ca-hash-dir, T-0412): /etc/ssl/certs is a hash-indexed CApath and OpenSSL looks a certificate up there by the hash of its subje
 podbox: complete: 10 fixup(s) applied to this image's rootfs, 4 degraded, 0 failed, 1 step(s) to run inside it; libc=glibc. ⛔ These are edits podbox made inside somebody else's image and the payload
-podbox: complete: step 1 of 1: `/usr/bin/openssl rehash /etc/ssl/certs` exited 0 in 0.1 s
+podbox: complete: step 1 of 1: `/usr/bin/openssl rehash /etc/ssl/certs` exited 0 in 0.0 s
 --- the last of stderr
 rehash: warning: skipping duplicate certificate in podbox-host-ca-141.pem
 rehash: warning: skipping duplicate certificate in podbox-host-ca-142.pem

@@ -1,21 +1,21 @@
 == conditions
-date              2026-09-09T08:41:57Z
+date              2026-09-09T18:53:39Z
 host kernel       6.18.44-fc-v24
 podbox            podbox 0.1.0
 jq                jq-1.7
 
 == 1. T-0801's own acceptance: the table is data
   exit              0
-  rows              131
+  rows              141
   of which verbs    53
   statuses          Degraded Native None Stub
   length >= 60 and every status one of the four: rc=0
   rows with no note 0
 
 == 2. the table DECIDES, rather than describing what a parser does
-  run -v        rc=2
+  run -v        rc=125
     podbox run: -v, --volume is in the parity table with status None: podbox cannot mount(2) on this
-  run --no-such-flag rc=2
+  run --no-such-flag rc=125
     podbox run: unknown option "--no-such-flag". It has no row in the parity table; `podbox system i
   run -i (a Stub)   rc=0
 

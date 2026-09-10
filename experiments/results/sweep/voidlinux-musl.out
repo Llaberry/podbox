@@ -1,6 +1,11 @@
 # voidlinux-musl
 # pinned ghcr.io/void-linux/void-musl@sha256:af9308c79fd14ddc7b53e181caee312d182c89186792dc1ef5b8215865b444ac
 # podbox run exit 0
+--- the pull
+42da30f3ec3e: Pull complete
+2568a713ac2d: Pull complete
+Digest: sha256:af9308c79fd14ddc7b53e181caee312d182c89186792dc1ef5b8215865b444ac
+Status: Downloaded newer image for ghcr.io/void-linux/void-musl@sha256:af9308c79fd14ddc7b53e181caee312d182c89186792dc1ef5b8215865b444ac
 --- stdout
 ID=0:0
 DEVNULL=usable

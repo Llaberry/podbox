@@ -1,6 +1,11 @@
 # rocky
 # pinned quay.io/rockylinux/rockylinux@sha256:8101994123cf3d0a8fee517bee7f39e555c7d92bd2d9eb3303cc988a0eeed00f
 # podbox run exit 0
+--- the pull
+sha256:8101994123cf3d0a8fee517bee7f39e555c7d92bd2d9eb3303cc988a0eeed00f: Pulling from rockylinux/rockylinux
+99c753a880cc: Pull complete
+Digest: sha256:8101994123cf3d0a8fee517bee7f39e555c7d92bd2d9eb3303cc988a0eeed00f
+Status: Downloaded newer image for quay.io/rockylinux/rockylinux@sha256:8101994123cf3d0a8fee517bee7f39e555c7d92bd2d9eb3303cc988a0eeed00f
 --- stdout
 ID=0:0
 DEVNULL=usable
@@ -26,13 +31,14 @@ podbox: complete: rewrote etc/hosts (hosts, T-0403): localhost
 podbox: complete: rewrote etc/nsswitch.conf (nsswitch, T-0410): passwd or group did not name files FIRST, so the /etc/passwd T-0404 supplies would have been ignored. podbox prepended files and kept ev
 podbox: complete: rewrote etc/mtab (mtab, T-0405): it was a symlink to ../proc/self/mounts, and /proc is not mounted inside a chroot, so the link does not resolve. ⛔ podbox REPLACED the link rather 
 podbox: complete: rewrote etc/pki/tls/certs/ca-bundle.crt (ca-bundle, T-0407): APPENDED this machine's CA bundle (228527 bytes, announced in $SSL_CERT_FILE as /root/.ccr/ca-bundle.crt). The image's ow
+podbox: complete: created etc/ssl/certs/ca-certificates.crt (ca-bundle, T-0407): APPENDED this machine's CA bundle (228527 bytes, announced in $SSL_CERT_FILE as /root/.ccr/ca-bundle.crt). The image's 
 podbox: complete: created etc/ssl/ca-bundle.pem (ca-bundle, T-0407): APPENDED this machine's CA bundle (228527 bytes, announced in $SSL_CERT_FILE as /root/.ccr/ca-bundle.crt). The image's own roots ar
 podbox: complete: rewrote etc/yum.repos.d/rocky-addons.repo (source-scheme, T-0411): http:// -> https:// for dl.rockylinux.org. ⛔ The scheme only: the mirror this image chose is the mirror podbox us
 podbox: complete: rewrote etc/yum.repos.d/rocky-devel.repo (source-scheme, T-0411): http:// -> https:// for dl.rockylinux.org. ⛔ The scheme only: the mirror this image chose is the mirror podbox use
 podbox: complete: rewrote etc/yum.repos.d/rocky-extras.repo (source-scheme, T-0411): http:// -> https:// for dl.rockylinux.org. ⛔ The scheme only: the mirror this image chose is the mirror podbox us
 podbox: complete: rewrote etc/yum.repos.d/rocky-security.repo (source-scheme, T-0411): http:// -> https:// for dl.rockylinux.org. ⛔ The scheme only: the mirror this image chose is the mirror podbox 
 podbox: complete: rewrote etc/yum.repos.d/rocky.repo (source-scheme, T-0411): http:// -> https:// for dl.rockylinux.org. ⛔ The scheme only: the mirror this image chose is the mirror podbox uses
-podbox: complete: 15 fixup(s) applied to this image's rootfs, 3 degraded, 0 failed, 0 step(s) to run inside it; libc=glibc. ⛔ These are edits podbox made inside somebody else's image and the payload
+podbox: complete: 16 fixup(s) applied to this image's rootfs, 4 degraded, 0 failed, 0 step(s) to run inside it; libc=glibc. ⛔ These are edits podbox made inside somebody else's image and the payload
 --- the last of stderr
 ownership: real; network: host-shared; pids: host-shared)
 probes: clone(NEWNS)=ok mount=ok fsmount=ok move_mount=ok

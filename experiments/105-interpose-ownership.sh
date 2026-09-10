@@ -14,8 +14,10 @@
 #   A. the EXPORTED SET. T-0701 constraint 1: exactly the entry points, and no
 #      `rust_eh_personality`. Asserted against `interpose.map` itself, so the
 #      version script and the `#[no_mangle]` list cannot drift apart.
-#   B. `struct stat` OFFSETS, under both libcs, by `offsetof` rather than by
-#      reading a header. `src/lib.rs` carries these four numbers.
+#   B. `struct stat` AND `struct statx` OFFSETS, under both libcs, by `offsetof`
+#      rather than by reading a header. `src/lib.rs` carries all of them, and a
+#      check that asserted only the first struct would have left unmeasured the
+#      one that actually answers a modern glibc payload.
 #   C. THE CONTROL, and it comes first: on a machine that CAN chown, podbox must
 #      change nothing and write no memo. ⛔ An interposer that reported the
 #      caller's intent where the kernel would have done the real thing is weaker
@@ -119,23 +121,37 @@ echo
 
 echo "== B. struct stat offsets, by offsetof and under both libcs"
 cat >"$OUT/off.c" <<'EOF'
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <sys/stat.h>
 #include <stddef.h>
+/* ⚠ NOT <linux/stat.h>. musl's own <sys/stat.h> defines `struct statx` and the
+ * kernel header then redefines it; glibc since 2.28 defines it there too under
+ * _GNU_SOURCE. ⭐ Two libcs declaring one kernel struct in two different headers
+ * is exactly why podbox's object carries OFFSETS rather than a struct. */
 int main(void){
   printf("sizeof=%zu dev=%zu ino=%zu mode=%zu uid=%zu gid=%zu\n",
     sizeof(struct stat), offsetof(struct stat, st_dev), offsetof(struct stat, st_ino),
     offsetof(struct stat, st_mode), offsetof(struct stat, st_uid),
     offsetof(struct stat, st_gid));
+  /* ⭐ statx too, and it is not a duplicate: coreutils' `stat` on a modern
+   * glibc asks statx(2) and never reaches `stat`. src/lib.rs carries these
+   * six numbers as well, and a check that asserted only the first struct
+   * would have left the ones that actually answer a glibc payload unmeasured. */
+  printf("statx sizeof=%zu mask=%zu uid=%zu gid=%zu ino=%zu devmaj=%zu devmin=%zu\n",
+    sizeof(struct statx), offsetof(struct statx, stx_mask),
+    offsetof(struct statx, stx_uid), offsetof(struct statx, stx_gid),
+    offsetof(struct statx, stx_ino), offsetof(struct statx, stx_dev_major),
+    offsetof(struct statx, stx_dev_minor));
   return 0;
 }
 EOF
 g_off=""
 m_off=""
-if cc -o "$OUT/off_g" "$OUT/off.c" 2>/dev/null; then g_off="$("$OUT/off_g")"; fi
+if cc -o "$OUT/off_g" "$OUT/off.c" 2>/dev/null; then g_off="$("$OUT/off_g" | tr '\n' '|')"; fi
 if command -v zig >/dev/null 2>&1 &&
 	ZIG_TARGET=x86_64-linux-musl "$ROOT/scripts/zig-cc.sh" -o "$OUT/off_m" "$OUT/off.c" 2>/dev/null; then
-	m_off="$("$OUT/off_m")"
+	m_off="$("$OUT/off_m" | tr '\n' '|')"
 fi
 printf '  glibc  %s\n' "${g_off:-COULD NOT BUILD}"
 printf '  musl   %s\n' "${m_off:-COULD NOT BUILD}"
@@ -143,11 +159,11 @@ printf '  musl   %s\n' "${m_off:-COULD NOT BUILD}"
 # rather than believed. ⛔ They agree on x86_64 and that is this architecture's
 # property, not a general one: T-0702's premise is that struct layout is what a
 # preload cannot bridge.
-WANT='sizeof=144 dev=0 ino=8 mode=24 uid=28 gid=32'
+WANT='sizeof=144 dev=0 ino=8 mode=24 uid=28 gid=32|statx sizeof=256 mask=0 uid=20 gid=24 ino=32 devmaj=136 devmin=140|'
 if [ -z "$g_off" ] || [ -z "$m_off" ]; then
 	cannot "one of the two offsetof programs did not build"
 elif [ "$g_off" = "$WANT" ] && [ "$m_off" = "$WANT" ]; then
-	pass "B: both libcs agree, and with the offsets src/lib.rs carries"
+	pass "B: both libcs agree on BOTH structs, and with the offsets src/lib.rs carries"
 else
 	fail "B: the offsets differ from the ones src/lib.rs carries [$WANT]"
 fi

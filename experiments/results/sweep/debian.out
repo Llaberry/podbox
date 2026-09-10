@@ -1,6 +1,11 @@
 # debian
 # pinned public.ecr.aws/debian/debian@sha256:833d7afe7d42e2fc552740ebdb947218770eb6f0a533927ed2a04b4d453e4f0a
 # podbox run exit 0
+--- the pull
+sha256:833d7afe7d42e2fc552740ebdb947218770eb6f0a533927ed2a04b4d453e4f0a: Pulling from debian/debian
+a8ac7f6c67ab: Pull complete
+Digest: sha256:833d7afe7d42e2fc552740ebdb947218770eb6f0a533927ed2a04b4d453e4f0a
+Status: Downloaded newer image for public.ecr.aws/debian/debian@sha256:833d7afe7d42e2fc552740ebdb947218770eb6f0a533927ed2a04b4d453e4f0a
 --- stdout
 ID=0:0
 DEVNULL=usable

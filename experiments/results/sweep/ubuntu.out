@@ -1,6 +1,11 @@
 # ubuntu
 # pinned public.ecr.aws/ubuntu/ubuntu@sha256:41938337738ac39ec015eecf7ac5ed9add869fffeb394f2b90819ba6793d889b
 # podbox run exit 0
+--- the pull
+sha256:41938337738ac39ec015eecf7ac5ed9add869fffeb394f2b90819ba6793d889b: Pulling from ubuntu/ubuntu
+e51aee9c82ec: Pull complete
+Digest: sha256:41938337738ac39ec015eecf7ac5ed9add869fffeb394f2b90819ba6793d889b
+Status: Downloaded newer image for public.ecr.aws/ubuntu/ubuntu@sha256:41938337738ac39ec015eecf7ac5ed9add869fffeb394f2b90819ba6793d889b
 --- stdout
 ID=0:0
 DEVNULL=usable

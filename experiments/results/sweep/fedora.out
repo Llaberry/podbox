@@ -1,6 +1,11 @@
 # fedora
 # pinned quay.io/fedora/fedora@sha256:e78cd1a688cd079c23864f289a89a49a3f4ad66d817864e325e1d058310ee95c
 # podbox run exit 0
+--- the pull
+sha256:e78cd1a688cd079c23864f289a89a49a3f4ad66d817864e325e1d058310ee95c: Pulling from fedora/fedora
+419b79a05f4b: Pull complete
+Digest: sha256:e78cd1a688cd079c23864f289a89a49a3f4ad66d817864e325e1d058310ee95c
+Status: Downloaded newer image for quay.io/fedora/fedora@sha256:e78cd1a688cd079c23864f289a89a49a3f4ad66d817864e325e1d058310ee95c
 --- stdout
 ID=0:0
 DEVNULL=usable
@@ -10,7 +15,7 @@ NSSWITCH=files
 GETENT_ROOT=root
 PM=dnf
 INSTALL_RC=0
-INSTALL_TAIL=[15/16] Installing make-1:4.4.1-10.fc42 100% | 75.0 MiB/s | 1.8 MiB | 00m00s [16/16] Installing gcc-0:15.2.1-7.fc42. 100% | 63.1 MiB/s | 111.4 MiB | 00m02s Complete! 
+INSTALL_TAIL=[15/16] Installing make-1:4.4.1-10.fc42 100% | 69.2 MiB/s | 1.8 MiB | 00m00s [16/16] Installing gcc-0:15.2.1-7.fc42. 100% | 99.4 MiB/s | 111.4 MiB | 00m01s Complete! 
 CC=/usr/bin/cc
 CC_VERSION=cc (GCC) 15.2.1 20260123 (Red Hat 15.2.1-7)
 BUILD_RC=0

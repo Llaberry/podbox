@@ -1,6 +1,11 @@
 # almalinux
 # pinned quay.io/almalinuxorg/almalinux@sha256:3da647417303590fea18439c87421a886d4245fef358cf131d0e0ce7b23f4236
 # podbox run exit 0
+--- the pull
+sha256:3da647417303590fea18439c87421a886d4245fef358cf131d0e0ce7b23f4236: Pulling from almalinuxorg/almalinux
+318e7b249bff: Pull complete
+Digest: sha256:3da647417303590fea18439c87421a886d4245fef358cf131d0e0ce7b23f4236
+Status: Downloaded newer image for quay.io/almalinuxorg/almalinux@sha256:3da647417303590fea18439c87421a886d4245fef358cf131d0e0ce7b23f4236
 --- stdout
 ID=0:0
 DEVNULL=usable
@@ -26,8 +31,9 @@ podbox: complete: rewrote etc/hosts (hosts, T-0403): localhost
 podbox: complete: rewrote etc/nsswitch.conf (nsswitch, T-0410): passwd or group did not name files FIRST, so the /etc/passwd T-0404 supplies would have been ignored. podbox prepended files and kept ev
 podbox: complete: rewrote etc/mtab (mtab, T-0405): it was a symlink to ../proc/self/mounts, and /proc is not mounted inside a chroot, so the link does not resolve. ⛔ podbox REPLACED the link rather 
 podbox: complete: rewrote etc/pki/tls/certs/ca-bundle.crt (ca-bundle, T-0407): APPENDED this machine's CA bundle (228527 bytes, announced in $SSL_CERT_FILE as /root/.ccr/ca-bundle.crt). The image's ow
+podbox: complete: created etc/ssl/certs/ca-certificates.crt (ca-bundle, T-0407): APPENDED this machine's CA bundle (228527 bytes, announced in $SSL_CERT_FILE as /root/.ccr/ca-bundle.crt). The image's 
 podbox: complete: created etc/ssl/ca-bundle.pem (ca-bundle, T-0407): APPENDED this machine's CA bundle (228527 bytes, announced in $SSL_CERT_FILE as /root/.ccr/ca-bundle.crt). The image's own roots ar
-podbox: complete: 10 fixup(s) applied to this image's rootfs, 3 degraded, 0 failed, 0 step(s) to run inside it; libc=glibc. ⛔ These are edits podbox made inside somebody else's image and the payload
+podbox: complete: 11 fixup(s) applied to this image's rootfs, 4 degraded, 0 failed, 0 step(s) to run inside it; libc=glibc. ⛔ These are edits podbox made inside somebody else's image and the payload
 --- the last of stderr
 ownership: real; network: host-shared; pids: host-shared)
 probes: clone(NEWNS)=ok mount=ok fsmount=ok move_mount=ok

@@ -73,6 +73,55 @@ pub enum Wrote {
     Unchanged,
 }
 
+/// What podbox found where it wanted a directory.
+///
+/// ⛔ **Three answers and the third is the one a `Kind::Dir` test lost.**
+/// Measured on 2026-09-09: `/etc/ssl/certs` is a SYMLINK on openSUSE, to a real
+/// directory inside the rootfs that podbox must write into, and it is a symlink
+/// pointing OUT of the rootfs in door D of
+/// `experiments/85-completion-symlink-escape.sh`, which podbox must not follow
+/// and must not stay quiet about. A test on the last component alone answers
+/// "not a directory" to both.
+pub enum Reach {
+    /// podbox can reach a directory there, staying inside the rootfs.
+    Yes,
+    /// There is nothing at this path at all. ⚠ Quiet on purpose: inventing
+    /// `/etc/pki/...` in an image with no such tree is podbox guessing.
+    Absent,
+    /// Something is there and podbox could not reach a directory through it.
+    Unreachable(String),
+}
+
+impl Root {
+    /// Which of the three [`Reach`] answers describes `rel`.
+    pub fn reach(&self, dir: &str) -> Result<Reach> {
+        let kind = self.kind(dir)?;
+        if kind.is_missing() {
+            return Ok(Reach::Absent);
+        }
+        match self.dir_following(dir)? {
+            Some(true) => Ok(Reach::Yes),
+            Some(false) => Ok(Reach::Unreachable(match kind {
+                Kind::Symlink(t) => format!(
+                    "{dir} is a symlink to {t}, which does not resolve to a directory \
+                     inside this rootfs. ⛔ podbox will not write through it, and a \
+                     payload reading this path gets nothing"
+                ),
+                other => format!(
+                    "{dir} is {other:?} and not a directory podbox can reach, so the \
+                     bundle a payload would read here is not there"
+                ),
+            })),
+            // ⚠ The third state: no `openat2`, so podbox could not ask. Reported as
+            // unreachable with that as the reason rather than assumed either way.
+            None => Ok(Reach::Unreachable(format!(
+                "this kernel has no openat2(2), so podbox cannot prove that writing \
+                 into {dir} stays inside the rootfs"
+            ))),
+        }
+    }
+}
+
 /// A descriptor on the rootfs, plus the two operations the completion layer
 /// needs.
 pub struct Root {
@@ -410,6 +459,47 @@ impl Root {
         }
     }
 
+    /// Can podbox reach a DIRECTORY at `rel`, following the last component and
+    /// staying inside the rootfs?
+    ///
+    /// ⭐ **A different question from `kind(rel) == Kind::Dir`, and the
+    /// difference is two real images.** [`Root::kind`] does not follow the last
+    /// component, so it answers `Symlink` for openSUSE's own
+    /// `/etc/ssl/certs -> /var/lib/ca-certificates/pem` -- a directory podbox
+    /// must write into -- and also for a link pointing OUT of the rootfs, which
+    /// it must not. Measured on 2026-09-09 by
+    /// `experiments/85-completion-symlink-escape.sh` door D and by the openSUSE
+    /// row of `experiments/240-distro-sweep.sh`: a `Kind::Dir` test skipped both,
+    /// silently, and one of them was the path the image's TLS stack reads.
+    ///
+    /// ⛔ `RESOLVE_IN_ROOT`, so a link out of the rootfs is REBASED rather than
+    /// followed: `Some(false)` means "podbox cannot reach a directory there",
+    /// which is what the caller has to report.
+    ///
+    /// ⚠ `None` where this kernel has no `openat2`, which is the third state
+    /// again: podbox could not ask, and a caller must not read that as no.
+    pub fn dir_following(&self, rel: &str) -> Result<Option<bool>> {
+        if !podbox_extract::safety::have_openat2() {
+            return Ok(None);
+        }
+        Self::parts(rel)?;
+        let Some(c) = CBuf::new(rel) else {
+            return Ok(Some(false));
+        };
+        let how = sys::OpenHow {
+            flags: sys::O_RDONLY | sys::O_DIRECTORY | sys::O_CLOEXEC,
+            mode: 0,
+            resolve: sys::RESOLVE_IN_ROOT,
+        };
+        match sys::openat2(self.dir.fd(), &c, &how) {
+            Ok(fd) => {
+                let _ = sys::close(fd);
+                Ok(Some(true))
+            }
+            Err(_) => Ok(Some(false)),
+        }
+    }
+
     /// Read `rel`, following the last component. See [`Root::open_following`].
     pub fn read_following(&self, rel: &str) -> Result<Option<Vec<u8>>> {
         const CEILING: usize = 8 * 1024 * 1024;
@@ -577,6 +667,46 @@ mod tests {
         assert!(!outside.join("passwd").exists());
         let _ = std::fs::remove_dir_all(&outside);
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// ⭐ The three answers, and the door sweep of 2026-09-09 is what asked for
+    /// them. A `Kind::Dir` test answers "not a directory" to all three of these
+    /// and only ONE of them is quiet.
+    #[test]
+    fn reach_tells_absent_from_a_link_inside_from_a_link_out() {
+        let d = scratch("reach");
+        let root = Root::open(&d).unwrap();
+        // 1. nothing there at all.
+        assert!(matches!(root.reach("etc/pki").unwrap(), Reach::Absent));
+        // 2. openSUSE's own shape: a symlink to a real directory INSIDE.
+        std::fs::create_dir_all(format!("{d}/var/lib/certs")).unwrap();
+        std::os::unix::fs::symlink("/var/lib/certs", format!("{d}/etc/certs")).unwrap();
+        assert!(
+            matches!(root.reach("etc/certs").unwrap(), Reach::Yes),
+            "an internal directory link must be followed, or the fixup lands \
+             where the payload does not read it"
+        );
+        // 3. ⛔ door D: a symlink OUT of the rootfs. Rebased by RESOLVE_IN_ROOT
+        // it points at nothing, and podbox must SAY so rather than skip.
+        let out = std::env::temp_dir().join(format!("podbox-reach-out-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&out);
+        std::os::unix::fs::symlink(&out, format!("{d}/etc/away")).unwrap();
+        match root.reach("etc/away").unwrap() {
+            Reach::Unreachable(why) => {
+                assert!(why.contains("etc/away"), "{why}");
+                assert!(why.contains("symlink"), "{why}");
+            }
+            _ => panic!("a link out of the rootfs was not reported"),
+        }
+        // ⚠ And a plain file where a directory is wanted is the third shape of
+        // the same answer.
+        std::fs::write(format!("{d}/etc/afile"), b"x").unwrap();
+        assert!(matches!(
+            root.reach("etc/afile").unwrap(),
+            Reach::Unreachable(_)
+        ));
+        let _ = std::fs::remove_dir_all(&out);
+        let _ = std::fs::remove_dir_all(&d);
     }
 
     #[test]

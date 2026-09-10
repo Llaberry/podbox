@@ -1,5 +1,5 @@
 == conditions
-date              2026-09-09T18:33:56Z
+date              2026-09-09T18:46:25Z
 host kernel       6.18.44-fc-v24
 host libc         ldd (Ubuntu GLIBC 2.39-0ubuntu8.7) 2.39
 zig               0.16.0
@@ -18,9 +18,9 @@ ok   A: the musl object exports exactly what interpose.map declares
   rust_eh_personality in the musl object: 0
 
 == B. struct stat offsets, by offsetof and under both libcs
-  glibc  sizeof=144 dev=0 ino=8 mode=24 uid=28 gid=32
-  musl   sizeof=144 dev=0 ino=8 mode=24 uid=28 gid=32
-ok   B: both libcs agree, and with the offsets src/lib.rs carries
+  glibc  sizeof=144 dev=0 ino=8 mode=24 uid=28 gid=32|statx sizeof=256 mask=0 uid=20 gid=24 ino=32 devmaj=136 devmin=140|
+  musl   sizeof=144 dev=0 ino=8 mode=24 uid=28 gid=32|statx sizeof=256 mask=0 uid=20 gid=24 ino=32 devmaj=136 devmin=140|
+ok   B: both libcs agree on BOTH structs, and with the offsets src/lib.rs carries
 
 == C. the control: a machine that CAN chown, with the object loaded
   CHOWN_RC=0

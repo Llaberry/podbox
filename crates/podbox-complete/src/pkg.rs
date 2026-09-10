@@ -14,7 +14,7 @@
 //! Splitting them is deliberate: the protocol fixup is one rule applied to
 //! every distribution, and these are three distributions' own walls.
 
-use crate::write::{Kind, Root};
+use crate::write::{Kind, Reach, Root};
 use crate::{Action, Fixup, Options, Report, Result, Step};
 
 pub(crate) fn apply(root: &Root, opts: &Options, r: &mut Report) {
@@ -295,8 +295,22 @@ fn ca_bundle(root: &Root, entry: &'static str, opts: &Options) -> Result<Vec<Fix
             let Some((dir, _)) = dest.rsplit_once('/') else {
                 continue;
             };
-            if !matches!(root.kind(dir)?, Kind::Dir) {
-                continue;
+            match root.reach(dir)? {
+                Reach::Yes => {}
+                Reach::Absent => continue,
+                // ⛔ `Failed` and not `Skipped`. podbox TRIED and could not,
+                // which is a different sentence, and only one of the two reaches
+                // the banner: `Report::banner` prints a row that changed
+                // something or failed, so a `Skipped` row here would be the
+                // silent skip this arm exists to end.
+                Reach::Unreachable(why) => {
+                    out.push(
+                        Fixup::new(entry, "ca-bundle", dest, Action::Failed)
+                            .why(why)
+                            .degraded(),
+                    );
+                    continue;
+                }
             }
             let Some(w) = root.write_following(dest, &h.bytes, 0o644)? else {
                 out.push(
@@ -384,6 +398,7 @@ fn ca_bundle(root: &Root, entry: &'static str, opts: &Options) -> Result<Vec<Fix
     // ⚠ Only where the DIRECTORY is already there: inventing `/etc/pki/...` in an
     // image with no such tree is podbox guessing at a layout.
     let mut targets = present.clone();
+    let mut out = Vec::new();
     for cand in BUNDLE_PATHS {
         if targets.iter().any(|p| p == cand) {
             continue;
@@ -391,12 +406,21 @@ fn ca_bundle(root: &Root, entry: &'static str, opts: &Options) -> Result<Vec<Fix
         let Some((dir, _)) = cand.rsplit_once('/') else {
             continue;
         };
-        if matches!(root.kind(dir)?, Kind::Dir) {
-            targets.push((*cand).to_string());
+        match root.reach(dir)? {
+            Reach::Yes => targets.push((*cand).to_string()),
+            Reach::Absent => {}
+            // ⛔ REPORTED rather than skipped. `experiments/85-completion-symlink-escape.sh`
+            // door D is a `/etc/ssl/certs` pointing OUT of the rootfs: nothing
+            // escapes, and a payload reading that path still gets nothing, so a
+            // silent skip is a fixup that quietly did not happen.
+            Reach::Unreachable(why) => out.push(
+                Fixup::new(entry, "ca-bundle", cand, Action::Failed)
+                    .why(why)
+                    .degraded(),
+            ),
         }
     }
 
-    let mut out = Vec::new();
     for p in targets {
         let existing = root
             .read_following(&p)?
@@ -582,7 +606,10 @@ fn ca_hash_dir(root: &Root, opts: &Options) -> Result<(Vec<Fixup>, Vec<Step>)> {
     let mut dirs: Vec<(String, Vec<String>)> = Vec::new();
     let mut keys: Vec<String> = Vec::new();
     for d in CAPATH_DIRS {
-        if !matches!(root.kind(d)?, Kind::Dir | Kind::Symlink(_)) {
+        // ⚠ The same three answers as the CAfile half, and for the same reason:
+        // a CApath that is a symlink is openSUSE's own shape and podbox follows
+        // it; one pointing out of the rootfs is door D and podbox does not.
+        if !matches!(root.reach(d)?, Reach::Yes) {
             continue;
         }
         let names = root.list(d)?;

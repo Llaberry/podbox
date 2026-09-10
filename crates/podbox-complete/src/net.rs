@@ -156,14 +156,29 @@ fn run_mtab(root: &Root) -> Result<Vec<Fixup>> {
     // ⚠ `etc` itself may not exist: a distroless or scratch image has no
     // `/etc`, and creating one just to put a mount table in it is podbox adding
     // a directory nothing asked for.
-    if !matches!(root.kind("etc")?, Kind::Dir) {
-        return Ok(vec![Fixup::new(
-            "T-0405",
-            "mtab",
-            "etc/mtab",
-            Action::Skipped,
-        )
-        .why("this image has no /etc directory")]);
+    // ⛔ `reach` and not `Kind::Dir`; see `identity::nsswitch` for the door
+    // sweep that found this and `write::Reach` for the three answers.
+    match root.reach("etc")? {
+        crate::write::Reach::Yes => {}
+        crate::write::Reach::Absent => {
+            return Ok(vec![Fixup::new(
+                "T-0405",
+                "mtab",
+                "etc/mtab",
+                Action::Skipped,
+            )
+            .why("this image has no /etc directory")])
+        }
+        crate::write::Reach::Unreachable(why) => {
+            return Ok(vec![Fixup::new(
+                "T-0405",
+                "mtab",
+                "etc/mtab",
+                Action::Failed,
+            )
+            .why(why)
+            .degraded()])
+        }
     }
     let reason = match &k {
         Kind::Regular { .. } => {

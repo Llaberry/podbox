@@ -1,6 +1,11 @@
 # alpine
 # pinned public.ecr.aws/docker/library/alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
 # podbox run exit 0
+--- the pull
+25f1d6b1951a: Pull complete
+Digest: sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+Status: Downloaded newer image for public.ecr.aws/docker/library/alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+podbox: probed this machine rather than using the cache: /tmp/tmp.WA7ilUQFJJ/store/probe.json does not exist yet
 --- stdout
 ID=0:0
 DEVNULL=usable
