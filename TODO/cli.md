@@ -57,7 +57,7 @@ against the shipped binary.
 
 | | |
 | --- | --- |
-| rows | **131** |
+| rows | **141**. ⚠ 131 when this closed; the table grows with the flags, and this row is the CURRENT count so the two cannot drift apart |
 | of which verbs | **53** |
 | statuses used | Native, Degraded, Stub, None, and no fifth |
 | rows with no reason | **0** |
@@ -93,6 +93,35 @@ instead of a flag being ignored, so deleting one makes podbox quieter and less
 honest rather than smaller. A test asserts every one of them carries a reason
 longer than a milestone number, which caught eleven rows whose whole note was
 "the lifecycle is M4".
+
+**Amended, 2026-09-10, by the door sweep after T-0412.** ⛔ **One verb was
+served by another verb's parser and nothing said so, in either direction.**
+`create` is parsed by `run::parse`, which called `admit("run", …)` with the verb
+written in rather than passed. Two consequences, and each is the class this
+entry exists to make impossible:
+
+- ⛔ `podbox create --no-steps` was **accepted and acted on** while
+  `podbox system info` listed `--no-steps` under `run` and `exec` only. The
+  table under-described the binary, which is "the flag exists and is unlisted"
+  arriving through the door the entry did not enumerate.
+- ⛔ `podbox create --no-such-flag` answered **`podbox run: unknown option`**
+  and printed `usage: podbox run`, naming a verb the caller had not typed, and
+  then sent them to "every flag this verb takes" -- a row set that does not
+  exist.
+
+`parity::rows_of` is the one place that says where a verb's rows live, so the
+28 rows stay a single copy; `run::usage(verb)` builds the first line from the
+verb the caller typed; and the `create` row and the refusal message both name
+the borrowing out loud. ⚠ Threading the verb was not cosmetic: `admit` looks the
+flag up, so naming the caller's verb without `rows_of` would have made `create`
+refuse every flag it accepts. Six functions in `run.rs` took the verb --
+`parse`, `prepare`, `acquire`, `extract_now` and `config_of` among them --
+because each wrote `podbox run:` into a message `create` and `exec` can reach.
+
+Prove: `a_verb_served_by_another_parser_resolves_that_verbs_rows_and_says_so`
+asserts both halves, and driven: `podbox create --no-such-flag` now names
+`create`, `podbox create --no-steps` is still accepted, and the table is 141
+rows as before, because the fix added none.
 
 ---
 

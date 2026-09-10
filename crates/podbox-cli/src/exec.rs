@@ -337,7 +337,7 @@ pub fn exec(args: &[String]) -> i32 {
     let rootfs = rootfs.to_string_lossy().to_string();
 
     // --------------------------------------------------------------- the plan
-    let cfg = match crate::run::config_of(&store, &record) {
+    let cfg = match crate::run::config_of("exec", &store, &record) {
         Ok(c) => c,
         Err(code) => return code,
     };

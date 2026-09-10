@@ -97,7 +97,7 @@ pub const TABLE: &[Row] = &[
     Row { verb: "extract", flag: Option::None, status: Native, note: "podbox's own verb, with no docker equivalent: unpack the layers and write the ownership sidecar" },
     // ⭐ M4, and each says the difference from docker's rather than implying
     // there is none. TODO/supervise.md T-0601 to T-0607.
-    Row { verb: "create", flag: Option::None, status: Native, note: "writes a created record and starts nothing, as docker's does" },
+    Row { verb: "create", flag: Option::None, status: Native, note: "writes a created record and starts nothing, as docker's does. ⚠ It is served by run's PARSER, so it takes run's flag set: those rows are listed once, under `run`, rather than copied here where the two could diverge (T-0801)" },
     Row { verb: "start", flag: Option::None, status: Native, note: "returns when the payload has reached its execve, established by a pipe rather than by a sleep (T-0602)" },
     Row { verb: "stop", flag: Option::None, status: Degraded, note: "SIGTERM then SIGKILL to the PAYLOAD. podbox has no PID namespace, so a grandchild that reparented is outside its reach and is not signalled" },
     Row { verb: "restart", flag: Option::None, status: NoneStatus, note: "not implemented: `stop` then `start` is the same thing and says which half failed" },
@@ -250,11 +250,27 @@ pub fn verb(name: &str) -> Option<&'static Row> {
 /// ⛔ This is what makes the table binding rather than descriptive. A parser
 /// asks here first, so a flag with no row cannot be quietly accepted and a row
 /// with no parser arm cannot be quietly ignored.
+/// Which verb's rows a verb's flags are listed under.
+///
+/// ⭐ `create` is served by `run`'s PARSER, so it takes `run`'s flag set. The
+/// table holds ONE copy of those rows rather than two that can diverge, and this
+/// is the single place that says where a verb's rows live. ⛔ Without it,
+/// naming the caller's verb in the diagnostics would also have made `flag`
+/// refuse every flag `create` accepts, which is the shape of hole
+/// `docs/conventions/code.md` calls a second, quieter surface. T-0801.
+pub fn rows_of(verb: &str) -> &str {
+    match verb {
+        "create" => "run",
+        v => v,
+    }
+}
+
 pub fn flag(verb: &str, name: &str) -> Option<&'static Row> {
     // ⚠ `--flag=value` is one argument to the shell and two things here. The
     // row is for the flag, so the value is cut off before the lookup.
     let name = name.split('=').next().unwrap_or(name);
-    TABLE.iter().find(|r| r.verb == verb && r.names(name))
+    let rows = rows_of(verb);
+    TABLE.iter().find(|r| r.verb == rows && r.names(name))
 }
 
 /// Decide whether a verb's parser may go on to handle `arg`, and say why not.
@@ -270,9 +286,19 @@ pub fn flag(verb: &str, name: &str) -> Option<&'static Row> {
 pub fn admit(verb: &str, arg: &str, usage: &str) -> Result<(), i32> {
     match flag(verb, arg) {
         Option::None => {
+            // ⚠ Point at the verb whose ROWS were consulted, which is not always
+            // the one the caller typed: `podbox create` is served by `run`'s
+            // parser. Saying "this verb" would send a caller to a row set that
+            // does not exist.
+            let under = rows_of(verb);
+            let where_ = if under == verb {
+                "lists every flag this verb takes".to_string()
+            } else {
+                format!("lists every flag it takes under `{under}`, whose parser serves it")
+            };
             eprintln!(
                 "podbox {verb}: unknown option {arg:?}. It has no row in the parity \
-                 table; `podbox system info` lists every flag this verb takes"
+                 table; `podbox system info` {where_}"
             );
             eprint!("{usage}");
             Err(podbox_image::error::EXIT_FLAG_ERROR)
@@ -434,6 +460,36 @@ mod tests {
                 r.verb
             );
         }
+    }
+
+    /// ⛔ `podbox create --no-steps` was ACCEPTED and acted on while
+    /// `podbox system info` listed `--no-steps` for `run` and `exec` only, so
+    /// the table under-described the binary and the refusal message sent a
+    /// caller to a row set that does not exist. Both halves are asserted here:
+    /// a verb that borrows another's rows resolves them, and it says whose.
+    #[test]
+    fn a_verb_served_by_another_parser_resolves_that_verbs_rows_and_says_so() {
+        assert_eq!(rows_of("create"), "run");
+        assert_eq!(rows_of("run"), "run", "a verb with its own rows keeps them");
+        assert_eq!(rows_of("exec"), "exec");
+
+        // The flag `create` was silently taking, now found through the table.
+        assert!(
+            flag("create", "--no-steps").is_some(),
+            "create is served by run's parser, so run's rows must resolve for it"
+        );
+        assert!(
+            flag("create", "--no-such-flag").is_none(),
+            "borrowing rows must not admit a flag that has no row anywhere"
+        );
+
+        // ⚠ The row a reader is sent to has to name the borrowing, or the
+        // caller looks for `create --no-steps` in the table and finds nothing.
+        let note = verb("create").expect("create has a verb row").note;
+        assert!(
+            note.contains("run's flag set"),
+            "the create row must say whose rows it takes, got {note:?}"
+        );
     }
 
     #[test]
